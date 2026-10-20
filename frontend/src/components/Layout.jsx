@@ -36,7 +36,7 @@ const navItems = [
   { to: "/videos",    icon: <VideoLibraryIcon />,     label: "Biblioteca" },
   { to: "/stock",     icon: <PhotoLibraryIcon />,     label: "Smart Video" },
   { to: "/motion",    icon: <MovieFilterIcon />,      label: "Motion Graphics" },
-  { to: "/tools",     icon: <BuildIcon />,            label: "Tools" },
+  { to: "/tools",     icon: <BuildIcon />,            label: "Ferramentas" },
   // Messaging lives in Settings → Messaging (/messaging redirects there).
   { to: "/mcp",       icon: <HubIcon />,              label: "MCP" },
   ...pluginNavItems.filter(i => (i.position || "top") === "top"),

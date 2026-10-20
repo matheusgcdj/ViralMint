@@ -47,16 +47,17 @@ _DEFAULTS = {
                 "google/gemini-3.1-flash-lite",
             ],
         },
-        # Any OpenAI-compatible server — the model is whatever that server
-        # serves, so Settings shows a free-text field instead of a list.
+        # Any OpenAI-compatible server — models are fetched dynamically
+        # via GET /api/config/compatible_models.
         "openai_compatible": {
             "default_model": "",
             "models": [],
         },
     },
     "tts_providers": {
-        "edge_tts":   {"label": "Edge TTS — Free",          "cost_1k": 0.0,   "requires_key": False},
-        "openai_tts": {"label": "OpenAI TTS — Standard",    "cost_1k": 0.015, "requires_key": True},
+        "edge_tts":   {"label": "Edge TTS — Free",               "cost_1k": 0.0,   "requires_key": False},
+        "openai_tts": {"label": "OpenAI TTS — Standard",         "cost_1k": 0.015, "requires_key": True},
+        "google_tts": {"label": "Google Cloud TTS — Premium",    "cost_1k": 0.004, "requires_key": True},
     },
     # Mirrors caption_service.CAPTION_STYLES (minus `brainrot`, which is a
     # pipeline look rather than a picker option) plus the "none" sentinel.
@@ -91,15 +92,119 @@ async def get_voices(provider: str):
     Declared before `/config/{key}` for readability; the two path shapes do not
     collide.
     """
-    from backend.services.tts_service import TTSProvider, list_voices
+    from backend.services.tts_service import TTSProvider, list_voices, tts_api_key
 
     try:
         tts_provider = TTSProvider(provider)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Unknown TTS provider: {provider}")
 
-    voices = await list_voices(tts_provider)
+    api_key = tts_api_key(provider)
+    voices = await list_voices(tts_provider, api_key=api_key)
     return {"provider": provider, "voices": voices}
+
+
+@router.get("/config/compatible_models")
+async def get_compatible_models(base_url: str = "", api_key: str = ""):
+    """Fetch available models from an OpenAI-compatible server.
+
+    The frontend calls this when the user selects "OpenAI-compatible" and
+    enters a base URL, so they get a dropdown of real models instead of
+    typing a model name blind. Falls back to an empty list on any error.
+
+    Also used for the saved provider: when ``base_url`` is empty, reads
+    the configured CUSTOM_AI_BASE_URL and CUSTOM_AI_API_KEY from .env or
+    UserSettings.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    from backend.config import settings
+
+    url = base_url.strip()
+    key = api_key.strip()
+
+    # Fall back to .env / saved settings when no explicit URL is given
+    if not url:
+        url = (settings.CUSTOM_AI_BASE_URL or "").strip()
+        if not key:
+            key = (settings.CUSTOM_AI_API_KEY or "").strip()
+
+    # Also try user settings if still no URL
+    if not url:
+        try:
+            from backend.database import AsyncSessionLocal
+            from sqlalchemy import select
+            from backend.models.user_settings import UserSettings
+            from backend.core.crypto import decrypt_safe
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(UserSettings).where(UserSettings.user_id == "local")
+                )
+                us = result.scalar_one_or_none()
+                if us and us.ai_provider == "openai_compatible" and us.ai_base_url:
+                    url = us.ai_base_url.strip()
+                    if not key and us.ai_api_key_encrypted:
+                        key = decrypt_safe(us.ai_api_key_encrypted) or ""
+        except Exception:
+            pass
+
+    if not url:
+        return {"models": [], "error": "No base URL configured"}
+
+    try:
+        models = await _fetch_compatible_models(url, key)
+        return {"models": models}
+    except Exception as e:
+        logger.debug("Failed to fetch compatible models from %s: %s", url, e)
+        return {"models": [], "error": str(e)[:200]}
+
+
+async def _fetch_compatible_models(base_url: str, api_key: str = "") -> list[dict]:
+    """Query GET /v1/models (or /models) on an OpenAI-compatible server."""
+    import aiohttp
+
+    base = base_url.rstrip("/")
+    # Try /v1/models first, then /models (some servers don't use /v1 prefix)
+    urls_to_try = []
+    if base.endswith("/v1"):
+        urls_to_try.append(f"{base}/models")
+    else:
+        urls_to_try.append(f"{base}/v1/models")
+        urls_to_try.append(f"{base}/models")
+
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    timeout = aiohttp.ClientTimeout(total=10)
+
+    for url in urls_to_try:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, timeout=timeout) as resp:
+                    if resp.status != 200:
+                        continue
+                    data = await resp.json()
+                    raw = data.get("data", data.get("models", []))
+                    if isinstance(raw, list) and len(raw) > 0:
+                        models = []
+                        for m in raw:
+                            model_id = m.get("id", "") if isinstance(m, dict) else str(m)
+                            if not model_id:
+                                continue
+                            owned_by = m.get("owned_by", "") if isinstance(m, dict) else ""
+                            models.append({
+                                "id": model_id,
+                                "owned_by": owned_by,
+                            })
+                        # Sort alphabetically for a clean picker
+                        models.sort(key=lambda x: x["id"])
+                        return models
+        except Exception:
+            continue
+
+    return []
 
 
 @router.get("/config/{key}")

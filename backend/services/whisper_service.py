@@ -1,6 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2025-2026 ViralMint Contributors
-"""Singleton faster-whisper transcription service."""
+"""Singleton faster-whisper transcription service.
+
+Supports two backends:
+  * **Local** (faster-whisper) — runs Whisper on-device, no API key needed.
+  * **Groq**  — cloud Whisper on Groq LPU hardware, ultra-fast, needs a key.
+
+The backend is selected per call: ``transcribe(backend="groq")`` sends to
+Groq when a ``GROQ_API_KEY`` is configured; otherwise it falls back to local.
+"""
 import asyncio
 import logging
 import os
@@ -11,6 +19,9 @@ from pathlib import Path
 from backend.core.executors import transcribe_pool
 
 logger = logging.getLogger(__name__)
+
+# ── Whisper backends ──────────────────────────────────────────────────────────
+WHISPER_BACKENDS = ("local", "groq")
 
 WHISPER_QUALITY_MAP = {
     "fast":     "base",
@@ -343,10 +354,20 @@ class WhisperService:
         on_progress=None,
         on_download=None,
         user_id: str = "local",
+        backend: str = "local",
     ) -> dict:
         """
         Transcribe audio file. Returns:
         { "text": "...", "language": "en", "segments": [...] }
+
+        `backend` selects the transcription engine:
+          * ``"local"`` — faster-whisper on-device (default, no API key needed).
+          * ``"groq"``  — Groq's hosted Whisper API (ultra-fast, needs
+            ``GROQ_API_KEY`` in .env or Settings).
+
+        When ``backend="groq"`` is requested but no API key is configured or
+        the file is too large (>25 MB), the method falls back to local
+        automatically.
 
         `quality` is explicit on purpose. It used to be implicit — transcribe()
         called load() with no argument, which meant two things went wrong at
@@ -380,6 +401,40 @@ class WhisperService:
         if not await has_audio_stream(Path(audio_path)):
             raise ValueError(f"No audio stream found in {audio_path}")
 
+        # ── Groq cloud backend ────────────────────────────────────────────
+        if backend == "groq":
+            from backend.config import settings as app_settings
+            groq_key = getattr(app_settings, "GROQ_API_KEY", "") or ""
+            if groq_key:
+                try:
+                    from backend.services.groq_whisper_service import (
+                        groq_transcribe, GROQ_WHISPER_MODELS,
+                    )
+                    groq_model = GROQ_WHISPER_MODELS.get(
+                        "accurate" if quality in ("accurate", "best") else "fast"
+                    )
+                    return await groq_transcribe(
+                        audio_path=audio_path,
+                        api_key=groq_key,
+                        language=language,
+                        model=groq_model,
+                        word_timestamps=not timing_only or True,
+                    )
+                except Exception as e:
+                    # Fall back to local on Groq failure (file too large,
+                    # rate limited, network issues) rather than failing the
+                    # whole job.
+                    logger.warning(
+                        "Groq Whisper failed for %s, falling back to local: %s",
+                        Path(audio_path).name, e,
+                    )
+            else:
+                logger.debug(
+                    "Groq backend requested but GROQ_API_KEY not set — "
+                    "falling back to local Whisper"
+                )
+
+        # ── Local faster-whisper backend ──────────────────────────────────
         # NOT `self.load(quality)`: that is a synchronous call which, on a cold
         # cache, downloads 150 MB - 3 GB inline and froze the whole event loop
         # with it. ensure_model() does it in a thread and announces the wait.

@@ -44,10 +44,10 @@ function writeAdvanced(v) {
 }
 
 const TAB_DEFS = [
-  { key: "setup",    label: "Setup",    icon: <SettingsRemoteIcon sx={{ fontSize: 18 }} /> },
-  { key: "tools",    label: "Tools",    icon: <ListAltIcon sx={{ fontSize: 18 }} /> },
+  { key: "setup",    label: "Configuração",    icon: <SettingsRemoteIcon sx={{ fontSize: 18 }} /> },
+  { key: "tools",    label: "Ferramentas",    icon: <ListAltIcon sx={{ fontSize: 18 }} /> },
   { key: "prompts",  label: "Prompts",  icon: <AutoAwesomeIcon sx={{ fontSize: 18 }} /> },
-  { key: "activity", label: "Activity", icon: <HistoryIcon sx={{ fontSize: 18 }} /> },
+  { key: "activity", label: "Atividades", icon: <HistoryIcon sx={{ fontSize: 18 }} /> },
 ]
 
 export default function Mcp() {
@@ -69,7 +69,7 @@ export default function Mcp() {
         icon={<HubIcon sx={{ fontSize: 22 }} />}
         title="MCP"
         chip="Model Context Protocol"
-        subtitle="Drive ViralMint from Claude Code, OpenAI Codex, Cursor or any MCP client."
+        subtitle="Controle o ViralMint pelo Claude Code, OpenAI Codex, Cursor ou qualquer cliente MCP."
       />
 
       {/* ── Tab bar + Advanced toggle ── */}
@@ -117,7 +117,7 @@ export default function Mcp() {
           ))}
         </Tabs>
         <Tooltip
-          title="Show developer-only details — raw tool names and schemas. Off by default; flip on if you're wiring Claude Code or debugging."
+          title="Exibe nomes técnicos e esquemas das ferramentas MCP. Desativado por padrão."
           placement="bottom-end"
           arrow
         >

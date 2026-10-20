@@ -519,22 +519,22 @@ export default function Library() {
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <PageHero
         icon={<PhotoLibraryRoundedIcon sx={{ fontSize: 22 }} />}
-        title="Library"
+        title="Biblioteca"
         subtitle={
           loading && !libraryTotal
-            ? "Reading your library…"
+            ? "Carregando biblioteca…"
             // Library-wide count only. The per-origin numbers live on the From
             // chips, where they are filter-scoped on purpose — printing them
             // here next to a library-wide total made the header contradict
             // itself as soon as you picked a media tab.
-            : `${libraryTotal} items`
+            : `${libraryTotal} itens`
         }
         accentColor={accent}
         actions={
           <Stack direction="row" spacing={1} alignItems="center">
             <TextField
               // The long form was cut to "Search libr" in the 140 px phone box.
-              placeholder={narrow ? "Search…" : "Search library…"}
+              placeholder={narrow ? "Buscar…" : "Buscar na biblioteca…"}
               size="small"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -555,7 +555,7 @@ export default function Library() {
               onClick={() => importRef.current?.click()}
               sx={focusRing()}
               disabled={importing} startIcon={<FileUploadRoundedIcon />}>
-              {importing ? "Importing…" : "Import"}
+              {importing ? "Importando…" : "Importar"}
             </Button>
             <Button size="small" variant="outlined" onClick={openActivity}
               sx={focusRing()}
@@ -615,10 +615,9 @@ export default function Library() {
           }}>
             <LightbulbRoundedIcon sx={{ fontSize: 16, color: accent, flexShrink: 0 }} />
             <Typography sx={{ flex: 1, fontSize: "0.78rem", color: "text.secondary", lineHeight: 1.5 }}>
-              Tabs say what a file <strong>is</strong>; the From chips say where it <strong>came from</strong>.
-              {" "}<strong>By source</strong> groups each download with everything you made from it.
+              As abas indicam o <strong>tipo</strong> do arquivo; os seletores de Origem indicam <strong>de onde ele veio</strong>. A opção <strong>Por fonte</strong> agrupa os downloads com suas respectivas edições.
             </Typography>
-            <IconButton size="small" onClick={() => setWhyDismissed(true)} aria-label="Dismiss tip">
+            <IconButton size="small" onClick={() => setWhyDismissed(true)} aria-label="Fechar dica">
               <CloseRoundedIcon sx={{ fontSize: 15 }} />
             </IconButton>
           </Stack>
@@ -655,7 +654,7 @@ export default function Library() {
               <strong>
                 {recentFailures.length} {recentFailures.length === 1 ? "run" : "runs"} didn't finish
               </strong>{" "}
-              in the last day — nothing was added to your library.
+              no último dia — nenhum arquivo novo foi gerado.
             </Typography>
             <Button size="small" variant="outlined" color="error"
               sx={focusRing("error.main")}
@@ -691,7 +690,7 @@ export default function Library() {
           <Stack alignItems="center" spacing={1.5} sx={{ py: 10 }}>
             <InventoryRoundedIcon sx={{ fontSize: 40, color: "text.disabled" }} />
             <Typography sx={{ fontSize: "0.95rem", fontWeight: 600 }}>
-              {filtersActive ? "Nothing matches those filters" : "Your library is empty"}
+              {filtersActive ? "Nenhum resultado para esses filtros" : "Sua biblioteca está vazia"}
             </Typography>
             <Typography sx={{
               fontSize: "0.82rem", color: "text.secondary", textAlign: "center", maxWidth: 380,
@@ -700,11 +699,11 @@ export default function Library() {
                 ? (media !== "all" && origins.length === 1
                   ? `You have no ${MEDIA[media]?.plural} that were ${ORIGIN_PHRASE[origins[0]]}.`
                   : "Widen the media tab or the From chips to see more.")
-                : "Renders, downloads and anything you edit collect here."}
+                : "Vídeos gerados, downloads e tudo o que você editar aparecerão aqui."}
             </Typography>
             {filtersActive
-              ? <Button size="small" variant="outlined" onClick={clearFilters}>Clear filters</Button>
-              : <Button size="small" variant="contained" onClick={() => navigate("/stock")}>Make a video</Button>}
+              ? <Button size="small" variant="outlined" onClick={clearFilters}>Limpar filtros</Button>
+              : <Button size="small" variant="contained" onClick={() => navigate("/stock")}>Criar um vídeo</Button>}
           </Stack>
         ) : (
           <>

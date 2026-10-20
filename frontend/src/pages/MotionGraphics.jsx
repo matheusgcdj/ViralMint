@@ -106,7 +106,7 @@ export default function MotionGraphics() {
     <PageHero
       icon={<MovieFilterIcon sx={{ fontSize: 22 }} />}
       title="Motion Graphics"
-      subtitle="Design animated compositions — kinetic type, stat cards, lower thirds — and render them locally"
+      subtitle="Crie composições animadas — tipografia cinética, cards estatísticos, lower thirds — e renderize localmente"
       dense
       actions={
         installed ? (
@@ -148,7 +148,7 @@ export default function MotionGraphics() {
         <Stack alignItems="center" justifyContent="center" spacing={1.5}
           sx={{ height: "100%", color: "text.secondary" }}>
           <CircularProgress />
-          <Typography variant="body2">Starting the studio…</Typography>
+          <Typography variant="body2">Iniciando o estúdio…</Typography>
         </Stack>
       )}
       {startError && !starting && (

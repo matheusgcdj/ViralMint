@@ -95,8 +95,8 @@ export default function MessagingSection() {
     <Box id="messaging" ref={anchorRef} sx={{ scrollMarginTop: 16 }}>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         {connectedCount === 0
-          ? "Connect a messaging app to chat with ViralMint from your phone and get a message when a scout, download or video finishes."
-          : `${connectedCount} of ${CHANNELS.length} connected. Job notifications go to every connected app, and you can chat with ViralMint from any of them.`}
+          ? "Conecte um mensageiro para conversar com o ViralMint pelo celular e receber notificações quando um scout, download ou renderização terminar."
+          : `${connectedCount} de ${CHANNELS.length} conectados. Notificações de tarefas são enviadas aos mensageiros conectados, e você pode conversar com o ViralMint através de qualquer um deles.`}
       </Typography>
 
       <Grid
@@ -157,7 +157,7 @@ export default function MessagingSection() {
                       component="span" variant="caption"
                       sx={{ color: "text.secondary", fontWeight: 600, flexShrink: 0 }}
                     >
-                      {s.tone === "connected" ? "Manage" : s.tone === "pending" ? "Finish" : "Set up"}
+                      {s.tone === "connected" ? "Gerenciar" : s.tone === "pending" ? "Concluir" : "Configurar"}
                     </Typography>
                     <ChevronRightIcon sx={{ color: "text.secondary", fontSize: 20, flexShrink: 0, ml: "-4px !important" }} />
                   </Stack>

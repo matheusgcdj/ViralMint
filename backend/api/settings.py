@@ -30,6 +30,10 @@ class SettingsResponse(BaseModel):
 
     # Service API keys (BYOK) — booleans only, never the plaintext key
     youtube_api_key_set: bool = False
+    pexels_api_key_set: bool = False
+    pixabay_api_key_set: bool = False
+    groq_api_key_set: bool = False
+    google_tts_api_key_set: bool = False
 
     # OAuth / cookie status
     douyin_cookie_set: bool = False
@@ -91,15 +95,61 @@ async def get_settings():
         )
         s = result.scalar_one_or_none()
 
+    # Determine effective provider and key status
+    effective_provider = (s.ai_provider if s else None) or "openai"
+    effective_model = s.ai_model if s else None
+    effective_base_url = s.ai_base_url if s else None
+    ai_key_set = bool(s.ai_api_key_encrypted) if s else False
+
+    # Fall back to .env if DB has no explicit key or server URL
+    if not ai_key_set and not (effective_provider == "openai_compatible" and effective_base_url):
+        if app_settings.CUSTOM_AI_BASE_URL:
+            effective_provider = "openai_compatible"
+            effective_model = effective_model or app_settings.CUSTOM_AI_MODEL
+            effective_base_url = app_settings.CUSTOM_AI_BASE_URL
+            ai_key_set = bool(app_settings.CUSTOM_AI_API_KEY)
+        elif app_settings.ANTHROPIC_API_KEY:
+            effective_provider = "anthropic"
+            ai_key_set = True
+        elif app_settings.OPENROUTER_API_KEY:
+            effective_provider = "openrouter"
+            ai_key_set = True
+        elif app_settings.OPENAI_API_KEY:
+            effective_provider = "openai"
+            ai_key_set = True
+
+    youtube_set = bool(s.youtube_api_key_encrypted) if s else False
+    if not youtube_set and app_settings.YOUTUBE_API_KEY:
+        youtube_set = True
+
+    pexels_set = bool(app_settings.PEXELS_API_KEY)
+    pixabay_set = bool(app_settings.PIXABAY_API_KEY)
+    groq_set = bool(app_settings.GROQ_API_KEY)
+    google_tts_set = bool(app_settings.GOOGLE_TTS_API_KEY or app_settings.GOOGLE_TTS_API_KEYS)
+
     if not s:
-        return SettingsResponse()
+        return SettingsResponse(
+            ai_provider=effective_provider,
+            ai_model=effective_model,
+            ai_base_url=effective_base_url,
+            ai_api_key_set=ai_key_set,
+            youtube_api_key_set=youtube_set,
+            pexels_api_key_set=pexels_set,
+            pixabay_api_key_set=pixabay_set,
+            groq_api_key_set=groq_set,
+            google_tts_api_key_set=google_tts_set,
+        )
 
     return SettingsResponse(
-        ai_provider=s.ai_provider or "openai",
-        ai_model=s.ai_model,
-        ai_base_url=s.ai_base_url,
-        ai_api_key_set=bool(s.ai_api_key_encrypted),
-        youtube_api_key_set=bool(s.youtube_api_key_encrypted),
+        ai_provider=effective_provider,
+        ai_model=effective_model,
+        ai_base_url=effective_base_url,
+        ai_api_key_set=ai_key_set,
+        youtube_api_key_set=youtube_set,
+        pexels_api_key_set=pexels_set,
+        pixabay_api_key_set=pixabay_set,
+        groq_api_key_set=groq_set,
+        google_tts_api_key_set=google_tts_set,
         douyin_cookie_set=bool(s.douyin_cookie_encrypted),
         tiktok_cookie_set=bool(s.tiktok_cookie_encrypted),
         youtube_channel_title=s.youtube_channel_title,
@@ -366,7 +416,10 @@ async def get_health():
     has_ai_key = bool(
         app_settings.ANTHROPIC_API_KEY
         or app_settings.OPENAI_API_KEY
+        or app_settings.OPENROUTER_API_KEY
+        or app_settings.CUSTOM_AI_BASE_URL
         or (s and s.ai_api_key_encrypted)
+        or (s and s.ai_provider == "openai_compatible" and s.ai_base_url)
     )
     health["ai_provider"] = {"status": "configured" if has_ai_key else "not_configured"}
 
@@ -387,6 +440,15 @@ async def get_health():
     # its worker thread (Python cannot kill a thread).
     from backend.core.executors import all_pool_stats
     health["thread_pools"] = all_pool_stats()
+
+    # Google TTS key pool status (how many keys are healthy vs exhausted)
+    try:
+        from backend.services.google_tts_service import get_key_pool_status
+        pool = get_key_pool_status()
+        if pool["total_keys"] > 0:
+            health["google_tts_pool"] = pool
+    except Exception:
+        pass
 
     return health
 

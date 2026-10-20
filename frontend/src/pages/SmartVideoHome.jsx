@@ -163,8 +163,8 @@ export default function SmartVideoHome() {
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <PageHero
         icon={<LibraryAddIcon sx={{ fontSize: 22 }} />}
-        title="Smart Video Studio"
-        subtitle="Plan every scene, watch every clip, hear every line — then render"
+        title="Estúdio Smart Video"
+        subtitle="Planeje cada cena, assista a cada clipe, ouça cada fala — depois renderize"
         accentColor="#388e3c"
         actions={
           <Stack direction="row" spacing={1} alignItems="center">
@@ -174,7 +174,7 @@ export default function SmartVideoHome() {
               <Tooltip title={`${latest.scenes} scenes · ${formatClock(latest.duration_seconds)}`} describeChild>
                 <Chip
                   data-testid="continue-latest" color="primary" variant="outlined" icon={<PlayArrowRoundedIcon />}
-                  label={`Continue “${latest.title.length > 28 ? `${latest.title.slice(0, 27)}…` : latest.title}” · ${formatRelativeTime(latest.updated_at)}`}
+                  label={`Continuar “${latest.title.length > 28 ? `${latest.title.slice(0, 27)}…` : latest.title}” · ${formatRelativeTime(latest.updated_at)}`}
                   onClick={() => navigate(`/stock/p/${latest.id}`)}
                   sx={{ display: { xs: "none", md: "inline-flex" }, fontWeight: 600, maxWidth: 380 }}
                 />
@@ -208,29 +208,29 @@ export default function SmartVideoHome() {
       >
         <Stack direction="row" alignItems="center" sx={{ px: 2.5, pt: 2, pb: 1 }}>
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>Your projects</Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>Saved automatically. Open one to keep editing.</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>Seus projetos</Typography>
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>Salvos automaticamente. Abra um projeto para continuar editando.</Typography>
           </Box>
           <IconButton aria-label="Close projects" onClick={() => setDrawerOpen(false)}><CloseIcon /></IconButton>
         </Stack>
         {(projects?.length || 0) > 4 && (
           <Box sx={{ px: 2.5, pb: 1 }}>
-            <TextField size="small" fullWidth placeholder="Search projects" value={filter} onChange={(e) => setFilter(e.target.value)} />
+            <TextField size="small" fullWidth placeholder="Buscar projetos..." value={filter} onChange={(e) => setFilter(e.target.value)} />
           </Box>
         )}
         <Box sx={{ flex: 1, overflowY: "auto", px: 2.5, pb: 2.5, pt: 1 }}>
           {listError && !projects?.length && (
             <Box sx={{ border: "1.5px dashed", borderColor: "error.main", borderRadius: 2, p: 3, textAlign: "center" }}>
-              <Typography variant="body2" sx={{ fontWeight: 700 }}>Couldn't load your projects</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>Não foi possível carregar seus projetos</Typography>
               <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>{listError}</Typography>
-              <Button size="small" variant="outlined" onClick={refresh}>Try again</Button>
+              <Button size="small" variant="outlined" onClick={refresh}>Tentar novamente</Button>
             </Box>
           )}
           {!listError && projects && projects.length === 0 && (
             <Box sx={{ border: "1.5px dashed", borderColor: "divider", borderRadius: 2, p: 4, textAlign: "center" }}>
-              <Typography variant="body2" sx={{ fontWeight: 700 }}>No projects yet</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>Nenhum projeto criado ainda</Typography>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                Write a script and build a storyboard. It shows up here and saves as you work.
+                Escreva um roteiro e gere seu storyboard. Seus projetos salvos aparecerão aqui.
               </Typography>
             </Box>
           )}
@@ -256,7 +256,7 @@ export default function SmartVideoHome() {
       />
 
       <Dialog open={!!deleting} onClose={() => !deleteBusy && setDeleting(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Delete this project?</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800 }}>Excluir este projeto?</DialogTitle>
         <DialogContent>
           <Typography variant="body2">
             “{deleting?.title}” and its scenes, voice takes and uploaded clips will be deleted. This can't be undone.
@@ -268,7 +268,7 @@ export default function SmartVideoHome() {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleting(null)} disabled={deleteBusy} sx={{ textTransform: "none" }}>Cancel</Button>
+          <Button onClick={() => setDeleting(null)} disabled={deleteBusy} sx={{ textTransform: "none" }}>Cancelar</Button>
           <Button
             variant="contained" color="error" onClick={confirmDelete} disabled={deleteBusy}
             startIcon={deleteBusy ? <CircularProgress size={14} color="inherit" /> : <DeleteOutlineIcon />}
@@ -305,7 +305,7 @@ function PlayDialog({ project, onClose, onEdit }) {
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onEdit} sx={{ textTransform: "none", fontWeight: 700 }}>Open in editor</Button>
+        <Button onClick={onEdit} sx={{ textTransform: "none", fontWeight: 700 }}>Abrir no editor</Button>
       </DialogActions>
     </Dialog>
   )

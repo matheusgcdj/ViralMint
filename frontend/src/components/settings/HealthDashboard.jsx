@@ -25,6 +25,19 @@ const STATUS_COLOR = {
   unknown_age: "warning", stuck: "error",
 }
 
+const STATUS_LABEL_PT = {
+  running: "Executando",
+  ok: "OK",
+  valid: "Válido",
+  expiring_soon: "Expirando em breve",
+  expired: "Expirado",
+  not_configured: "Não configurado",
+  not_running: "Parado",
+  not_found: "Não encontrado",
+  unknown_age: "Idade desconhecida",
+  stuck: "Travado",
+}
+
 export default function HealthDashboard() {
   const [health, setHealth] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -47,11 +60,11 @@ export default function HealthDashboard() {
     <Box sx={{ py: 2 }}>
       <LinearProgress sx={{ borderRadius: 1 }} />
       <Typography variant="body2" sx={{ color: "text.secondary", mt: 1, textAlign: "center", fontSize: "0.82rem" }}>
-        Checking system health...
+        Verificando integridade do sistema...
       </Typography>
     </Box>
   )
-  if (!health) return <Typography sx={{ color: "error.main", fontSize: "0.85rem" }}>Failed to load health status</Typography>
+  if (!health) return <Typography sx={{ color: "error.main", fontSize: "0.85rem" }}>Falha ao carregar integridade do sistema</Typography>
 
   // Download / transcription worker pools. A non-zero "abandoned" means a
   // stalled download or transcription was given up on while its thread kept
@@ -62,14 +75,14 @@ export default function HealthDashboard() {
 
   const items = [
     ...(pools ? [{
-      label: "Background workers", key: "workers",
-      description: "Downloads and transcription",
+      label: "Processos em segundo plano", key: "workers",
+      description: "Downloads e transcrição",
       extra: stuck ? `${stuck} stuck — restart ViralMint to free ${stuck === 1 ? "it" : "them"}` : null,
     }] : []),
-    { label: "ImageMagick", key: "imagemagick", description: "Required for caption rendering" },
-    { label: "yt-dlp", key: "ytdlp", description: "Video downloader", extra: health.ytdlp?.version ? `v${health.ytdlp.version}` : null },
-    { label: "Douyin Cookie", key: "douyin_cookie", description: "Douyin scouting access", extra: health.douyin_cookie?.age_days != null ? `${health.douyin_cookie.age_days}d old` : null },
-    { label: "TikTok Cookie", key: "tiktok_cookie", description: "TikTok scouting access", extra: health.tiktok_cookie?.age_days != null ? `${health.tiktok_cookie.age_days}d old` : null },
+    { label: "ImageMagick", key: "imagemagick", description: "Necessário para renderização de legendas" },
+    { label: "yt-dlp", key: "ytdlp", description: "Downloader de vídeos", extra: health.ytdlp?.version ? `v${health.ytdlp.version}` : null },
+    { label: "Douyin Cookie", key: "douyin_cookie", description: "Acesso ao scout do Douyin", extra: health.douyin_cookie?.age_days != null ? `${health.douyin_cookie.age_days}d old` : null },
+    { label: "TikTok Cookie", key: "tiktok_cookie", description: "Acesso ao scout do TikTok", extra: health.tiktok_cookie?.age_days != null ? `${health.tiktok_cookie.age_days}d old` : null },
   ]
 
   return (
@@ -77,7 +90,7 @@ export default function HealthDashboard() {
       {/* Header row */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Stack direction="row" spacing={1}>
-          <Tooltip title="Open storage folder">
+          <Tooltip title="Abrir pasta de armazenamento">
             <IconButton size="small" onClick={() => openFolder("storage")} sx={{ color: "text.secondary" }}>
               <FolderOpenIcon sx={{ fontSize: 20 }} />
             </IconButton>
@@ -127,7 +140,7 @@ export default function HealthDashboard() {
                   </Typography>
                 )}
                 <Chip
-                  label={status.replace(/_/g, " ")}
+                  label={STATUS_LABEL_PT[status] || status.replace(/_/g, " ")}
                   size="small"
                   color={chipColor}
                   variant={chipColor ? "outlined" : "outlined"}
@@ -149,10 +162,10 @@ export default function HealthDashboard() {
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
               <Box>
                 <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.85rem", lineHeight: 1.3 }}>
-                  YouTube API Quota
+                  Cota da API do YouTube
                 </Typography>
                 <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.72rem" }}>
-                  Daily search and upload quota
+                  Cota diária de busca e envio
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "0.82rem", color: "text.secondary" }}>

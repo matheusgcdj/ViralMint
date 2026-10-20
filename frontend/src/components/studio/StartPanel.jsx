@@ -36,11 +36,11 @@ function useWidth() {
   return [ref, w]
 }
 
-const TOPIC_EXAMPLES = ["5 money habits", "Morning routine for focus", "Why cats purr", "Rice hack"]
+const TOPIC_EXAMPLES = ["5 hábitos de riqueza", "Rotina matinal para foco", "Curiosidades sobre o universo", "Dica de produtividade"]
 
 const SOURCES = [
-  { value: "script", label: "Write a script", icon: <EditNoteIcon fontSize="small" /> },
-  { value: "topic", label: "Start from a topic", icon: <LightbulbOutlinedIcon fontSize="small" /> },
+  { value: "script", label: "Escrever roteiro", icon: <EditNoteIcon fontSize="small" /> },
+  { value: "topic", label: "Iniciar por tema", icon: <LightbulbOutlinedIcon fontSize="small" /> },
 ]
 
 // Studio Home's script desk. The script is the thing you work on here:
@@ -157,9 +157,9 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
         alignItems={{ xs: "flex-start", sm: "center" }} justifyContent="space-between" sx={{ mb: 1.5 }}
       >
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>New video</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>Novo vídeo</Typography>
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            Write what the video says. Each sentence or two becomes a scene you can watch and change.
+            Escreva o roteiro do vídeo. Cada uma ou duas frases se tornam uma cena com visual próprio.
           </Typography>
         </Box>
         <ToggleButtonGroup
@@ -214,16 +214,16 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
                   fullWidth autoFocus size="small" value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && topicReady && !working) writeFromTopic() }}
-                  label="What's the video about?"
-                  placeholder="e.g. 5 money habits that actually work"
-                  helperText="Written by your AI provider, in your topic's language"
+                  label="Sobre o que é o vídeo?"
+                  placeholder="ex: 5 hábitos que mudam sua produtividade"
+                  helperText="Gerado pelo seu modelo de IA no idioma do seu tema"
                 />
                 <Button
                   variant="outlined" onClick={writeFromTopic} disabled={!topicReady || working}
                   startIcon={drafting ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon />}
                   sx={{ textTransform: "none", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0, height: 40 }}
                 >
-                  {hasScript ? "Rewrite script" : "Write script"}
+                  {hasScript ? "Reescrever roteiro" : "Gerar roteiro"}
                 </Button>
               </Stack>
               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 1.25 }}>
@@ -255,8 +255,8 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
               onChange={(e) => { setScript(e.target.value); setCanRestore(false) }}
               onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); go() } }}
               placeholder={source === "topic"
-                ? "Your script appears here once it's written. Edit it as much as you like before you build."
-                : "Paste or write your narration.\n\nStart with a line that makes someone stop scrolling. Keep sentences short, since each one or two becomes a scene."}
+                ? "Seu roteiro gerado por IA aparecerá aqui. Você pode editar livremente antes de gerar o vídeo."
+                : "Cole ou digite sua narração aqui.\n\nComece com uma frase de alto impacto para reter o público. Frases curtas geram cenas mais dinâmicas."}
               spellCheck
               sx={(t) => ({
                 display: "block", width: "100%", height: { xs: 360, md: "100%" },
@@ -280,7 +280,7 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   {stats.units
                     ? `${stats.units} ${stats.unitLabel}, about ${formatClock(totalSeconds)} spoken`
-                    : "Nothing written yet"}
+                    : "Nada escrito ainda"}
                   {canRestore && (
                     <Button
                       size="small" variant="text"
@@ -307,7 +307,7 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
                   startIcon={working ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon />}
                   sx={{ textTransform: "none", fontWeight: 700 }}
                 >
-                  {!hasScript && topicReady ? "Write my script" : "Make a first draft"}
+                  {!hasScript && topicReady ? "Gerar roteiro" : "Criar primeiro rascunho"}
                 </Button>
               </span>
             </Tooltip>
@@ -324,10 +324,10 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
           bgcolor: alpha(t.palette.text.primary, t.palette.mode === "dark" ? 0.03 : 0.015),
         })}>
           <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ px: 2, pt: 2, pb: 1 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Scenes</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Cenas</Typography>
             {kept.length > 0 && (
               <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                {kept.length} of up to {SCENE_MAX}
+                {kept.length} de até {SCENE_MAX}
               </Typography>
             )}
           </Stack>
@@ -336,7 +336,7 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
             {kept.length === 0 ? (
               <Box sx={{ px: 1, py: 1, height: "100%", display: "flex", flexDirection: "column", gap: 1.5 }}>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  Scenes appear here as you write, so you can see how the video will be cut before you build it.
+                  As cenas aparecem aqui conforme você escreve para visualizar os cortes antes de renderizar.
                 </Typography>
                 {/* Until there are scenes, the rail shows the LOOK instead of
                     nothing — one canvas, so picking a style below has a visible
@@ -365,7 +365,7 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
 
           <Box sx={{ px: 2, py: 1.75, borderTop: 1, borderColor: "divider" }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.25 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Look</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Estilo Visual</Typography>
               <ToggleButtonGroup
                 size="small" exclusive value={aspect} onChange={(_, v) => v && setAspect(v)}
                 aria-label="Aspect ratio"

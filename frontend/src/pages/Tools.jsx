@@ -44,21 +44,21 @@ const TOOLS = [
   // Video — visual / structural edits
   {
     id: "video-download",
-    title: "Video Download",
+    title: "Baixar Vídeo",
     description: "Cole o link e baixe o vídeo diretamente — escolha a qualidade e mantenha ou incorpore legendas.",
     icon: <DownloadForOfflineOutlinedIcon />,
     category: "video",
   },
   {
     id: "merge-clips",
-    title: "Merge Clips",
+    title: "Juntar Clipes",
     description: "Junte múltiplos clipes em um único vídeo com ajuste automático de proporção.",
     icon: <MovieFilterOutlinedIcon />,
     category: "video",
   },
   {
     id: "transform",
-    title: "Transform",
+    title: "Transformar Vídeo",
     description: "Inverta, gire, crie loops ou altere o volume de um clipe.",
     icon: <TransformIcon />,
     category: "video",
@@ -67,7 +67,7 @@ const TOOLS = [
     // One runner, one job type, one history — but its own card, because
     // "remove audio" is what people search for, not "transform".
     id: "remove-audio",
-    title: "Remove Audio",
+    title: "Remover Áudio",
     description: "Remova o áudio de um vídeo mantendo a qualidade visual original intacta.",
     icon: <VolumeOffOutlinedIcon />,
     category: "audio",
@@ -75,56 +75,56 @@ const TOOLS = [
   },
   {
     id: "compress",
-    title: "Compress Video",
+    title: "Comprimir Vídeo",
     description: "Reduza o tamanho do arquivo para redes sociais ou limites de upload, escolhendo o nível de compressão.",
     icon: <CompressOutlinedIcon />,
     category: "video",
   },
   {
     id: "crop",
-    title: "Crop Video",
+    title: "Recortar Quadro",
     description: "Selecione uma área do quadro e mantenha apenas essa região. Proporção livre ou pré-definida.",
     icon: <CropOutlinedIcon />,
     category: "video",
   },
   {
     id: "reframe",
-    title: "Reframe to Vertical",
+    title: "Reenquadrar para Vertical (9:16)",
     description: "Converta vídeos horizontais (16:9) em verticais (9:16) com foco automático em rostos para Shorts e TikTok.",
     icon: <AspectRatioOutlinedIcon />,
     category: "video",
   },
   {
     id: "watermark",
-    title: "Add Watermark",
+    title: "Adicionar Marca d'Água",
     description: "Adicione sua marca d'água ou logotipo com controle de posicionamento, opacidade e escala.",
     icon: <BrandingWatermarkOutlinedIcon />,
     category: "video",
   },
   {
     id: "gif",
-    title: "Video → GIF",
+    title: "Vídeo para GIF",
     description: "Converta qualquer trecho em GIF animado com paleta de duas etapas para cores nítidas.",
     icon: <GifOutlinedIcon />,
     category: "video",
   },
   {
     id: "speed",
-    title: "Speed up / Slow down",
+    title: "Acelerar / Desacelerar",
     description: "Acelere ou desacelere vídeos de 0.25× a 4×, preservando o tom natural da voz.",
     icon: <SpeedOutlinedIcon />,
     category: "video",
   },
   {
     id: "trim",
-    title: "Trim / Cut",
+    title: "Cortar Trecho",
     description: "Corte o trecho exato definindo início e fim, descartando o restante.",
     icon: <ContentCutOutlinedIcon />,
     category: "video",
   },
   {
     id: "auto-zoom",
-    title: "Auto-Zoom",
+    title: "Auto-Zoom Dinâmico",
     description: "Aplica zooms sutis sincronizados com as falas para aumentar o dinamismo do conteúdo.",
     icon: <ZoomInMapOutlinedIcon />,
     category: "video",
@@ -133,28 +133,28 @@ const TOOLS = [
   // Audio — cleanup / processing / voice
   {
     id: "voiceover",
-    title: "Voice-over Generator",
+    title: "Gerador de Narração",
     description: "Transforme texto ou roteiro em narração natural com vozes neurais.",
     icon: <RecordVoiceOverOutlinedIcon />,
     category: "audio",
   },
   {
     id: "audio-enhance",
-    title: "Enhance Audio",
+    title: "Aprimorar Áudio",
     description: "Remova ruídos de fundo, normalize o volume e destaque a clareza da voz.",
     icon: <GraphicEqOutlinedIcon />,
     category: "audio",
   },
   {
     id: "remove-silence",
-    title: "Silence Remover",
+    title: "Remover Silêncio",
     description: "Corte automaticamente pausas, silêncios prolongados e momentos mortos.",
     icon: <FastRewindOutlinedIcon />,
     category: "audio",
   },
   {
     id: "music-visualizer",
-    title: "Music Visualizer",
+    title: "Visualizador Musical",
     description: "Gere vídeos animados de waveform, barras ou espectro sincronizados ao áudio.",
     icon: <GraphicEqIcon />,
     category: "audio",
@@ -163,49 +163,49 @@ const TOOLS = [
   // Subtitles & Insights — text overlays + analysis
   {
     id: "captions",
-    title: "Add Captions",
+    title: "Adicionar Legendas",
     description: "Gere legendas dinâmicas palavra por palavra em estilos modernos e virais.",
     icon: <SubtitlesOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "subtitles",
-    title: "Export Subtitles",
+    title: "Exportar Legendas",
     description: "Transcreva o áudio para download em arquivos .srt, .vtt ou texto simples.",
     icon: <ClosedCaptionOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "transcript",
-    title: "Transcript Downloader",
+    title: "Baixar Transcrição",
     description: "Baixe diretamente as legendas existentes de um vídeo em .txt, .srt ou .vtt sem precisar transcrever.",
     icon: <ArticleOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "translate",
-    title: "Translate + Dub",
+    title: "Traduzir e Dublar",
     description: "Traduza legendas para mais de 19 idiomas ou realize dublagem completa com IA.",
     icon: <TranslateOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "hook-analysis",
-    title: "Hook Detector",
+    title: "Detector de Ganchos",
     description: "Analise a retenção dos primeiros 10 segundos e receba sugestões de ganchos virais.",
     icon: <LightbulbOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "metadata",
-    title: "Title / Tags / Description",
+    title: "Título, Tags e Descrição",
     description: "Metadados de SEO (títulos, tags e descrição) otimizados para YouTube e TikTok.",
     icon: <LabelOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "auto-chapters",
-    title: "Auto Chapters",
+    title: "Capítulos Automáticos",
     description: "Marcadores de capítulos automáticos gerados por IA para vídeos longos.",
     icon: <FormatListNumberedIcon />,
     category: "subtitles",
@@ -221,21 +221,21 @@ const TOOLS = [
 const CATEGORIES = [
   {
     id: "video",
-    label: "Video",
+    label: "Vídeo",
     description: "Edições visuais e estruturais para vídeos prontos.",
     icon: <VideocamOutlinedIcon />,
     accent: "info",
   },
   {
     id: "audio",
-    label: "Audio",
+    label: "Áudio",
     description: "Voz, limpeza de ruídos e polimento da trilha sonora.",
     icon: <HeadphonesOutlinedIcon />,
     accent: "success",
   },
   {
     id: "subtitles",
-    label: "Subtitles & Insights",
+    label: "Legendas e Análises",
     description: "Legendas, tradução e análises de conteúdo.",
     icon: <ClosedCaptionOutlinedIcon />,
     accent: "warning",
@@ -338,7 +338,7 @@ function CategorySection({ category, tools, onPick }) {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function Tools() {
-  useDocumentTitle("Tools")
+  useDocumentTitle("Ferramentas")
   const navigate = useNavigate()
   const pick = (id) => {
     const tool = TOOLS.find((t) => t.id === id)
@@ -357,7 +357,7 @@ export default function Tools() {
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <PageHero
         icon={<BuildOutlinedIcon sx={{ fontSize: 22 }} />}
-        title="Tools"
+        title="Ferramentas"
         subtitle="Utilitários modulares para editar e aperfeiçoar seus vídeos"
       />
 
@@ -389,7 +389,7 @@ export default function Tools() {
             matches.length ? (
               <Box>
                 <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 1.5 }}>
-                  {matches.length} {matches.length === 1 ? "tool" : "tools"} matching “{query.trim()}”
+                  {matches.length} {matches.length === 1 ? "ferramenta encontrada para" : "ferramentas encontradas para"} “{query.trim()}”
                 </Typography>
                 <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" } }}>
                   {matches.map((t) => (
@@ -399,7 +399,7 @@ export default function Tools() {
               </Box>
             ) : (
               <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "center", py: 6 }}>
-                No tools match “{query.trim()}”. Try “caption”, “audio”, “speed”, or “translate”.
+                Nenhuma ferramenta encontrada para “{query.trim()}”. Tente “legenda”, “áudio”, “corte” ou “traduzir”.
               </Typography>
             )
           ) : (

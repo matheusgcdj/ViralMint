@@ -34,12 +34,12 @@ function timeAgo(dateStr) {
   const d = typeof dateStr === "number" ? new Date(dateStr * 1000) : new Date(dateStr)
   const diff = Date.now() - d.getTime()
   const days = Math.floor(diff / 86400000)
-  if (days < 1) return "Today"
-  if (days === 1) return "1d ago"
-  if (days < 7) return `${days}d ago`
-  if (days < 30) return `${Math.floor(days / 7)}w ago`
-  if (days < 365) return `${Math.floor(days / 30)}mo ago`
-  return `${Math.floor(days / 365)}y ago`
+  if (days < 1) return "Hoje"
+  if (days === 1) return "há 1d"
+  if (days < 7) return `há ${days}d`
+  if (days < 30) return `há ${Math.floor(days / 7)} sem`
+  if (days < 365) return `há ${Math.floor(days / 30)} meses`
+  return `há ${Math.floor(days / 365)} anos`
 }
 
 function parseDuration(iso) {
@@ -77,7 +77,7 @@ function ConnectForm({ platform, onConnected }) {
       })
       setResults(data.results || [])
       if ((data.results || []).length === 0) {
-        setError("No channels found. Try a different name or use the URL option below.")
+        setError("Nenhum canal encontrado. Tente um nome diferente ou informe o link direto abaixo.")
       }
     } catch (e) {
       setError(e.response?.data?.detail || e.message)
@@ -125,16 +125,16 @@ function ConnectForm({ platform, onConnected }) {
         <LiveTvIcon sx={{ fontSize: 52, color: "primary.main", mb: 1, opacity: 0.8 }} />
       )}
       <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-        Connect a {label} Channel
+        Conectar canal do {label}
       </Typography>
       <Typography variant="body2" sx={{ color: "text.secondary", mb: 2.5, maxWidth: 480, mx: "auto" }}>
-        Search for any {label} channel by name{isYT ? "" : " or @handle"} to view analytics and download videos
+        Busque qualquer canal do {label} pelo nome{isYT ? "" : " ou @handle"} para ver métricas e baixar vídeos
       </Typography>
 
       <Stack direction="row" spacing={1} sx={{ maxWidth: 480, mx: "auto", mb: 2 }}>
         <TextField
           fullWidth size="small"
-          placeholder={isYT ? "Search by channel name..." : "Search by @handle or name..."}
+          placeholder={isYT ? "Buscar por nome do canal..." : "Buscar por @handle ou nome..."}
           value={query} onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           disabled={searching || loading}
@@ -142,7 +142,7 @@ function ConnectForm({ platform, onConnected }) {
         <Button variant="contained" onClick={handleSearch} disabled={searching || !query.trim() || loading}
           startIcon={searching ? <CircularProgress size={16} /> : <SearchIcon />}
           sx={{ whiteSpace: "nowrap", minWidth: 100 }}>
-          Search
+          Buscar
         </Button>
       </Stack>
 
@@ -163,10 +163,10 @@ function ConnectForm({ platform, onConnected }) {
                 </Typography>
                 <Stack direction="row" spacing={1} sx={{ mt: 0.25 }}>
                   <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                    {formatCount(ch.subscriber_count || ch.follower_count)} {isYT ? "subscribers" : "followers"}
+                    {formatCount(ch.subscriber_count || ch.follower_count)} {isYT ? "inscritos" : "seguidores"}
                   </Typography>
                   <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                    {formatCount(ch.video_count)} videos
+                    {formatCount(ch.video_count)} vídeos
                   </Typography>
                 </Stack>
               </Box>
@@ -185,13 +185,13 @@ function ConnectForm({ platform, onConnected }) {
       )}
 
       <Divider sx={{ my: 2, maxWidth: 480, mx: "auto" }}>
-        <Chip label="or" size="small" />
+        <Chip label="ou" size="small" />
       </Divider>
 
       {!showUrlInput ? (
         <Button size="small" variant="text" onClick={() => setShowUrlInput(true)}
           startIcon={<LinkIcon />} sx={{ color: "text.secondary" }}>
-          Connect with channel URL instead
+          Conectar com a URL do canal
         </Button>
       ) : (
         <Stack direction="row" spacing={1} sx={{ maxWidth: 480, mx: "auto" }}>
@@ -205,7 +205,7 @@ function ConnectForm({ platform, onConnected }) {
           <Button variant="outlined" onClick={handleConnectUrl} disabled={loading || !url.trim()}
             startIcon={loading ? <CircularProgress size={16} /> : <LinkIcon />}
             sx={{ whiteSpace: "nowrap", minWidth: 100 }}>
-            Connect
+            Conectar
           </Button>
         </Stack>
       )}
@@ -299,16 +299,16 @@ function VideoCard({ video, platform, onAnalyze, onDownload }) {
         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.75 }}>
           <Button size="small" variant="contained" startIcon={<DownloadIcon />}
             onClick={(e) => { e.stopPropagation(); onDownload(video) }}>
-            Download & Analyze
+            Baixar e Analisar
           </Button>
           <Box sx={{ flex: 1 }} />
-          <Tooltip title="Analyze this video" arrow>
+          <Tooltip title="Analisar este vídeo" arrow>
             <IconButton size="small" onClick={(e) => { e.stopPropagation(); onAnalyze(video) }}
               sx={{ p: 0.5, color: "text.secondary", "&:hover": { color: "primary.main" } }}>
               <TravelExploreIcon sx={{ fontSize: "1.1rem" }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title={`Open on ${isYT ? "YouTube" : "TikTok"}`} arrow>
+          <Tooltip title={`Abrir no ${isYT ? "YouTube" : "TikTok"}`} arrow>
             <IconButton size="small"
               onClick={(e) => { e.stopPropagation(); window.open(video.url, "_blank", "noopener") }}
               sx={{ p: 0.5, color: "text.secondary", "&:hover": { color: "primary.main" } }}>
@@ -401,7 +401,7 @@ function ChannelDetail({ channel, onBack }) {
           </Typography>
           <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
             <Chip size="small" variant="outlined"
-              label={`${formatCount(channel.subscriber_count || channelInfo?.subscriber_count || channelInfo?.follower_count || 0)} ${isYT ? "subscribers" : "followers"}`} />
+              label={`${formatCount(channel.subscriber_count || channelInfo?.subscriber_count || channelInfo?.follower_count || 0)} ${isYT ? "inscritos" : "seguidores"}`} />
             <Chip size="small" variant="outlined"
               label={`${formatCount(channel.video_count || channelInfo?.video_count || 0)} videos`} />
             {channelInfo?.median_views > 0 && (
@@ -438,12 +438,12 @@ function ChannelDetail({ channel, onBack }) {
         })
 
         const stats = [
-          { label: "Total Views", value: formatCount(totalViews) },
-          { label: "Avg Views", value: formatCount(avgViews) },
-          { label: "Median Views", value: formatCount(medianViews) },
-          { label: "Engagement", value: `${engagementRate}%` },
-          { label: "Last 30d", value: `${recentVideos.length} videos` },
-          { label: "Top Video", value: formatCount(topPerformer?.view_count || 0) + " views" },
+          { label: "Views Totais", value: formatCount(totalViews) },
+          { label: "Média de Views", value: formatCount(avgViews) },
+          { label: "Mediana de Views", value: formatCount(medianViews) },
+          { label: "Engajamento", value: `${engagementRate}%` },
+          { label: "Últimos 30d", value: `${recentVideos.length} vídeos` },
+          { label: "Melhor Vídeo", value: formatCount(topPerformer?.view_count || 0) + " views" },
         ]
 
         return (
@@ -481,9 +481,9 @@ function ChannelDetail({ channel, onBack }) {
             <FormControl size="small" sx={{ minWidth: 130 }}>
               <Select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(0) }}
                 sx={{ fontSize: "0.82rem", "& .MuiSelect-select": { py: 0.5 } }}>
-                <MenuItem value="recent">Recent</MenuItem>
-                <MenuItem value="views">Most Views</MenuItem>
-                <MenuItem value="likes">Most Likes</MenuItem>
+                <MenuItem value="recent">Mais Recentes</MenuItem>
+                <MenuItem value="views">Mais Visualizações</MenuItem>
+                <MenuItem value="likes">Mais Curtidas</MenuItem>
               </Select>
             </FormControl>
           </Stack>
@@ -491,7 +491,7 @@ function ChannelDetail({ channel, onBack }) {
           {/* Video cards grid */}
           {sorted.length === 0 ? (
             <Paper elevation={0} sx={{ p: 3, textAlign: "center", border: 1, borderColor: "divider", borderRadius: 2 }}>
-              <Typography variant="body2" sx={{ color: "text.secondary" }}>No videos found.</Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>Nenhum vídeo encontrado.</Typography>
             </Paper>
           ) : (
             <>
@@ -587,7 +587,7 @@ function PlatformTab({ platform }) {
         {channels.length > 0 && (
           <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => setShowAdd(false)}
             sx={{ mb: 2 }}>
-            Back to channels
+            Voltar aos canais
           </Button>
         )}
         <ConnectForm platform={platform} onConnected={handleConnected} />
@@ -600,10 +600,10 @@ function PlatformTab({ platform }) {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 600 }}>
-          {channels.length} channel{channels.length !== 1 ? "s" : ""} connected
+          {channels.length} {channels.length === 1 ? "canal conectado" : "canais conectados"}
         </Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowAdd(true)}>
-          Add Channel
+          Adicionar Canal
         </Button>
       </Stack>
 
@@ -635,16 +635,16 @@ function PlatformTab({ platform }) {
                   )}
                   {ch.video_count > 0 && (
                     <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                      {formatCount(ch.video_count)} videos
+                      {formatCount(ch.video_count)} vídeos
                     </Typography>
                   )}
                 </Stack>
               </Box>
               <Stack alignItems="center" spacing={0.5}>
                 <Button size="small" variant="text" sx={{ minWidth: 0 }}>
-                  View videos
+                  Ver vídeos
                 </Button>
-                <Tooltip title="Disconnect">
+                <Tooltip title="Desconectar">
                   <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleDisconnect(ch) }}
                     sx={{ color: "text.secondary" }}>
                     <LinkOffIcon fontSize="small" />
@@ -678,10 +678,10 @@ export default function Channels() {
           <LiveTvIcon sx={{ color: "warning.main", fontSize: 26 }} />
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: -0.3 }}>
-              My Channels
+              Meus Canais
             </Typography>
             <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              Connect YouTube and TikTok channels to view content and analyze videos
+              Conecte canais do YouTube e TikTok para monitorar métricas e analisar vídeos
             </Typography>
           </Box>
         </Stack>

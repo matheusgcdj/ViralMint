@@ -89,7 +89,7 @@ export default function FacetBar({
               >
                 <Icon sx={{ fontSize: 16, color: active ? "primary.main" : "inherit" }} />
                 <Typography sx={{ fontSize: "0.79rem", fontWeight: active ? 700 : 500, letterSpacing: "-0.01em" }}>
-                  {k === "all" ? "All" : MEDIA[k].label}
+                  {k === "all" ? "Tudo" : MEDIA[k].label}
                 </Typography>
                 <Typography sx={{
                   fontSize: "0.68rem", fontWeight: 600, fontVariantNumeric: "tabular-nums",
@@ -103,7 +103,7 @@ export default function FacetBar({
         </Box>
         </Box>
         <Typography sx={{ fontSize: "0.7rem", color: "text.secondary", display: { xs: "none", lg: "block" }, flexShrink: 0 }}>
-          what it is
+          tipo de arquivo
         </Typography>
 
         <Box sx={{ flex: 1 }} />
@@ -119,18 +119,18 @@ export default function FacetBar({
         >
           <ToggleButton value="grid" aria-label="Grid view">
             <GridViewRoundedIcon sx={{ fontSize: 15 }} />
-            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Grid</Box>
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Grade</Box>
           </ToggleButton>
           <ToggleButton value="tree" aria-label="Group by source">
             <AccountTreeRoundedIcon sx={{ fontSize: 15 }} />
-            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>By source</Box>
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Por fonte</Box>
           </ToggleButton>
         </ToggleButtonGroup>
 
         {/* Density only means something for the grid — the tree has its own
             fixed row heights, so the control is hidden there, not inert. */}
         {view === "grid" && (
-          <Tooltip title={dense ? "Comfortable tiles" : "Dense tiles"}>
+          <Tooltip title={dense ? "Visualização confortável" : "Visualização compacta"}>
             <IconButton size="small" onClick={() => onDenseChange(!dense)}
               aria-label={dense ? "Comfortable tiles" : "Dense tiles"}
               aria-pressed={dense}
@@ -197,7 +197,7 @@ export default function FacetBar({
         })}
 
         <Typography sx={{ fontSize: "0.7rem", color: "text.secondary", display: { xs: "none", lg: "block" }, ml: 0.3 }}>
-          where it came from
+          origem
         </Typography>
 
         <Box sx={{ width: "1px", height: 20, bgcolor: "divider", mx: 0.5, display: { xs: "none", sm: "block" } }} />
@@ -207,7 +207,7 @@ export default function FacetBar({
           aria-label="Filter by tool"
           sx={{ height: 28, fontSize: "0.76rem", "& .MuiSelect-select": { py: 0 }, minWidth: 132 }}
         >
-          <MenuItem value="all" sx={{ fontSize: "0.8rem" }}>Any tool</MenuItem>
+          <MenuItem value="all" sx={{ fontSize: "0.8rem" }}>Todas as ferramentas</MenuItem>
           {/* A `?tool=` from a link lands before the facets that list it (or
               filters every match away) — keep it a valid option so the Select
               shows it instead of blanking and warning "out-of-range value". */}
@@ -226,10 +226,10 @@ export default function FacetBar({
           aria-label="Sort"
           sx={{ height: 28, fontSize: "0.76rem", "& .MuiSelect-select": { py: 0 }, minWidth: 116 }}
         >
-          <MenuItem value="newest" sx={{ fontSize: "0.8rem" }}>Newest</MenuItem>
-          <MenuItem value="oldest" sx={{ fontSize: "0.8rem" }}>Oldest</MenuItem>
-          <MenuItem value="longest" sx={{ fontSize: "0.8rem" }}>Longest</MenuItem>
-          <MenuItem value="title" sx={{ fontSize: "0.8rem" }}>Title A–Z</MenuItem>
+          <MenuItem value="newest" sx={{ fontSize: "0.8rem" }}>Mais recentes</MenuItem>
+          <MenuItem value="oldest" sx={{ fontSize: "0.8rem" }}>Mais antigos</MenuItem>
+          <MenuItem value="longest" sx={{ fontSize: "0.8rem" }}>Mais longos</MenuItem>
+          <MenuItem value="title" sx={{ fontSize: "0.8rem" }}>Título A–Z</MenuItem>
         </Select>
       </Stack>
     </Box>

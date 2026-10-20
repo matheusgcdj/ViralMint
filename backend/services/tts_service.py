@@ -2,7 +2,7 @@
 # Copyright (c) 2025-2026 ViralMint Contributors
 """
 Multi-provider TTS service.
-Unified interface for: OpenAI TTS, Edge TTS.
+Unified interface for: OpenAI TTS, Edge TTS, Google Cloud TTS.
 Same pattern as ai_provider.py — factory resolves the right backend.
 """
 import logging
@@ -18,16 +18,19 @@ logger = logging.getLogger(__name__)
 class TTSProvider(str, Enum):
     OPENAI_TTS = "openai_tts"
     EDGE_TTS = "edge_tts"
+    GOOGLE_TTS = "google_tts"
 
 
 PROVIDER_INFO = {
-    TTSProvider.OPENAI_TTS: {"label": "OpenAI TTS",  "cost_1k_chars": 0.015, "quality": "standard", "needs_key": True},
-    TTSProvider.EDGE_TTS:   {"label": "Edge TTS",    "cost_1k_chars": 0.0,   "quality": "basic",    "needs_key": False},
+    TTSProvider.OPENAI_TTS: {"label": "OpenAI TTS",       "cost_1k_chars": 0.015, "quality": "standard", "needs_key": True},
+    TTSProvider.EDGE_TTS:   {"label": "Edge TTS",         "cost_1k_chars": 0.0,   "quality": "basic",    "needs_key": False},
+    TTSProvider.GOOGLE_TTS: {"label": "Google Cloud TTS", "cost_1k_chars": 0.004, "quality": "premium",  "needs_key": True},
 }
 
 DEFAULT_VOICES = {
-    TTSProvider.OPENAI_TTS: "alloy",                    # alloy|echo|fable|onyx|nova|shimmer
-    TTSProvider.EDGE_TTS:   "en-US-AndrewMultilingualNeural",  # Natural multilingual voice
+    TTSProvider.OPENAI_TTS: "alloy",                              # alloy|echo|fable|onyx|nova|shimmer
+    TTSProvider.EDGE_TTS:   "en-US-AndrewMultilingualNeural",     # Natural multilingual voice
+    TTSProvider.GOOGLE_TTS: "pt-BR-Neural2-B",                    # Neural2 Brazilian Portuguese
 }
 
 
@@ -46,7 +49,10 @@ async def generate_tts(
     voice = voice_id or DEFAULT_VOICES.get(provider, "")
 
     info = PROVIDER_INFO[provider]
-    if info["needs_key"] and not api_key:
+    # Google TTS has its own internal key pool — don't require an explicit
+    # api_key arg when the pool is configured or GOOGLE_APPLICATION_CREDENTIALS
+    # is set. The google_tts_service.generate_voice handles all resolution.
+    if info["needs_key"] and not api_key and provider != TTSProvider.GOOGLE_TTS:
         raise VoiceGenerationError(f"{info['label']} API key not configured")
 
     logger.info(f"Generating TTS with {info['label']}, voice={voice}, text_len={len(text)}")
@@ -58,6 +64,10 @@ async def generate_tts(
     elif provider == TTSProvider.EDGE_TTS:
         from backend.services.edge_tts_service import generate_voice
         return await generate_voice(text, voice_id=voice, output_path=output_path)
+
+    elif provider == TTSProvider.GOOGLE_TTS:
+        from backend.services.google_tts_service import generate_voice
+        return await generate_voice(text, voice_id=voice, api_key=api_key, output_path=output_path)
 
     raise VoiceGenerationError(f"Unknown TTS provider: {provider}")
 
@@ -77,6 +87,10 @@ async def list_voices(provider: TTSProvider, api_key: str = "") -> list[dict]:
     elif provider == TTSProvider.EDGE_TTS:
         from backend.services.edge_tts_service import get_voice_list
         return await get_voice_list()
+
+    elif provider == TTSProvider.GOOGLE_TTS:
+        from backend.services.google_tts_service import get_voice_list
+        return await get_voice_list(api_key=api_key)
 
     return []
 
@@ -104,9 +118,13 @@ def normalise_tts_provider(value) -> str | None:
 
 
 def is_paid_per_take(provider) -> bool:
-    """Each synthesis request spends the user's own API key (OpenAI TTS) — a
-    first draft never auto-voices with such a provider; the user clicks."""
-    return normalise_tts_provider(provider) == TTSProvider.OPENAI_TTS.value
+    """Each synthesis request spends the user's own API key (OpenAI TTS,
+    Google TTS) — a first draft never auto-voices with such a provider;
+    the user clicks.  For Google TTS with a key pool, the free tier is
+    large enough that we still mark it as paid to prevent accidental
+    quota burn on bulk first-drafts."""
+    p = normalise_tts_provider(provider)
+    return p in (TTSProvider.OPENAI_TTS.value, TTSProvider.GOOGLE_TTS.value)
 
 
 def uses_heavy_pool(provider) -> bool:
@@ -120,11 +138,21 @@ def provider_traits() -> dict:
 
 
 def tts_api_key(provider) -> str:
-    """The key for a provider that needs one ("" for Edge, or unset) — the
-    same `OPENAI_API_KEY` every other OpenAI TTS caller here reads."""
-    if normalise_tts_provider(provider) != TTSProvider.OPENAI_TTS.value:
-        return ""
-    return settings.OPENAI_API_KEY or ""
+    """The key(s) for a provider that needs one ("" for Edge, or unset).
+
+    For Google TTS, returns ALL configured keys (comma-separated for pool
+    support) so the google_tts_service can rotate through them.
+    """
+    p = normalise_tts_provider(provider)
+    if p == TTSProvider.OPENAI_TTS.value:
+        return settings.OPENAI_API_KEY or ""
+    if p == TTSProvider.GOOGLE_TTS.value:
+        # Multi-key pool takes precedence over single key
+        multi = getattr(settings, "GOOGLE_TTS_API_KEYS", "") or ""
+        if multi.strip():
+            return multi.strip()
+        return getattr(settings, "GOOGLE_TTS_API_KEY", "") or ""
+    return ""
 
 
 # CJK-aware narration length estimation. Every "words ÷ 2.5/sec" heuristic

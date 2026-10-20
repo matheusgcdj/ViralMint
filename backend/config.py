@@ -83,6 +83,22 @@ class Settings(BaseSettings):
     CUSTOM_AI_API_KEY: str = ""
     CUSTOM_AI_MODEL: str = ""
 
+    # ── Groq (cloud Whisper transcription) ────────────
+    # Groq runs Whisper large-v3 on LPU hardware — ~10× faster than real time.
+    # Free tier gives generous daily minutes. Set this key to enable the "groq"
+    # transcription backend alongside the local Whisper engine.
+    GROQ_API_KEY: str = ""
+
+    # ── Google Cloud TTS ──────────────────────────────
+    # High-quality neural voices with a generous free tier (1M chars/month free
+    # on WaveNet + 1M on Standard). Set this API key OR use a service account
+    # via GOOGLE_APPLICATION_CREDENTIALS.
+    GOOGLE_TTS_API_KEY: str = ""
+    # Pool of multiple Google accounts — comma-separated API keys.
+    # Example: 7 accounts × 1M chars/month = 7M chars/month free.
+    # When set, takes precedence over GOOGLE_TTS_API_KEY.
+    GOOGLE_TTS_API_KEYS: str = ""
+
     # ── Service keys (BYOK) ───────────────────────────
     # All optional — features gracefully degrade when keys are missing.
     YOUTUBE_API_KEY: str = ""           # YouTube scout, channel reader, comments
@@ -160,6 +176,23 @@ class Settings(BaseSettings):
     # rendering is local, so this is a time trade and never a money one. Set
     # MOTION_SUPERSAMPLE=false in .env for faster, softer output.
     MOTION_SUPERSAMPLE: bool = True
+
+
+def _sanitize_settings(s: Settings) -> Settings:
+    string_fields = [
+        "CUSTOM_AI_MODEL", "CUSTOM_AI_BASE_URL", "CUSTOM_AI_API_KEY",
+        "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY",
+        "PEXELS_API_KEY", "PIXABAY_API_KEY", "YOUTUBE_API_KEY", "TIKHUB_API_KEY",
+        "GROQ_API_KEY", "GOOGLE_TTS_API_KEY", "GOOGLE_TTS_API_KEYS",
+    ]
+    for field in string_fields:
+        val = getattr(s, field, "")
+        if isinstance(val, str) and val:
+            val = val.strip()
+            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                val = val[1:-1].strip()
+            s.__dict__[field] = val
+    return s
 
 
 def _ensure_secrets(s: Settings) -> Settings:
@@ -243,4 +276,4 @@ def _ensure_secrets(s: Settings) -> Settings:
 
 
 # Singleton — import this everywhere
-settings = _ensure_secrets(Settings())
+settings = _ensure_secrets(_sanitize_settings(Settings()))

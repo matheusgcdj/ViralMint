@@ -104,7 +104,7 @@ export default function Settings() {
         {/* AI Provider (BYOK) */}
         <Section
           icon={<SmartToyIcon sx={{ fontSize: 20 }} />}
-          title="AI Provider"
+          title="Provedor de IA"
           description="Conecte sua chave da Anthropic, OpenAI, OpenRouter ou servidor local compatível (Ollama, LM Studio) — criptografadas neste servidor"
           accentColor="#0d9f6e"
         >
@@ -114,7 +114,7 @@ export default function Settings() {
         {/* Service API Keys (BYOK) */}
         <Section
           icon={<KeyIcon sx={{ fontSize: 20 }} />}
-          title="Service API Keys"
+          title="Chaves de API de Serviços"
           description="Chaves de API dos serviços (YouTube, Pexels, Pixabay, etc.) — criptografadas localmente"
           accentColor="#2563eb"
         >
@@ -126,7 +126,7 @@ export default function Settings() {
             ?messaging=<app> opens the setup dialog on that app's tab. */}
         <Section
           icon={<PhoneIphoneIcon sx={{ fontSize: 20 }} />}
-          title="Messaging"
+          title="Mensageiros"
           description="Interaja com o ViralMint pelo celular (Telegram, WhatsApp, Discord, Slack) e receba notificações de conclusão"
           accentColor="#5865F2"
         >
@@ -136,7 +136,7 @@ export default function Settings() {
         {/* Optional add-ons */}
         <Section
           icon={<MovieFilterIcon sx={{ fontSize: 20 }} />}
-          title="Add-ons"
+          title="Módulos Adicionais"
           description="Módulos opcionais que podem ser instalados sob demanda no seu diretório de dados"
           accentColor="#7c3aed"
         >
@@ -146,7 +146,7 @@ export default function Settings() {
         {/* System Health */}
         <Section
           icon={<MonitorHeartIcon sx={{ fontSize: 20 }} />}
-          title="System Health"
+          title="Integridade do Sistema"
           description="Status dos serviços locais, verificação de dependências e uso de armazenamento"
           accentColor="#dc2626"
         >

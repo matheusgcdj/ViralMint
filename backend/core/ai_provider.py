@@ -59,7 +59,7 @@ def normalize_base_url(raw: Optional[str]) -> str:
     The URL is used as given (e.g. `http://localhost:11434/v1`); we don't
     guess a `/v1` suffix because servers disagree on it.
     """
-    url = (raw or "").strip()
+    url = (raw or "").strip().strip('"\'')
     if not url:
         return ""
     parsed = urlparse(url)
@@ -90,9 +90,12 @@ class AIClient:
         base_url: Optional[str] = None,
     ):
         self.provider = provider
-        self.api_key = api_key
-        self.model = model or PROVIDER_DEFAULTS[provider]
-        self.base_url = base_url or None
+        self.api_key = (api_key or "").strip().strip('"\'')
+        raw_model = (model or PROVIDER_DEFAULTS[provider] or "").strip()
+        if (raw_model.startswith('"') and raw_model.endswith('"')) or (raw_model.startswith("'") and raw_model.endswith("'")):
+            raw_model = raw_model[1:-1].strip()
+        self.model = raw_model
+        self.base_url = (base_url or "").strip().strip('"\'') or None
         if provider == AIProvider.OPENAI_COMPATIBLE and not (self.base_url and self.model):
             raise AIKeyMissingError(
                 "The OpenAI-compatible provider needs a base URL and a model name. "

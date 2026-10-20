@@ -185,37 +185,37 @@ export default function MotionGraphicsSection() {
 
         {installed && (
           <>
-            <Chip size="small" color="success" variant="outlined" icon={<CheckCircleIcon sx={{ fontSize: 14 }} />} label="Installed" />
+            <Chip size="small" color="success" variant="outlined" icon={<CheckCircleIcon sx={{ fontSize: 14 }} />} label="Instalado" />
             <Typography variant="caption" sx={{ color: "text.secondary" }}>
               {status.disk_size_mb || status.approx_download_mb} MB on disk
               {status.engine_cache_mb ? ` · +${status.engine_cache_mb} MB engine cache` : ""}
             </Typography>
           </>
         )}
-        {showInstall && <Chip size="small" variant="outlined" label="Optional" />}
-        {showUpdate && <Chip size="small" color="warning" variant="outlined" label="Update available" />}
-        {installing && <Chip size="small" color="info" variant="outlined" label="Installing…" />}
-        {!platform_supported && <Chip size="small" color="default" variant="outlined" label="Unsupported platform" />}
+        {showInstall && <Chip size="small" variant="outlined" label="Opcional" />}
+        {showUpdate && <Chip size="small" color="warning" variant="outlined" label="Atualização disponível" />}
+        {installing && <Chip size="small" color="info" variant="outlined" label="Instalando…" />}
+        {!platform_supported && <Chip size="small" color="default" variant="outlined" label="Plataforma não suportada" />}
 
         <Box sx={{ flexGrow: 1 }} />
 
         {showInstall && (
           <Button size="small" variant="contained" startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
             disabled={busy} onClick={install}>
-            {busy ? "Starting…" : "Install"}
+            {busy ? "Iniciando…" : "Instalar"}
           </Button>
         )}
         {showUpdate && (
           <Button size="small" variant="contained" color="warning" startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
             disabled={busy} onClick={install}>
-            {busy ? "Updating…" : "Update"}
+            {busy ? "Atualizando…" : "Atualizar"}
           </Button>
         )}
         {installed && (
           <>
             <Button size="small" variant="outlined" startIcon={<PlayArrowIcon sx={{ fontSize: 16 }} />}
               disabled={testing || busy} onClick={runTest}>
-              {testing ? "Rendering…" : "Test render"}
+              {testing ? "Renderizando…" : "Render de teste"}
             </Button>
             <Button size="small" variant="outlined" color="error" startIcon={<DeleteIcon sx={{ fontSize: 16 }} />}
               disabled={busy} onClick={() => setUninstallConfirm(true)}>
@@ -227,20 +227,13 @@ export default function MotionGraphicsSection() {
 
       {showInstall && (
         <Typography variant="caption" sx={{ display: "block", color: "text.secondary", fontSize: "0.76rem", lineHeight: 1.5, mb: 1 }}>
-          Render motion-graphics video — kinetic typography, stat cards, lower-thirds — entirely
-          on your machine. Deterministic, repeatable, and free to render as many times as you
-          like, because no AI model is involved. One-time ~{status.approx_download_mb} MB
-          download (a portable Node runtime plus the HyperFrames engine), all of it inside your
-          data folder and all of it removed again if you uninstall.
+          Crie e renderize vídeos com motion graphics — tipografia cinética, cards estatísticos, lower-thirds — totalmente nesta máquina. Determinístico, repetível e gratuito, sem depender de modelos de IA externos. Download único de ~{status.approx_download_mb} MB (Node portátil + motor HyperFrames), armazenado na sua pasta de dados e totalmente removível.
         </Typography>
       )}
 
       {showUpdate && (
         <Typography variant="caption" sx={{ display: "block", color: "text.secondary", fontSize: "0.76rem", lineHeight: 1.5, mb: 1 }}>
-          A newer Motion Graphics engine ships with this version
-          {status.installed_version ? ` (${status.installed_version} → ${status.hyperframes_version})` : ""}.
-          Updating is quick — it reuses the installed Node runtime and the cached packages, so
-          it is not a full re-download.
+          Uma versão mais recente do motor de Motion Graphics está disponível{status.installed_version ? ` (${status.installed_version} → ${status.hyperframes_version})` : ""}. A atualização é rápida pois reaproveita os pacotes em cache.
         </Typography>
       )}
 
@@ -277,12 +270,10 @@ export default function MotionGraphicsSection() {
       )}
 
       <Dialog open={uninstallConfirm} onClose={() => setUninstallConfirm(false)}>
-        <DialogTitle>Remove Motion Graphics?</DialogTitle>
+        <DialogTitle>Remover Motion Graphics?</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ fontSize: "0.88rem" }}>
-            This deletes the portable Node runtime and the HyperFrames engine
-            (~{status.disk_size_mb || status.approx_download_mb} MB). Motion videos you have
-            already rendered stay in your library, and you can reinstall at any time.
+            Isso remove o executável Node portátil e o motor HyperFrames (~{status.disk_size_mb || status.approx_download_mb} MB). Vídeos com motion graphics já renderizados continuam preservados na sua Biblioteca.
             {status.engine_cache_mb ? (
               <>
                 {" "}The engine also keeps a headless Chrome
@@ -294,8 +285,8 @@ export default function MotionGraphicsSection() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setUninstallConfirm(false)} disabled={busy}>Cancel</Button>
-          <Button onClick={uninstall} color="error" variant="contained" disabled={busy}>Remove</Button>
+          <Button onClick={() => setUninstallConfirm(false)} disabled={busy}>Cancelar</Button>
+          <Button onClick={uninstall} color="error" variant="contained" disabled={busy}>Remover</Button>
         </DialogActions>
       </Dialog>
     </Box>

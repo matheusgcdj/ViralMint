@@ -86,7 +86,7 @@ function useElementWidth() {
 }
 
 export default function ClipStudio() {
-  useDocumentTitle("Clipper")
+  useDocumentTitle("Clip Studio")
   const navigate = useNavigate()
   const showSnackbar = useAppStore((s) => s.showSnackbar)
   const activeJobs = useAppStore((s) => s.activeJobs)
@@ -643,12 +643,12 @@ export default function ClipStudio() {
 
       <PageHero
         icon={<ContentCutOutlinedIcon sx={{ fontSize: 22 }} />}
-        title="Clipper"
+        title="Clip Studio"
         dense={compactHero}
         // "118 clips · 37 source videos" — not "from 37 videos": clips can
         // come from sources no longer on the rail, so the rail's per-card
         // counts needn't add up to it.
-        subtitle={`${clipTotal ?? clips.length} clip${(clipTotal ?? clips.length) !== 1 ? "s" : ""} · ${sources.length} source video${sources.length !== 1 ? "s" : ""}${clipTotal > clips.length ? ` · showing latest ${clips.length}` : ""}`}
+        subtitle={`${clipTotal ?? clips.length} ${(clipTotal ?? clips.length) === 1 ? "clipe" : "clipes"} · ${sources.length} ${sources.length === 1 ? "vídeo fonte" : "vídeos fonte"}`}
         actions={
           // One row, always. At a 1024px window the five controls took the
           // row and squeezed the title column to one word per line (hero
@@ -657,15 +657,15 @@ export default function ClipStudio() {
           // stays one short band and the chips keep their width.
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="nowrap" useFlexGap>
             {compactHero && !searchOpen && !searchQuery ? (
-              <Tooltip title="Search clips">
-                <IconButton size="small" aria-label="Search clips" onClick={() => setSearchOpen(true)}
+              <Tooltip title="Buscar clipes">
+                <IconButton size="small" aria-label="Buscar clipes" onClick={() => setSearchOpen(true)}
                   sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, width: 36, height: 36 }}>
                   <SearchIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             ) : (
               <TextField
-                placeholder="Search clips..."
+                placeholder="Buscar clipes..."
                 size="small"
                 value={searchQuery}
                 autoFocus={compactHero && searchOpen}
@@ -679,19 +679,19 @@ export default function ClipStudio() {
                 sx={{ width: compactHero ? 170 : 200 }}
               />
             )}
-            <Tooltip title="Open clips folder">
+            <Tooltip title="Abrir pasta de clipes">
               <Button size="small" variant="outlined" sx={{ minWidth: 0, px: 1 }}
                 onClick={() => http.post("/api/settings/open-folder", { folder: "generated" }).catch(() => showSnackbar("Could not open folder", "error"))}>
                 <FolderOpenIcon fontSize="small" />
               </Button>
             </Tooltip>
-            <Tooltip title="Refresh sources & clips">
+            <Tooltip title="Atualizar fontes e clipes">
               <Button size="small" variant="outlined"
-                aria-label="Refresh sources and clips"
+                aria-label="Atualizar fontes e clipes"
                 onClick={() => fetchData()}
                 startIcon={<RefreshIcon fontSize="small" />}
                 sx={{ whiteSpace: "nowrap", ...(compactHero && { minWidth: 0, px: 1, "& .MuiButton-startIcon": { mr: 0 } }) }}>
-                {compactHero ? null : "Refresh"}
+                {compactHero ? null : "Atualizar"}
               </Button>
             </Tooltip>
             <input
@@ -701,7 +701,7 @@ export default function ClipStudio() {
               accept="video/*,.mp4,.mov,.avi,.mkv,.webm"
               onChange={handleImportVideo}
             />
-            <Tooltip title="Bring a video file in to clip (mp4, mov, mkv, webm)">
+            <Tooltip title="Importe um vídeo para clipar (mp4, mov, mkv, webm)">
               <span>
                 <Button
                   // Outlined, not contained: Cut and Auto-cut are the two
@@ -716,7 +716,7 @@ export default function ClipStudio() {
                   aria-label={compactHero ? (importing ? "Importing…" : "Import") : undefined}
                   sx={{ whiteSpace: "nowrap", ...(compactHero && { minWidth: 0, px: 1, "& .MuiButton-startIcon": { mr: 0 } }) }}
                 >
-                  {compactHero ? null : importing ? "Importing…" : "Import"}
+                  {compactHero ? null : importing ? "Importando…" : "Importar"}
                 </Button>
               </span>
             </Tooltip>
@@ -818,7 +818,7 @@ export default function ClipStudio() {
 
           <TextField
             size="small"
-            placeholder="Filter..."
+            placeholder="Filtrar..."
             value={sourceFilter}
             onChange={e => setSourceFilter(e.target.value)}
             slotProps={{ input: { startAdornment: <SearchIcon sx={{ fontSize: 14, color: "text.disabled", mr: 0.5 }} /> } }}
@@ -834,7 +834,7 @@ export default function ClipStudio() {
             <Stack direction="row" spacing={1} alignItems="center">
               <ContentCutIcon sx={{ fontSize: 16, color: "primary.main" }} />
               <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "0.8rem" }}>
-                All Clips ({clips.length})
+                Todos os Clipes ({clips.length})
               </Typography>
             </Stack>
           </GlassCard>
@@ -895,7 +895,7 @@ export default function ClipStudio() {
                     onClick={() => setSourceVisibleCount(prev => prev + SOURCE_LOAD_MORE)}
                     sx={{ fontSize: "0.7rem", textTransform: "none", mt: 0.5, color: "text.secondary" }}
                   >
-                    Show more ({hiddenCount} remaining)
+                    Mostrar mais ({hiddenCount} restantes)
                   </Button>
                 )}
               </>
@@ -911,7 +911,7 @@ export default function ClipStudio() {
                 endIcon={<ExpandMoreIcon sx={{ transform: missingOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }} />}
                 startIcon={<WarningAmberIcon sx={{ color: "warning.main" }} />}
                 sx={{ justifyContent: "flex-start", textTransform: "none", fontSize: "0.72rem", color: "text.secondary", px: 0.5 }}>
-                File missing ({missingSources.length})
+                Arquivo ausente ({missingSources.length})
               </Button>
               {missingOpen && (
                 <Stack spacing={0.5} sx={{ mt: 0.5 }}>
@@ -1234,22 +1234,22 @@ export default function ClipStudio() {
               {clips.length === 0 && sources.length === 0 ? (
                 <EmptyState
                   icon={<ContentCutIcon />}
-                  title="No clips yet"
-                  description="Clipper turns a full video into viral shorts. Add a video first — download one or import your own — then extract the best moments."
+                  title="Nenhum clipe ainda"
+                  description="O Clip Studio transforma vídeos longos em shorts virais. Adicione um vídeo primeiro — baixe da internet ou importe o seu — e extraia os melhores momentos."
                   primaryAction={{
-                    label: "Download a video",
+                    label: "Baixar um vídeo",
                     startIcon: <CloudDownloadIcon />,
                     onClick: () => navigate("/tools/video-download"),
                   }}
                   secondaryAction={{
-                    label: "Import your own",
+                    label: "Importar do computador",
                     onClick: () => fileInputRef.current?.click(),
                   }}
                 />
               ) : clips.length === 0 ? (
                 <EmptyState
                   icon={<ContentCutIcon />}
-                  title="No clips yet"
+                  title="Nenhum clipe ainda"
                   description="Pick a source video and extract clips — AI finds the most viral moments for you."
                   primaryAction={{
                     label: `Auto-cut from ${sources[0].title?.slice(0, 30) || "first video"}`,
@@ -1264,10 +1264,10 @@ export default function ClipStudio() {
                    same dead end the bench was built to remove. */
                 <EmptyState
                   icon={<ContentCutIcon />}
-                  title="Pick something to work on"
-                  description="Choose a source video on the left to open the cutting bench and cut new clips — or click a finished clip in the filmstrip below to preview it."
+                  title="Selecione um vídeo para trabalhar"
+                  description="Escolha um vídeo fonte à esquerda para abrir a mesa de corte — ou clique em um clipe pronto na barra inferior para assistir."
                   primaryAction={sources.length ? {
-                    label: "Open the bench",
+                    label: "Abrir mesa de corte",
                     startIcon: <ContentCutIcon />,
                     onClick: () => { setSelectedSourceId(sources[0].id); setCenterMode("bench") },
                   } : undefined}
@@ -1315,13 +1315,13 @@ export default function ClipStudio() {
                 >
                   {/* The ACTION, not the state — a button reading "Expanded"
                       that collapses is a coin flip. */}
-                  {filmstripCollapsed ? "Expand" : "Collapse"}
+                  {filmstripCollapsed ? "Expandir" : "Recolher"}
                 </Button>
               </Tooltip>
               {/* No count before a source is picked: "CLIPS (0)" under a hero
                   that says "118 clips" read as a contradiction. */}
               <Typography variant="overline" sx={{ color: "text.secondary", fontSize: "0.65rem", flexShrink: 0 }}>
-                {selectedSourceId ? `Clips (${filteredClips.length})` : "Clips"}
+                {selectedSourceId ? `Clipes (${filteredClips.length})` : "Clipes"}
               </Typography>
 
               {/* The sort lives with the list it sorts. It was in the page

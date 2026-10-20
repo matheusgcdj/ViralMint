@@ -49,27 +49,23 @@ export default function MotionInstallGate({ onBack }) {
             line is the page title and should sit at the level every other page
             title does — not tie with the app shell's own brand heading. */}
         <Typography variant="h6" component="h5" sx={{ fontWeight: 700, mb: 1 }}>
-          {updating ? "Motion Graphics needs an update" : "Motion Graphics isn’t installed"}
+          {updating ? "Motion Graphics precisa de uma atualização" : "Motion Graphics não está instalado"}
         </Typography>
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
           {updating ? (
             <>
-              A newer engine ships with this version
-              {from && to ? ` (${from} → ${to})` : ""}. The update is quick — it reuses
-              the Node runtime already on disk, so it is not a full re-download.
+              Um motor mais novo acompanha esta versão{from && to ? ` (${from} → ${to})` : ""}. A atualização é rápida pois reutiliza o ambiente Node já presente em disco.
             </>
           ) : (
             <>
-              Render designed motion video — kinetic type, stat cards, lower thirds —
-              entirely on this machine. It needs a one-time ~{mb}&nbsp;MB setup, which
-              installs into your data folder and can be removed again at any time.
+              Crie vídeos animados com motion design — tipografia cinética, cards com estatísticas, lower-thirds — totalmente nesta máquina. Requer instalação única de ~{mb}&nbsp;MB na sua pasta de dados e pode ser removido a qualquer momento.
             </>
           )}
         </Typography>
         <Stack direction="row" spacing={1.5} justifyContent="center">
-          {onBack && <Button variant="outlined" onClick={onBack}>Back</Button>}
+          {onBack && <Button variant="outlined" onClick={onBack}>Voltar</Button>}
           <Button variant="contained" onClick={() => navigate("/settings#motion-graphics")}>
-            {updating ? "Update from Settings" : "Install from Settings"}
+            {updating ? "Atualizar nas Configurações" : "Instalar nas Configurações"}
           </Button>
         </Stack>
       </GlassCard>

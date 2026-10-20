@@ -39,13 +39,13 @@ function timeAgo(dateString) {
   if (!dateString) return ""
   const diff = Date.now() - new Date(dateString).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return "agora"
+  if (mins < 60) return `há ${mins}m`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24) return `há ${hrs}h`
   const days = Math.floor(hrs / 24)
-  if (days === 1) return "Yesterday"
-  if (days < 7) return `${days}d ago`
+  if (days === 1) return "Ontem"
+  if (days < 7) return `há ${days}d`
   return new Date(dateString).toLocaleDateString(undefined, { month: "short", day: "numeric" })
 }
 
@@ -81,7 +81,7 @@ const JOB_ICONS = {
 }
 
 const JOB_LABELS = {
-  scout: "Scouting", download: "Downloading", generate: "Generating", upload: "Uploading",
+  scout: "Buscando", download: "Baixando", generate: "Gerando", upload: "Enviando",
 }
 
 function ActiveJobsPanel() {
@@ -94,7 +94,7 @@ function ActiveJobsPanel() {
   return (
     <Box sx={{ px: 1.5, pb: 1 }}>
       <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: 0.5 }}>
-        Active Jobs
+        Tarefas Ativas
       </Typography>
       <Stack spacing={0.5} sx={{ mt: 0.5 }}>
         {jobList.map((job) => {
@@ -117,7 +117,7 @@ function ActiveJobsPanel() {
                   isFailed ? <ErrorOutlineIcon sx={{ fontSize: 14, color: "error.main" }} /> :
                   JOB_ICONS[job.jobType] || JOB_ICONS.scout}
                 <Typography variant="caption" sx={{ fontWeight: 500, fontSize: "0.72rem", color: "text.primary", flex: 1 }} noWrap>
-                  {isSuccess ? `${label} done` : isFailed ? `${label} failed` : `${label}...`}
+                  {isSuccess ? `${label} concluído` : isFailed ? `${label} falhou` : `${label}...`}
                 </Typography>
                 {isRunning && job.percent > 0 && (
                   <Typography variant="caption" sx={{ fontSize: "0.65rem", color: "text.secondary" }}>
@@ -150,33 +150,33 @@ const SIDEBAR_WIDTH = 260
 const STARTER_SUGGESTIONS = [
   {
     icon: <SearchIcon sx={{ fontSize: 28, color: "primary.main" }} />,
-    title: "Scout trending videos",
-    description: "Find viral content across YouTube, TikTok, and Douyin",
-    message: "Scout trending videos on YouTube",
+    title: "Buscar vídeos em alta",
+    description: "Encontre conteúdo viral no YouTube, TikTok e Douyin",
+    message: "Buscar vídeos em alta no YouTube",
   },
   {
     icon: <SensorsIcon sx={{ fontSize: 28, color: "primary.main" }} />,
-    title: "Analyze a channel",
-    description: "Paste a YouTube or TikTok channel URL for a full breakdown",
-    message: "Analyze a YouTube channel for me",
+    title: "Analisar um canal",
+    description: "Envie a URL de um canal para análise completa de performance",
+    message: "Analise um canal para mim",
   },
   {
     icon: <AnalyticsIcon sx={{ fontSize: 28, color: "primary.main" }} />,
-    title: "Download & analyze",
-    description: "Transcribe competitors and extract viral insights",
-    message: "Download and analyze a video",
+    title: "Baixar e analisar",
+    description: "Transcreva concorrentes e extraia insights virais",
+    message: "Baixar e analisar um vídeo",
   },
   {
     icon: <AutoAwesomeIcon sx={{ fontSize: 28, color: "primary.main" }} />,
-    title: "Generate AI video",
-    description: "Create original videos with AI voice and visuals",
-    message: "Generate an original video",
+    title: "Gerar vídeo com IA",
+    description: "Crie vídeos originais com narração neural e visuais",
+    message: "Gere um vídeo original para mim",
   },
   {
     icon: <NewspaperIcon sx={{ fontSize: 28, color: "primary.main" }} />,
-    title: "Scout trending news",
-    description: "Find hot articles and generate commentary videos",
-    message: "Scout trending news",
+    title: "Notícias em alta",
+    description: "Encontre artigos em alta e crie vídeos opinativos",
+    message: "Buscar notícias em alta para um vídeo",
   },
 ]
 
@@ -278,7 +278,7 @@ export default function Chat() {
   }
 
   const handleDeleteSession = (sessionId) => {
-    openConfirm("Delete chat?", "This conversation will be permanently removed.", async () => {
+    openConfirm("Excluir conversa?", "Esta conversa será apagada permanentemente.", async () => {
       try {
         await http.delete(`/api/chat/sessions/${sessionId}`)
         removeSession(sessionId)
@@ -370,7 +370,7 @@ export default function Chat() {
                 variant="body1"
                 sx={{ color: "text.secondary", mb: 5, maxWidth: 440, mx: "auto", lineHeight: 1.6, textAlign: "center" }}
               >
-                Your AI content strategy assistant. Scout trending videos, generate originals, and publish everywhere.
+                Seu estrategista autônomo de conteúdo com IA. Descubra tendências, crie vídeos virais e escale seus canais.
               </Typography>
 
               {suggestions.length > 0 && (
@@ -439,7 +439,7 @@ export default function Chat() {
           {isStreaming && !streamingText && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2, px: 1, maxWidth: 900, mx: "auto" }}>
               <CircularProgress size={16} sx={{ color: "text.secondary" }} />
-              <Typography variant="body2" sx={{ color: "text.secondary" }}>Thinking...</Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>Pensando...</Typography>
             </Box>
           )}
 
