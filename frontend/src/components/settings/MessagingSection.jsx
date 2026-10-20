@@ -60,7 +60,7 @@ export default function MessagingSection() {
       discord.applyStatus(data.discord || {})
       slack.applyStatus(data.slack || {})
     } catch {
-      showSnackbar("Couldn't load messaging status", "error")
+      showSnackbar("Não foi possível carregar o status dos mensageiros", "error")
     } finally {
       setLoading(false)
     }
@@ -116,7 +116,7 @@ export default function MessagingSection() {
               ) : (
                 <ButtonBase
                   onClick={() => openOn(meta.key)}
-                  aria-label={`${meta.name}: ${s.label}. ${s.tone === "connected" ? "Manage" : "Set up"}`}
+                  aria-label={`${meta.name}: ${s.label}. ${s.tone === "connected" ? "Gerenciar" : "Configurar"}`}
                   data-testid={`messaging-tile-${meta.key}`}
                   sx={{
                     width: "100%", textAlign: "left", borderRadius: 2, p: 1.5,

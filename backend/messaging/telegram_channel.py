@@ -322,8 +322,8 @@ class TelegramChannel(MessagingChannel):
             user_id,
             NotificationPayload(
                 event=NotificationEvent.JOB_FAILED,  # any event works — title/body drive render
-                title="ViralMint test",
-                body="If you can read this, your Telegram bot is wired up. 🎉",
+                title="Teste do ViralMint",
+                body="Se você está lendo isso, seu bot do Telegram está conectado com sucesso! 🎉",
             ),
         )
 

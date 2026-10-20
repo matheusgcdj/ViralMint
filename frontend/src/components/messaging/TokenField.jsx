@@ -27,7 +27,7 @@ export default function TokenField({ label, placeholder, value, onChange, disabl
         endAdornment: (
           <InputAdornment position="end">
             <IconButton
-              aria-label={show ? "Hide token" : "Show token"}
+              aria-label={show ? "Ocultar token" : "Exibir token"}
               onClick={() => setShow((s) => !s)}
               edge="end"
               size="small"

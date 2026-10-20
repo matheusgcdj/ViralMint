@@ -51,13 +51,13 @@ export default function MessagingDialog({ open, tab, onTab, onClose, channels, o
     >
       <DialogTitle id="messaging-dialog-title" sx={{ pr: 7, pb: 1 }}>
         <Typography component="span" variant="h6" sx={{ fontWeight: 700, display: "block" }}>
-          Messaging apps
+          Aplicativos de Mensagens
         </Typography>
         <Typography component="span" variant="body2" color="text.secondary" sx={{ display: "block" }}>
-          Chat with ViralMint from your phone and hear when a job finishes.
+          Converse com o ViralMint pelo celular e receba alertas quando uma tarefa for concluída.
         </Typography>
         <IconButton
-          onClick={onClose} size="small" aria-label="Close"
+          onClick={onClose} size="small" aria-label="Fechar"
           sx={{ position: "absolute", right: 12, top: 12 }}
         >
           <CloseIcon fontSize="small" />
@@ -68,7 +68,7 @@ export default function MessagingDialog({ open, tab, onTab, onClose, channels, o
         value={meta.key}
         onChange={(_, v) => onTab(v)}
         variant="fullWidth"
-        aria-label="Messaging apps"
+        aria-label="Aplicativos de Mensagens"
         sx={{
           px: 2, borderBottom: 1, borderColor: "divider", minHeight: 52,
           "& .MuiTab-root": { textTransform: "none", fontWeight: 600, minHeight: 52, gap: 0.75 },

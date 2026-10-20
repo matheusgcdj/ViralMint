@@ -33,10 +33,10 @@ CHANNELS = ("telegram", "whatsapp", "discord", "slack")
 # One-liner shown when send_test returns False for a channel — tells the user
 # what they still need to do (pair the bot, scan the QR, etc).
 NOT_CONNECTED_HINTS: dict[str, str] = {
-    "telegram": "Could not send — link the bot to your account first (Settings → Messaging).",
-    "whatsapp": "Could not send — WhatsApp is not paired or is offline. Scan the QR code first.",
-    "discord":  "Could not send — DM your bot the pairing code shown in Settings → Messaging first.",
-    "slack":    "Could not send — DM your bot the pairing code shown in Settings → Messaging first.",
+    "telegram": "Não foi possível enviar — vincule o bot à sua conta primeiro (Configurações → Mensageiros).",
+    "whatsapp": "Não foi possível enviar — o WhatsApp não está emparelhado ou está offline. Escaneie o QR code primeiro.",
+    "discord":  "Não foi possível enviar — envie o código de emparelhamento por DM ao seu bot exibido em Configurações → Mensageiros.",
+    "slack":    "Não foi possível enviar — envie o código de emparelhamento por DM ao seu bot exibido em Configurações → Mensageiros.",
 }
 
 
@@ -87,7 +87,7 @@ async def _test_channel(name: str) -> dict:
     if not sent:
         raise HTTPException(
             status_code=400,
-            detail=NOT_CONNECTED_HINTS.get(name, "Could not send — channel not ready."),
+            detail=NOT_CONNECTED_HINTS.get(name, "Não foi possível enviar — o canal não está pronto."),
         )
     return {"ok": True}
 

@@ -278,8 +278,8 @@ class SlackChannel(MessagingChannel):
             user_id,
             NotificationPayload(
                 event=NotificationEvent.JOB_FAILED,
-                title="ViralMint test",
-                body="If you can read this, your Slack bot is wired up. :tada:",
+                title="Teste do ViralMint",
+                body="Se você está lendo isso, seu bot do Slack está conectado com sucesso! :tada:",
             ),
         )
 

@@ -31,25 +31,25 @@ export const CHANNELS = [
     key: "telegram", name: "Telegram", Icon: TelegramIcon,
     brand: "#229ED9", brandHover: "#1B87BA",
     iconColor: { light: "#229ED9", dark: "#4FB4E6" },
-    caption: "Two-way chat with ViralMint plus job notifications, through a bot you create.",
+    caption: "Chat bidirecional com o ViralMint e notificações de tarefas, através de um bot criado por você.",
   },
   {
     key: "whatsapp", name: "WhatsApp", Icon: WhatsAppIcon,
     brand: "#25D366", brandHover: "#128C7E",
     iconColor: { light: "#1DAA52", dark: "#25D366" },
-    caption: "Two-way chat plus notifications. Pairs by scanning a QR code, like WhatsApp Web.",
+    caption: "Chat bidirecional e notificações. Emparelha escaneando um QR code, como no WhatsApp Web.",
   },
   {
     key: "discord", name: "Discord", Icon: ChatBubbleIcon,
     brand: "#5865F2", brandHover: "#4752C4",
     iconColor: { light: "#5865F2", dark: "#7C87F5" },
-    caption: "DM your bot to chat with ViralMint and get job notifications.",
+    caption: "Envie mensagens diretas (DM) ao seu bot para conversar com o ViralMint e receber notificações.",
   },
   {
     key: "slack", name: "Slack", Icon: TagIcon,
     brand: "#611F69", brandHover: "#4A154B",
     iconColor: { light: "#611F69", dark: "#D48FDD" },
-    caption: "Socket Mode, so no public URL is needed. DM your bot to chat and get notifications.",
+    caption: "Modo Socket, sem necessidade de URL pública. Envie mensagens diretas (DM) ao seu bot para conversar e receber notificações.",
   },
 ]
 
@@ -63,32 +63,32 @@ const STATES = { telegram: STATE, whatsapp: WA_STATE, discord: DC_STATE, slack: 
 export function channelStatus(key, ch) {
   const S = STATES[key]
   if (ch.state === S.UNAVAILABLE) {
-    return { tone: "unavailable", label: "Unavailable", detail: "Needs a missing package — open for details" }
+    return { tone: "unavailable", label: "Indisponível", detail: "Requer pacote ausente — abra para detalhes" }
   }
   if (ch.state === S.CONNECTED) {
     const who = {
       telegram: ch.info.bot_username && `@${ch.info.bot_username}`,
-      whatsapp: "Paired with your phone",
+      whatsapp: "Emparelhado com seu celular",
       discord: ch.info.bot_username,
       slack: ch.info.team_name,
     }[key]
-    return { tone: "connected", label: "Connected", detail: who || "Connected" }
+    return { tone: "connected", label: "Conectado", detail: who || "Conectado" }
   }
   if (ch.state === S.RECONNECTING) {
-    return { tone: "pending", label: "Reconnecting…", detail: "Paired — reconnecting on its own" }
+    return { tone: "pending", label: "Reconectando…", detail: "Emparelhado — reconectando automaticamente" }
   }
   if (ch.state === S.AWAITING_START || ch.state === S.AWAITING_DM || ch.state === WA_STATE.PAIRING) {
     return { tone: "pending", label: ch.chip.label, detail: {
-      telegram: "Link the bot to your account to finish",
-      whatsapp: "Scan the QR code on your phone to finish",
-      discord: "DM your bot the pairing code to finish",
-      slack: "DM your bot the pairing code to finish",
+      telegram: "Vincule o bot à sua conta para concluir",
+      whatsapp: "Escaneie o QR code no seu celular para concluir",
+      discord: "Envie o código de emparelhamento por DM ao bot para concluir",
+      slack: "Envie o código de emparelhamento por DM ao bot para concluir",
     }[key] }
   }
   if (ch.state === S.CONNECTING) {
-    return { tone: "pending", label: "Connecting…", detail: "Connecting…" }
+    return { tone: "pending", label: "Conectando…", detail: "Conectando…" }
   }
-  return { tone: "off", label: "Not connected", detail: "Not connected" }
+  return { tone: "off", label: "Não conectado", detail: "Não conectado" }
 }
 
 export function isAwaiting(key, ch) {
@@ -100,8 +100,7 @@ export function isAwaiting(key, ch) {
 function ReconnectingNote() {
   return (
     <Alert severity="warning" variant="outlined">
-      Paired, but the connection dropped. ViralMint is reconnecting on its own — there is
-      nothing to redo. Messages sent meanwhile may arrive late.
+      Emparelhado, mas a conexão caiu temporariamente. O ViralMint está reconectando automaticamente — não é necessário refazer nada. Mensagens enviadas enquanto isso podem chegar com atraso.
     </Alert>
   )
 }
@@ -109,11 +108,11 @@ function ReconnectingNote() {
 function MissingPackage({ pkg, error }) {
   return (
     <Alert severity="warning" variant="outlined">
-      This needs the <code>{pkg}</code> Python package. Install dependencies with{" "}
-      <code>pip install -r requirements.txt</code>, then restart the app.
+      Este canal requer o pacote Python <code>{pkg}</code>. Instale as dependências com{" "}
+      <code>pip install -r requirements.txt</code> e reinicie o aplicativo.
       {error && (
         <Typography variant="caption" display="block" sx={{ mt: 1, opacity: 0.8 }}>
-          Details: {error}
+          Detalhes: {error}
         </Typography>
       )}
     </Alert>
@@ -145,8 +144,8 @@ function PairCode({ code }) {
       }}>
         {code}
       </Box>
-      <Tooltip title={copied ? "Copied" : "Copy code"}>
-        <IconButton size="small" onClick={copy} aria-label="Copy pairing code">
+      <Tooltip title={copied ? "Copiado" : "Copiar código"}>
+        <IconButton size="small" onClick={copy} aria-label="Copiar código de emparelhamento">
           {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
         </IconButton>
       </Tooltip>
@@ -154,7 +153,7 @@ function PairCode({ code }) {
   )
 }
 
-const PRIVATE_NOTE = "The bot links to whoever sends this code and ignores everyone else."
+const PRIVATE_NOTE = "O bot vincula-se exclusivamente a quem enviar este código e ignora outros usuários."
 
 function BotLink({ url, name, fallback }) {
   if (url) {
@@ -189,18 +188,16 @@ function TelegramBody({ meta, ch, onRefresh }) {
       testing={ch.testing} onTest={ch.test} onDisconnect={ch.disconnect} onRefresh={onRefresh}
       connectedSlot={ch.state === STATE.RECONNECTING ? <ReconnectingNote /> :
         <Alert severity="success" variant="outlined">
-          Connected to <BotLink url={ch.info.bot_url} name={bot} />. Send any message to your
-          bot to chat with ViralMint.
+          Conectado a <BotLink url={ch.info.bot_url} name={bot} />. Envie qualquer mensagem para seu bot para conversar com o ViralMint.
         </Alert>
       }
       awaitingSlot={
         <Alert severity="info" variant="outlined" icon={false}>
           <Stack spacing={1.25}>
             <Typography variant="body2">
-              Bot ready. Open <BotLink url={ch.info.bot_url} name={bot} fallback="your bot" /> in
-              Telegram and tap <strong>Start</strong> — the link carries your pairing code, so
-              that one tap links the bot to your account. If Telegram doesn't show a Start
-              button, send the bot this code:
+              Bot pronto. Abra <BotLink url={ch.info.bot_url} name={bot} fallback="seu bot" /> no
+              Telegram e toque em <strong>Iniciar (Start)</strong> — o link contém seu código de emparelhamento, então
+              esse clique vincula o bot diretamente à sua conta. Se o Telegram não exibir o botão Iniciar, envie este código ao bot:
             </Typography>
             <PairCode code={ch.info.pair_code} />
             <Typography variant="caption" color="text.secondary">{PRIVATE_NOTE}</Typography>
@@ -210,12 +207,12 @@ function TelegramBody({ meta, ch, onRefresh }) {
       defaultSlot={
         <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
-            Create a bot with{" "}
+            Crie um bot com o{" "}
             <Link href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</Link>
-            {" "}on Telegram (send <code>/newbot</code>), then paste the bot token below.
+            {" "}no Telegram (envie <code>/newbot</code>) e cole o token do bot abaixo.
           </Typography>
           <TokenField
-            label="Bot token"
+            label="Token do bot"
             placeholder="123456789:ABCdef..."
             value={ch.tokens.bot_token}
             onChange={(e) => ch.setToken("bot_token", e.target.value)}
@@ -225,7 +222,7 @@ function TelegramBody({ meta, ch, onRefresh }) {
             meta={meta} onClick={ch.connect} busy={ch.saving}
             disabled={ch.saving || !ch.tokens.bot_token.trim()}
           >
-            {ch.saving ? "Connecting…" : "Connect Telegram"}
+            {ch.saving ? "Conectando…" : "Conectar Telegram"}
           </ConnectButton>
         </Stack>
       }
@@ -245,9 +242,7 @@ function WhatsAppBody({ meta, ch, onRefresh }) {
         ? <MissingPackage pkg="neonize" error={ch.info.error} /> : null}
       connectedSlot={ch.state === WA_STATE.RECONNECTING ? <ReconnectingNote /> :
         <Alert severity="success" variant="outlined">
-          WhatsApp is paired. To chat with ViralMint, write in your own <strong>Message
-          yourself</strong> chat; job notifications arrive there too. Messages in any other chat
-          are never read.
+          WhatsApp está emparelhado. Para conversar com o ViralMint, envie mensagens no seu próprio chat de <strong>Mensagens para si mesmo (Message yourself)</strong>; notificações de tarefas também chegam por lá. Mensagens em outros chats nunca são lidas.
         </Alert>
       }
       defaultSlot={pairing ? (
@@ -255,8 +250,7 @@ function WhatsAppBody({ meta, ch, onRefresh }) {
         // this tab it simply takes the tab's place until pairing completes.
         <Stack spacing={2} alignItems="center" data-testid="whatsapp-qr">
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
-            On your phone, open <strong>WhatsApp → Settings → Linked Devices → Link a Device</strong>,
-            then scan this code.
+            No seu celular, abra <strong>WhatsApp → Configurações → Aparelhos conectados → Conectar um aparelho</strong> e escaneie este código.
           </Typography>
           {ch.qr ? (
             // White on purpose: a QR code needs a light background in either theme.
@@ -266,11 +260,11 @@ function WhatsAppBody({ meta, ch, onRefresh }) {
           ) : (
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 6 }}>
               <CircularProgress size={20} />
-              <Typography variant="body2" color="text.secondary">Waiting for the QR code…</Typography>
+              <Typography variant="body2" color="text.secondary">Aguardando o QR code…</Typography>
             </Stack>
           )}
           <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
-            The code refreshes on its own. This switches to Connected once your phone pairs.
+            O código atualiza automaticamente. O status mudará para Conectado assim que seu celular emparelhar.
           </Typography>
           <Button onClick={ch.disconnect} color="error" startIcon={<LogoutIcon />}>
             Cancel pairing
@@ -279,18 +273,16 @@ function WhatsAppBody({ meta, ch, onRefresh }) {
       ) : (
         <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
-            Get scout, download, and upload alerts on WhatsApp — and chat with ViralMint
-            straight from your phone. Pairs in seconds, just like WhatsApp Web.
+            Receba alertas de busca, download e renderização no WhatsApp — e converse com o ViralMint direto do seu celular. Conecta em segundos, igual ao WhatsApp Web.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Click Show QR code, then open WhatsApp → Settings → Linked Devices → Link a
-            Device to scan it.
+            Clique em Exibir QR code e abra WhatsApp → Configurações → Aparelhos conectados → Conectar um aparelho para escanear.
           </Typography>
           <ConnectButton
             meta={meta} onClick={ch.connect} busy={ch.saving}
             disabled={ch.saving} startIcon={<QrCodeIcon />}
           >
-            {ch.saving ? "Generating QR…" : "Show QR code"}
+            {ch.saving ? "Gerando QR code…" : "Exibir QR code"}
           </ConnectButton>
         </Stack>
       )}
@@ -309,25 +301,24 @@ function DiscordBody({ meta, ch, onRefresh }) {
         ? <MissingPackage pkg="discord.py" error={ch.info.error} /> : null}
       connectedSlot={ch.state === DC_STATE.RECONNECTING ? <ReconnectingNote /> :
         <Alert severity="success" variant="outlined">
-          Connected as <strong>{ch.info.bot_username}</strong>. DM your bot on Discord to chat
-          with ViralMint; notifications arrive in the same thread.
+          Conectado como <strong>{ch.info.bot_username}</strong>. Envie mensagens diretas (DM) ao seu bot no Discord para conversar com o ViralMint; as notificações chegam na mesma conversa.
         </Alert>
       }
       awaitingSlot={
         <Alert severity="info" variant="outlined" icon={false}>
           <Stack spacing={1.25}>
             <Typography variant="body2">
-              Bot online as <strong>{ch.info.bot_username}</strong>.
+              Bot online como <strong>{ch.info.bot_username}</strong>.
               {ch.info.bot_invite_url && (
                 <>
                   {" "}
                   <Link href={ch.info.bot_invite_url} target="_blank" rel="noreferrer" sx={{ fontWeight: 600 }}>
-                    Invite it to a server
+                    Convide-o para um servidor
                   </Link>
-                  {" "}if you haven't yet, then
+                  {" "}se ainda não o fez, e em seguida
                 </>
               )}
-              {" "}DM the bot this pairing code:
+              {" "}envie este código de emparelhamento por DM ao bot:
             </Typography>
             <PairCode code={ch.info.pair_code} />
             <Typography variant="caption" color="text.secondary">{PRIVATE_NOTE}</Typography>
@@ -337,15 +328,14 @@ function DiscordBody({ meta, ch, onRefresh }) {
       defaultSlot={
         <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
-            Create a bot at{" "}
+            Crie um bot em{" "}
             <Link href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">
               discord.com/developers/applications
             </Link>
-            : click <strong>New Application</strong>, then <strong>Bot</strong>, copy the token and
-            paste it below. DMs work without any privileged intents.
+            : clique em <strong>New Application</strong>, depois em <strong>Bot</strong>, copie o token e cole-o abaixo. As DMs funcionam sem necessidade de privileged intents.
           </Typography>
           <TokenField
-            label="Bot token"
+            label="Token do bot"
             placeholder="MTI..."
             value={ch.tokens.bot_token}
             onChange={(e) => ch.setToken("bot_token", e.target.value)}
@@ -355,7 +345,7 @@ function DiscordBody({ meta, ch, onRefresh }) {
             meta={meta} onClick={ch.connect} busy={ch.saving}
             disabled={ch.saving || !ch.tokens.bot_token.trim()}
           >
-            {ch.saving ? "Connecting…" : "Connect Discord"}
+            {ch.saving ? "Conectando…" : "Conectar Discord"}
           </ConnectButton>
         </Stack>
       }
@@ -374,16 +364,14 @@ function SlackBody({ meta, ch, onRefresh }) {
         ? <MissingPackage pkg="slack-sdk" error={ch.info.error} /> : null}
       connectedSlot={
         <Alert severity="success" variant="outlined">
-          Connected to <strong>{ch.info.team_name || "your Slack workspace"}</strong>. DM your
-          bot in Slack to chat with ViralMint; notifications arrive in the same thread.
+          Conectado a <strong>{ch.info.team_name || "seu workspace do Slack"}</strong>. Envie mensagens diretas (DM) ao seu bot no Slack para conversar com o ViralMint; as notificações chegam na mesma conversa.
         </Alert>
       }
       awaitingSlot={
         <Alert severity="info" variant="outlined" icon={false}>
           <Stack spacing={1.25}>
             <Typography variant="body2">
-              Bot online{ch.info.team_name ? ` in ${ch.info.team_name}` : ""}. Open Slack, find
-              your bot in the sidebar and DM it this pairing code:
+              Bot online{ch.info.team_name ? ` em ${ch.info.team_name}` : ""}. Abra o Slack, encontre seu bot na barra lateral e envie este código de emparelhamento por DM:
             </Typography>
             <PairCode code={ch.info.pair_code} />
             <Typography variant="caption" color="text.secondary">{PRIVATE_NOTE}</Typography>
@@ -393,23 +381,23 @@ function SlackBody({ meta, ch, onRefresh }) {
       defaultSlot={
         <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
-            Create a Slack app at{" "}
+            Crie um aplicativo Slack em{" "}
             <Link href="https://api.slack.com/apps" target="_blank" rel="noreferrer">api.slack.com/apps</Link>.
-            Enable <strong>Socket Mode</strong>, generate an app-level token with{" "}
-            <code>connections:write</code>, and install the bot to your workspace with the scopes{" "}
+            Ative o <strong>Socket Mode</strong>, gere um token em nível de aplicativo com{" "}
+            <code>connections:write</code> e instale o bot no seu workspace com os escopos{" "}
             <code>chat:write</code>, <code>im:history</code>, <code>im:read</code>,{" "}
-            <code>im:write</code> and <code>users:read</code>. Then subscribe to the{" "}
-            <code>message.im</code> event.
+            <code>im:write</code> e <code>users:read</code>. Em seguida, assine o evento{" "}
+            <code>message.im</code>.
           </Typography>
           <TokenField
-            label="Bot token (xoxb-…)"
+            label="Token do bot (xoxb-…)"
             placeholder="xoxb-..."
             value={ch.tokens.bot_token}
             onChange={(e) => ch.setToken("bot_token", e.target.value)}
             disabled={ch.saving}
           />
           <TokenField
-            label="App-level token (xapp-…)"
+            label="Token em nível de aplicativo (xapp-…)"
             placeholder="xapp-..."
             value={ch.tokens.app_token}
             onChange={(e) => ch.setToken("app_token", e.target.value)}
@@ -419,7 +407,7 @@ function SlackBody({ meta, ch, onRefresh }) {
             meta={meta} onClick={ch.connect} busy={ch.saving}
             disabled={ch.saving || !ch.tokens.bot_token.trim() || !ch.tokens.app_token.trim()}
           >
-            {ch.saving ? "Connecting…" : "Connect Slack"}
+            {ch.saving ? "Conectando…" : "Conectar Slack"}
           </ConnectButton>
         </Stack>
       }

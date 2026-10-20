@@ -130,12 +130,37 @@ def resolve_gsap_js(hyperframes_root: Path) -> Path:
     return hyperframes_root / "node_modules" / "gsap" / "dist" / "gsap.min.js"
 
 
+def _resolve_portable_node_bin() -> Path:
+    import platform
+    import sys
+    sysname = platform.system()
+    machine = platform.machine().lower()
+    arch = {
+        "x86_64": "x64", "amd64": "x64",
+        "arm64": "arm64", "aarch64": "arm64",
+    }.get(machine)
+    if not arch:
+        return settings.MOTION_DIR / "node" / "bin" / "node"
+    if sysname == "Darwin":
+        base = f"node-v{NODE_VERSION}-darwin-{arch}"
+    elif sysname == "Linux":
+        base = f"node-v{NODE_VERSION}-linux-{arch}"
+    elif sysname == "Windows":
+        base = f"node-v{NODE_VERSION}-win-x64"
+    else:
+        base = ""
+    node_base = settings.MOTION_DIR / "node" / base
+    if sys.platform.startswith("win"):
+        return node_base / "node.exe"
+    return node_base / "bin" / "node"
+
+
 def base_env() -> dict:
     """Shared subprocess env for every HyperFrames invocation: telemetry/update
     checks off, deterministic on-disk caches under motion/, and the loopback
     studio pin. render_env() (hyperframes_service) extends this with the FFmpeg
     binary pins; the studio uses it as-is (preview needs no binaries)."""
-    return {
+    env = {
         **os.environ,
         "HYPERFRAMES_NO_TELEMETRY": "1",
         "HYPERFRAMES_NO_UPDATE_CHECK": "1",
@@ -143,6 +168,13 @@ def base_env() -> dict:
         "HYPERFRAMES_FONT_CACHE_DIR": str(settings.MOTION_DIR / "fonts"),
         "HYPERFRAMES_EXTRACT_CACHE_DIR": str(settings.MOTION_DIR / "cache"),
     }
+    node_bin_path = _resolve_portable_node_bin()
+    if node_bin_path.exists():
+        node_dir = str(node_bin_path.parent)
+        current_path = env.get("PATH", "")
+        if node_dir not in current_path.split(os.pathsep):
+            env["PATH"] = f"{node_dir}{os.pathsep}{current_path}" if current_path else node_dir
+    return env
 
 
 def render_argv(node_bin: Path, cli_js: Path, project_dir: Path, output: Path,

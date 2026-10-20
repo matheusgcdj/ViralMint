@@ -90,7 +90,7 @@ const CHANNELS = {
       }
     },
     connect: {
-      validate: (t) => (!t.bot_token.trim() ? "Paste your bot token first" : null),
+      validate: (t) => (!t.bot_token.trim() ? "Cole o token do seu bot primeiro" : null),
       pendingState: STATE.CONNECTING,
       payload: (t) => ({ bot_token: t.bot_token.trim() }),
       mapInfo: (data) => ({
@@ -100,24 +100,24 @@ const CHANNELS = {
         pair_code: data.pair_code || "",
       }),
       awaitingState: STATE.AWAITING_START,
-      connectedMessage: "Telegram connected",
-      awaitingMessage: "Bot ready — open it and tap Start to link your account",
-      failMessage: "Connect failed",
+      connectedMessage: "Telegram conectado",
+      awaitingMessage: "Bot pronto — abra-o e toque em Iniciar para vincular sua conta",
+      failMessage: "Falha na conexão com o Telegram",
     },
-    disconnectMessage: "Telegram disconnected",
-    test: { success: "Test message sent — check Telegram", fail: "Test failed — link the bot to your account first" },
+    disconnectMessage: "Telegram desconectado",
+    test: { success: "Mensagem de teste enviada — verifique seu Telegram", fail: "Falha no teste — vincule o bot à sua conta primeiro" },
     chip: (state) => {
-      if (state === STATE.CONNECTED) return { label: "Connected", connected: true }
-      if (state === STATE.AWAITING_START) return { label: "Needs pairing", color: "warning" }
-      if (state === STATE.RECONNECTING) return { label: "Reconnecting…", color: "warning" }
-      if (state === STATE.CONNECTING) return { label: "Connecting…" }
-      return { label: "Not connected" }
+      if (state === STATE.CONNECTED) return { label: "Conectado", connected: true }
+      if (state === STATE.AWAITING_START) return { label: "Requer emparelhamento", color: "warning" }
+      if (state === STATE.RECONNECTING) return { label: "Reconectando…", color: "warning" }
+      if (state === STATE.CONNECTING) return { label: "Conectando…" }
+      return { label: "Não conectado" }
     },
     events: {
       telegram_connected: (msg, { setState, setInfo, showSnackbar }) => {
         setState(STATE.CONNECTED)
         setInfo(prev => ({ ...prev, chat_id: msg.chat_id || prev.chat_id }))
-        showSnackbar("Telegram connected — you'll receive notifications here", "success")
+        showSnackbar("Telegram conectado — você receberá notificações aqui", "success")
       },
     },
   },
@@ -155,23 +155,23 @@ const CHANNELS = {
         try {
           await http.post("/api/messaging/whatsapp/connect")
           setState(WA_STATE.PAIRING)
-          showSnackbar("Generating QR code — scan it from your phone", "info")
+          showSnackbar("Gerando QR code — escaneie pelo seu celular", "info")
         } catch (e) {
           setState(WA_STATE.DISCONNECTED)
-          showSnackbar(e.response?.data?.detail || "WhatsApp connect failed", "error")
+          showSnackbar(e.response?.data?.detail || "Falha na conexão do WhatsApp", "error")
         } finally {
           setSaving(false)
         }
       },
     },
-    disconnectMessage: "WhatsApp disconnected",
-    test: { success: "Test message sent — check WhatsApp", fail: "Test failed — is WhatsApp paired?" },
+    disconnectMessage: "WhatsApp desconectado",
+    test: { success: "Mensagem de teste enviada — verifique seu WhatsApp", fail: "Falha no teste — o WhatsApp está emparelhado?" },
     chip: (state) => {
-      if (state === WA_STATE.CONNECTED) return { label: "Connected", connected: true }
-      if (state === WA_STATE.PAIRING) return { label: "Scan QR code", color: "warning" }
-      if (state === WA_STATE.RECONNECTING) return { label: "Reconnecting…", color: "warning" }
-      if (state === WA_STATE.UNAVAILABLE) return { label: "Unavailable" }
-      return { label: "Not connected" }
+      if (state === WA_STATE.CONNECTED) return { label: "Conectado", connected: true }
+      if (state === WA_STATE.PAIRING) return { label: "Escanear QR code", color: "warning" }
+      if (state === WA_STATE.RECONNECTING) return { label: "Reconectando…", color: "warning" }
+      if (state === WA_STATE.UNAVAILABLE) return { label: "Indisponível" }
+      return { label: "Não conectado" }
     },
     events: {
       whatsapp_qr: (msg, { setState, setQr }) => {
@@ -238,7 +238,7 @@ const CHANNELS = {
       }
     },
     connect: {
-      validate: (t) => (!t.bot_token.trim() ? "Paste your Discord bot token first" : null),
+      validate: (t) => (!t.bot_token.trim() ? "Cole o token do seu bot Discord primeiro" : null),
       pendingState: DC_STATE.CONNECTING,
       payload: (t) => ({ bot_token: t.bot_token.trim() }),
       mapInfo: (data) => ({
@@ -249,25 +249,25 @@ const CHANNELS = {
         pair_code: data.pair_code || "",
       }),
       awaitingState: DC_STATE.AWAITING_DM,
-      connectedMessage: "Discord connected",
-      awaitingMessage: "Bot online — DM it the pairing code to finish setup",
-      failMessage: "Discord connect failed",
+      connectedMessage: "Discord conectado",
+      awaitingMessage: "Bot online — envie o código de emparelhamento por DM para concluir a configuração",
+      failMessage: "Falha na conexão com o Discord",
     },
-    disconnectMessage: "Discord disconnected",
-    test: { success: "Test message sent — check Discord", fail: "Test failed — DM your bot the pairing code first" },
+    disconnectMessage: "Discord desconectado",
+    test: { success: "Mensagem de teste enviada — verifique seu Discord", fail: "Falha no teste — envie o código de emparelhamento por DM primeiro" },
     chip: (state) => {
-      if (state === DC_STATE.CONNECTED) return { label: "Connected", connected: true }
-      if (state === DC_STATE.AWAITING_DM) return { label: "Needs pairing", color: "warning" }
-      if (state === DC_STATE.RECONNECTING) return { label: "Reconnecting…", color: "warning" }
-      if (state === DC_STATE.CONNECTING) return { label: "Connecting…" }
-      if (state === DC_STATE.UNAVAILABLE) return { label: "Unavailable" }
-      return { label: "Not connected" }
+      if (state === DC_STATE.CONNECTED) return { label: "Conectado", connected: true }
+      if (state === DC_STATE.AWAITING_DM) return { label: "Requer emparelhamento", color: "warning" }
+      if (state === DC_STATE.RECONNECTING) return { label: "Reconectando…", color: "warning" }
+      if (state === DC_STATE.CONNECTING) return { label: "Conectando…" }
+      if (state === DC_STATE.UNAVAILABLE) return { label: "Indisponível" }
+      return { label: "Não conectado" }
     },
     events: {
       discord_connected: (msg, { setState, setInfo, showSnackbar }) => {
         setState(DC_STATE.CONNECTED)
         setInfo(prev => ({ ...prev, chat_id: msg.chat_id || prev.chat_id }))
-        showSnackbar("Discord connected — you'll receive notifications here", "success")
+        showSnackbar("Discord conectado — você receberá notificações aqui", "success")
       },
     },
   },
@@ -305,7 +305,7 @@ const CHANNELS = {
     connect: {
       validate: (t) => (
         (!t.bot_token.trim() || !t.app_token.trim())
-          ? "Paste both the bot token (xoxb-) and app-level token (xapp-)"
+          ? "Cole tanto o bot token (xoxb-) quanto o app-level token (xapp-)"
           : null
       ),
       pendingState: SL_STATE.CONNECTING,
@@ -321,24 +321,24 @@ const CHANNELS = {
         pair_code: data.pair_code || "",
       }),
       awaitingState: SL_STATE.AWAITING_DM,
-      connectedMessage: "Slack connected",
-      awaitingMessage: "Bot online — DM it the pairing code to finish setup",
-      failMessage: "Slack connect failed",
+      connectedMessage: "Slack conectado",
+      awaitingMessage: "Bot online — envie o código de emparelhamento por DM para concluir a configuração",
+      failMessage: "Falha na conexão com o Slack",
     },
-    disconnectMessage: "Slack disconnected",
-    test: { success: "Test message sent — check Slack", fail: "Test failed — DM your bot the pairing code first" },
+    disconnectMessage: "Slack desconectado",
+    test: { success: "Mensagem de teste enviada — verifique seu Slack", fail: "Falha no teste — envie o código de emparelhamento por DM primeiro" },
     chip: (state) => {
-      if (state === SL_STATE.CONNECTED) return { label: "Connected", connected: true }
-      if (state === SL_STATE.AWAITING_DM) return { label: "Needs pairing", color: "warning" }
-      if (state === SL_STATE.CONNECTING) return { label: "Connecting…" }
-      if (state === SL_STATE.UNAVAILABLE) return { label: "Unavailable" }
-      return { label: "Not connected" }
+      if (state === SL_STATE.CONNECTED) return { label: "Conectado", connected: true }
+      if (state === SL_STATE.AWAITING_DM) return { label: "Requer emparelhamento", color: "warning" }
+      if (state === SL_STATE.CONNECTING) return { label: "Conectando…" }
+      if (state === SL_STATE.UNAVAILABLE) return { label: "Indisponível" }
+      return { label: "Não conectado" }
     },
     events: {
       slack_connected: (msg, { setState, setInfo, showSnackbar }) => {
         setState(SL_STATE.CONNECTED)
         setInfo(prev => ({ ...prev, chat_id: msg.chat_id || prev.chat_id }))
-        showSnackbar("Slack connected — you'll receive notifications here", "success")
+        showSnackbar("Slack conectado — você receberá notificações aqui", "success")
       },
     },
   },
@@ -417,7 +417,7 @@ export default function useMessagingChannel(channelKey) {
       if (cfg.clearQrOnDisconnect) setQr("")
       showSnackbar(cfg.disconnectMessage, "info")
     } catch (e) {
-      showSnackbar(e.response?.data?.detail || "Disconnect failed", "error")
+      showSnackbar(e.response?.data?.detail || "Falha ao desconectar", "error")
     }
   }, [cfg, channelKey, showSnackbar])
 

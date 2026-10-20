@@ -285,8 +285,8 @@ class DiscordChannel(MessagingChannel):
             user_id,
             NotificationPayload(
                 event=NotificationEvent.JOB_FAILED,
-                title="ViralMint test",
-                body="If you can read this, your Discord bot is wired up. 🎉",
+                title="Teste do ViralMint",
+                body="Se você está lendo isso, seu bot do Discord está conectado com sucesso! 🎉",
             ),
         )
 

@@ -49,6 +49,11 @@ RUN if [ -f /etc/ImageMagick-6/policy.xml ]; then \
 
 WORKDIR /app
 
+# Copy Node runtime and npm from frontend-builder stage for motion graphics & tooling
+COPY --from=frontend-builder /usr/local/bin/node /usr/local/bin/node
+COPY --from=frontend-builder /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+
 # Install Python requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -U pip setuptools wheel && \

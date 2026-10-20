@@ -419,6 +419,11 @@ class HyperFramesService:
         if not _node_bin().exists():
             cls._install_error = "Node extracted but `node` binary not found"
             return
+        if not sys.platform.startswith("win"):
+            try:
+                _node_bin().chmod(0o755)
+            except OSError:
+                pass
         cls._install_progress_pct = 25
 
     @classmethod
@@ -489,7 +494,14 @@ class HyperFramesService:
             f"gsap@{GSAP_NPM_VERSION}",
             "--no-audit", "--no-fund", "--loglevel=error",
         ]
-        env = {**os.environ, "npm_config_update_notifier": "false"}
+        node_bin_dir = str(_node_bin().parent)
+        current_path = os.environ.get("PATH", "")
+        path_env = f"{node_bin_dir}{os.pathsep}{current_path}" if current_path else node_bin_dir
+        env = {
+            **os.environ,
+            "PATH": path_env,
+            "npm_config_update_notifier": "false",
+        }
         try:
             rc, _tail, timed_out = await run_capped(
                 cmd, cwd=str(hf_dir), env=env,
@@ -505,8 +517,9 @@ class HyperFramesService:
             cls._install_error = "npm install timed out. Check your connection and retry."
             return
         if rc != 0:
+            tail_msg = f": {' | '.join(_tail[-3:])}" if _tail else ""
             cls._install_error = (
-                f"npm install failed (exit {rc}). Often a proxy/antivirus or "
+                f"npm install failed (exit {rc}){tail_msg}. Often a proxy/antivirus or "
                 f"offline network — check the connection and retry."
             )
             return

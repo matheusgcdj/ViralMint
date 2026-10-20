@@ -93,7 +93,7 @@ export default function ChannelPanel({
       <Stack spacing={2}>
         {awaitingSlot}
         <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-          <Button variant="outlined" onClick={onRefresh}>Refresh status</Button>
+          <Button variant="outlined" onClick={onRefresh}>Atualizar status</Button>
           <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={onDisconnect}>
             Cancel
           </Button>
