@@ -136,18 +136,26 @@ def _node_archive_name() -> Optional[str]:
 
 
 def _node_bin() -> Path:
-    """Path to the portable `node` executable, with fallback to system node."""
+    """Path to the portable `node` executable, or system node if compatible (>= 22)."""
     base = _node_dir() / (_node_archive_name() or "")
     portable_node = base / "node.exe" if sys.platform.startswith("win") else base / "bin" / "node"
     if portable_node.exists():
         return portable_node
-    # Fallback to system node if installed
-    system_node = shutil.which("node")
-    if system_node:
-        return Path(system_node)
-    for cand in [Path("/usr/local/bin/node"), Path("/usr/bin/node")]:
-        if cand.exists():
-            return cand
+    # Fallback to system node ONLY if installed and version is Node >= 22
+    for cand in [shutil.which("node"), "/usr/local/bin/node", "/usr/bin/node"]:
+        if cand:
+            p = Path(cand)
+            if p.exists() and os.access(p, os.X_OK):
+                try:
+                    import subprocess
+                    res = subprocess.run([str(p), "-v"], capture_output=True, text=True, timeout=2)
+                    if res.returncode == 0:
+                        ver = res.stdout.strip().lstrip("v")
+                        major = int(ver.split(".")[0])
+                        if major >= 22:
+                            return p
+                except Exception:
+                    pass
     return portable_node
 
 

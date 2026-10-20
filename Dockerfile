@@ -2,7 +2,7 @@
 # Copyright (c) 2025-2026 ViralMint Contributors
 
 # ── Stage 1: Build Frontend ─────────────────────────
-FROM node:20-bookworm-slim AS frontend-builder
+FROM node:22-bookworm-slim AS frontend-builder
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
@@ -26,6 +26,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # - imagemagick: subtitle & caption drawing
 # - fonts: required for subtitle styling and rendering
 # - build tools & headers: for compiling native Python packages if needed
+# - chromium/chrome headless libraries: for HyperFrames/Puppeteer render engine
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     imagemagick \
@@ -37,6 +38,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libffi-dev \
     libssl-dev \
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpango-1.0-0 \
+    libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Fix ImageMagick policy to allow font/text rendering for subtitles
@@ -49,7 +64,7 @@ RUN if [ -f /etc/ImageMagick-6/policy.xml ]; then \
 
 WORKDIR /app
 
-# Copy Node runtime and npm from frontend-builder stage for motion graphics & tooling
+# Copy Node 22 runtime and npm from frontend-builder stage for motion graphics & tooling
 COPY --from=frontend-builder /usr/local/bin/node /usr/local/bin/node
 COPY --from=frontend-builder /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
