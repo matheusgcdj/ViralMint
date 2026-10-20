@@ -267,7 +267,7 @@ function WhatsAppBody({ meta, ch, onRefresh }) {
             O código atualiza automaticamente. O status mudará para Conectado assim que seu celular emparelhar.
           </Typography>
           <Button onClick={ch.disconnect} color="error" startIcon={<LogoutIcon />}>
-            Cancel pairing
+            Cancelar emparelhamento
           </Button>
         </Stack>
       ) : (

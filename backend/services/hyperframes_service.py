@@ -136,20 +136,38 @@ def _node_archive_name() -> Optional[str]:
 
 
 def _node_bin() -> Path:
-    """Path to the portable `node` executable."""
+    """Path to the portable `node` executable, with fallback to system node."""
     base = _node_dir() / (_node_archive_name() or "")
-    if sys.platform.startswith("win"):
-        return base / "node.exe"
-    return base / "bin" / "node"
+    portable_node = base / "node.exe" if sys.platform.startswith("win") else base / "bin" / "node"
+    if portable_node.exists():
+        return portable_node
+    # Fallback to system node if installed
+    system_node = shutil.which("node")
+    if system_node:
+        return Path(system_node)
+    for cand in [Path("/usr/local/bin/node"), Path("/usr/bin/node")]:
+        if cand.exists():
+            return cand
+    return portable_node
 
 
 def _npm_cli_js() -> Path:
-    """Path to npm's cli.js inside the portable Node — invoked via `node npm-cli.js`
-    so we never depend on a shell-script `npm` wrapper (avoids shell=True)."""
+    """Path to npm's cli.js inside the portable Node or system npm."""
     base = _node_dir() / (_node_archive_name() or "")
-    if sys.platform.startswith("win"):
-        return base / "node_modules" / "npm" / "bin" / "npm-cli.js"
-    return base / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js"
+    portable_npm = (
+        base / "node_modules" / "npm" / "bin" / "npm-cli.js"
+        if sys.platform.startswith("win")
+        else base / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js"
+    )
+    if portable_npm.exists():
+        return portable_npm
+    for cand in [
+        Path("/usr/local/lib/node_modules/npm/bin/npm-cli.js"),
+        Path("/usr/lib/node_modules/npm/bin/npm-cli.js"),
+    ]:
+        if cand.exists():
+            return cand
+    return portable_npm
 
 
 def _cli_js() -> Path:
@@ -356,10 +374,34 @@ class HyperFramesService:
     @classmethod
     async def _step_download_node(cls) -> None:
         """Download + extract the portable Node archive (idempotent)."""
-        if _node_bin().exists():
-            cls._install_progress_pct = 25
-            return
-        cls._install_step = "Downloading Node runtime…"
+        target_bin = _node_bin()
+        if target_bin.exists():
+            if not sys.platform.startswith("win"):
+                try:
+                    target_bin.chmod(0o755)
+                except OSError:
+                    pass
+            # Deterministically verify that node actually runs
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    str(target_bin), "--version",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                await proc.wait()
+                if proc.returncode == 0:
+                    cls._install_progress_pct = 25
+                    return
+            except Exception:
+                pass
+            # If existing binary is broken, clear and re-download
+            logger.warning("Motion Graphics: existing node binary at %s is broken, re-downloading...", target_bin)
+            try:
+                shutil.rmtree(_node_dir(), ignore_errors=True)
+            except Exception:
+                pass
+
+        cls._install_step = "Baixando o ambiente Node.js…"
         name = _node_archive_name()
         ext = "zip" if sys.platform.startswith("win") else "tar.gz"
         archive_name = f"{name}.{ext}"
@@ -496,7 +538,12 @@ class HyperFramesService:
         ]
         node_bin_dir = str(_node_bin().parent)
         current_path = os.environ.get("PATH", "")
-        path_env = f"{node_bin_dir}{os.pathsep}{current_path}" if current_path else node_bin_dir
+        # Ensure portable node directory and standard system bin dirs are in PATH
+        path_parts = [node_bin_dir, "/usr/local/bin", "/usr/bin", "/bin"]
+        for p in current_path.split(os.pathsep):
+            if p and p not in path_parts:
+                path_parts.append(p)
+        path_env = os.pathsep.join(path_parts)
         env = {
             **os.environ,
             "PATH": path_env,

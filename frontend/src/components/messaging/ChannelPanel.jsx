@@ -78,10 +78,10 @@ export default function ChannelPanel({
             disabled={testing}
             sx={brandSx}
           >
-            Send test message
+            Enviar mensagem de teste
           </Button>
           <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={onDisconnect}>
-            Disconnect
+            Desconectar
           </Button>
         </Stack>
       </Stack>
@@ -95,7 +95,7 @@ export default function ChannelPanel({
         <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
           <Button variant="outlined" onClick={onRefresh}>Atualizar status</Button>
           <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={onDisconnect}>
-            Cancel
+            Cancelar
           </Button>
         </Stack>
       </Stack>
