@@ -45,21 +45,21 @@ const TOOLS = [
   {
     id: "video-download",
     title: "Video Download",
-    description: "Paste a link and pull the video down — pick the quality, keep or embed subtitles.",
+    description: "Cole o link e baixe o vídeo diretamente — escolha a qualidade e mantenha ou incorpore legendas.",
     icon: <DownloadForOfflineOutlinedIcon />,
     category: "video",
   },
   {
     id: "merge-clips",
     title: "Merge Clips",
-    description: "Stitch multiple clips into one video. Auto-crop to your target aspect.",
+    description: "Junte múltiplos clipes em um único vídeo com ajuste automático de proporção.",
     icon: <MovieFilterOutlinedIcon />,
     category: "video",
   },
   {
     id: "transform",
     title: "Transform",
-    description: "Flip, rotate, loop, or change a clip's volume.",
+    description: "Inverta, gire, crie loops ou altere o volume de um clipe.",
     icon: <TransformIcon />,
     category: "video",
   },
@@ -68,7 +68,7 @@ const TOOLS = [
     // "remove audio" is what people search for, not "transform".
     id: "remove-audio",
     title: "Remove Audio",
-    description: "Strip the sound from a video and keep the picture untouched.",
+    description: "Remova o áudio de um vídeo mantendo a qualidade visual original intacta.",
     icon: <VolumeOffOutlinedIcon />,
     category: "audio",
     route: "/tools/transform?op=mute",
@@ -76,56 +76,56 @@ const TOOLS = [
   {
     id: "compress",
     title: "Compress Video",
-    description: "Shrink a file for email, chat, or an upload limit. Pick a size and a strength.",
+    description: "Reduza o tamanho do arquivo para redes sociais ou limites de upload, escolhendo o nível de compressão.",
     icon: <CompressOutlinedIcon />,
     category: "video",
   },
   {
     id: "crop",
     title: "Crop Video",
-    description: "Drag a box over the frame and keep just that part. Free-form or a fixed shape.",
+    description: "Selecione uma área do quadro e mantenha apenas essa região. Proporção livre ou pré-definida.",
     icon: <CropOutlinedIcon />,
     category: "video",
   },
   {
     id: "reframe",
     title: "Reframe to Vertical",
-    description: "Convert 16:9 to 9:16 with face-tracking for Shorts/TikTok.",
+    description: "Converta vídeos horizontais (16:9) em verticais (9:16) com foco automático em rostos para Shorts e TikTok.",
     icon: <AspectRatioOutlinedIcon />,
     category: "video",
   },
   {
     id: "watermark",
     title: "Add Watermark",
-    description: "Brand every export with your logo. Position, opacity, size.",
+    description: "Adicione sua marca d'água ou logotipo com controle de posicionamento, opacidade e escala.",
     icon: <BrandingWatermarkOutlinedIcon />,
     category: "video",
   },
   {
     id: "gif",
     title: "Video → GIF",
-    description: "Convert any clip to an animated GIF. Two-pass palette for clean colors.",
+    description: "Converta qualquer trecho em GIF animado com paleta de duas etapas para cores nítidas.",
     icon: <GifOutlinedIcon />,
     category: "video",
   },
   {
     id: "speed",
     title: "Speed up / Slow down",
-    description: "Re-time a video 0.25× to 4×, with optional pitch preservation.",
+    description: "Acelere ou desacelere vídeos de 0.25× a 4×, preservando o tom natural da voz.",
     icon: <SpeedOutlinedIcon />,
     category: "video",
   },
   {
     id: "trim",
     title: "Trim / Cut",
-    description: "Keep just the part you want — set a start and end, drop the rest.",
+    description: "Corte o trecho exato definindo início e fim, descartando o restante.",
     icon: <ContentCutOutlinedIcon />,
     category: "video",
   },
   {
     id: "auto-zoom",
     title: "Auto-Zoom",
-    description: "Subtle zoom punch-ins on spoken words for extra energy.",
+    description: "Aplica zooms sutis sincronizados com as falas para aumentar o dinamismo do conteúdo.",
     icon: <ZoomInMapOutlinedIcon />,
     category: "video",
   },
@@ -134,28 +134,28 @@ const TOOLS = [
   {
     id: "voiceover",
     title: "Voice-over Generator",
-    description: "Turn a script into natural TTS audio.",
+    description: "Transforme texto ou roteiro em narração natural com vozes neurais.",
     icon: <RecordVoiceOverOutlinedIcon />,
     category: "audio",
   },
   {
     id: "audio-enhance",
     title: "Enhance Audio",
-    description: "Denoise hiss, normalize loudness, polish speech.",
+    description: "Remova ruídos de fundo, normalize o volume e destaque a clareza da voz.",
     icon: <GraphicEqOutlinedIcon />,
     category: "audio",
   },
   {
     id: "remove-silence",
     title: "Silence Remover",
-    description: "Auto-cut pauses, fillers, and dead air.",
+    description: "Corte automaticamente pausas, silêncios prolongados e momentos mortos.",
     icon: <FastRewindOutlinedIcon />,
     category: "audio",
   },
   {
     id: "music-visualizer",
     title: "Music Visualizer",
-    description: "Audio → animated waveform / bars / spectrum video, synced to the sound.",
+    description: "Gere vídeos animados de waveform, barras ou espectro sincronizados ao áudio.",
     icon: <GraphicEqIcon />,
     category: "audio",
   },
@@ -164,49 +164,49 @@ const TOOLS = [
   {
     id: "captions",
     title: "Add Captions",
-    description: "Burn word-by-word captions. Viral, classic, or bold styles.",
+    description: "Gere legendas dinâmicas palavra por palavra em estilos modernos e virais.",
     icon: <SubtitlesOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "subtitles",
     title: "Export Subtitles",
-    description: "Transcribe to a downloadable .srt / .vtt file or plain transcript.",
+    description: "Transcreva o áudio para download em arquivos .srt, .vtt ou texto simples.",
     icon: <ClosedCaptionOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "transcript",
     title: "Transcript Downloader",
-    description: "Paste a link and grab the captions it already has as .txt / .srt / .vtt — no transcribing.",
+    description: "Baixe diretamente as legendas existentes de um vídeo em .txt, .srt ou .vtt sem precisar transcrever.",
     icon: <ArticleOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "translate",
     title: "Translate + Dub",
-    description: "Translate captions to 19+ languages or dub the audio entirely.",
+    description: "Traduza legendas para mais de 19 idiomas ou realize dublagem completa com IA.",
     icon: <TranslateOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "hook-analysis",
     title: "Hook Detector",
-    description: "Score the first 10s of any video + get stronger opening alternatives.",
+    description: "Analise a retenção dos primeiros 10 segundos e receba sugestões de ganchos virais.",
     icon: <LightbulbOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "metadata",
     title: "Title / Tags / Description",
-    description: "SEO metadata for any video, transcript, or topic — YT + TikTok ready.",
+    description: "Metadados de SEO (títulos, tags e descrição) otimizados para YouTube e TikTok.",
     icon: <LabelOutlinedIcon />,
     category: "subtitles",
   },
   {
     id: "auto-chapters",
     title: "Auto Chapters",
-    description: "AI-generated YouTube chapter markers from your long-form video.",
+    description: "Marcadores de capítulos automáticos gerados por IA para vídeos longos.",
     icon: <FormatListNumberedIcon />,
     category: "subtitles",
   },
@@ -222,21 +222,21 @@ const CATEGORIES = [
   {
     id: "video",
     label: "Video",
-    description: "Visual and structural edits to finished footage.",
+    description: "Edições visuais e estruturais para vídeos prontos.",
     icon: <VideocamOutlinedIcon />,
     accent: "info",
   },
   {
     id: "audio",
     label: "Audio",
-    description: "Voice, cleanup, and polish for the soundtrack.",
+    description: "Voz, limpeza de ruídos e polimento da trilha sonora.",
     icon: <HeadphonesOutlinedIcon />,
     accent: "success",
   },
   {
     id: "subtitles",
     label: "Subtitles & Insights",
-    description: "Captions, translation, and analysis overlays.",
+    description: "Legendas, tradução e análises de conteúdo.",
     icon: <ClosedCaptionOutlinedIcon />,
     accent: "warning",
   },
@@ -358,7 +358,7 @@ export default function Tools() {
       <PageHero
         icon={<BuildOutlinedIcon sx={{ fontSize: 22 }} />}
         title="Tools"
-        subtitle="Single-purpose utilities to refine finished videos"
+        subtitle="Utilitários modulares para editar e aperfeiçoar seus vídeos"
       />
 
       {/* Body */}
@@ -371,7 +371,7 @@ export default function Tools() {
             size="small"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search tools — e.g. caption, reframe, speed, translate…"
+            placeholder="Buscar ferramentas — ex: caption, reframe, speed, translate…"
             sx={{ mb: 2.5 }}
             slotProps={{
               input: {

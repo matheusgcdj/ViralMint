@@ -25,7 +25,7 @@ All on your machine. Bring your own API keys. No SaaS in the middle. No telemetr
 
 [Quick Start](#-quick-start) • [Features](#-features) • [What's free](#-what-works-without-api-keys) • [BYOK](#-bring-your-own-keys-byok) • [Contributing](CONTRIBUTING.md)
 
-**English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
+**English** · [Português (Brasil)](README.pt-BR.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 <br/>
 

@@ -47,7 +47,7 @@ export default function Scout() {
       setResults(data.results || [])
       setTotal(data.total || 0)
     } catch {
-      showSnackbar("Could not load scout results", "error")
+      showSnackbar("Não foi possível carregar os resultados do Scout", "error")
     } finally {
       setLoading(false)
     }
@@ -60,13 +60,13 @@ export default function Scout() {
       <PageHero
         icon={<TravelExploreIcon sx={{ fontSize: 22 }} />}
         title="Scout"
-        subtitle="Trending videos worth borrowing from — leads, not files"
+        subtitle="Vídeos em alta e tendências para inspirar seu conteúdo"
         accentColor="#0097a7"
         actions={
           <Stack direction="row" spacing={1}>
-            <Tooltip title="Refresh results">
+            <Tooltip title="Atualizar resultados">
               <Button size="small" variant="outlined" sx={{ minWidth: 0, px: 1 }}
-                aria-label="Refresh results"
+                aria-label="Atualizar resultados"
                 onClick={() => { setPage(0); fetchResults(null, 0, rowsPerPage) }}>
                 <RefreshIcon fontSize="small" />
               </Button>
@@ -74,7 +74,7 @@ export default function Scout() {
             <Button size="small" variant="contained"
               startIcon={<ChatBubbleOutlineRoundedIcon sx={{ fontSize: 17 }} />}
               onClick={() => navigate("/")}>
-              Scout a niche
+              Explorar nicho
             </Button>
           </Stack>
         }

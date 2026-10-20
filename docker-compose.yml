@@ -1,0 +1,47 @@
+services:
+  viralmint:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: viralmint:latest
+    container_name: viralmint
+    restart: unless-stopped
+    ports:
+      - "${PORT:-16888}:16888"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=16888
+      - DEBUG=false
+      - VIRALMINT_NO_BROWSER=1
+      # Chaves de criptografia e sessão (geradas automaticamente se vazias)
+      - SECRET_KEY=${SECRET_KEY:-}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      # Provedores de IA (BYOK - Preencha um ou configure na interface Web em Configurações)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - CUSTOM_AI_BASE_URL=${CUSTOM_AI_BASE_URL:-}
+      - CUSTOM_AI_API_KEY=${CUSTOM_AI_API_KEY:-}
+      - CUSTOM_AI_MODEL=${CUSTOM_AI_MODEL:-}
+      # Provedores de Mídia de Estoque (Pexels / Pixabay)
+      - PEXELS_API_KEY=${PEXELS_API_KEY:-}
+      - PIXABAY_API_KEY=${PIXABAY_API_KEY:-}
+      - STOCK_MEDIA_PROVIDER=${STOCK_MEDIA_PROVIDER:-auto}
+      # Scout & Download
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - TIKHUB_API_KEY=${TIKHUB_API_KEY:-}
+    volumes:
+      - viralmint_storage:/app/storage
+      - viralmint_cache:/root/.cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:16888/api/settings/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  viralmint_storage:
+    name: viralmint_storage
+  viralmint_cache:
+    name: viralmint_cache

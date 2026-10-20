@@ -65,13 +65,13 @@ export default function Settings() {
 
   if (loading) return (
     <Box sx={{ p: 4, display: "flex", justifyContent: "center" }}>
-      <Typography sx={{ color: "text.secondary" }}>Loading settings...</Typography>
+      <Typography sx={{ color: "text.secondary" }}>Carregando configurações...</Typography>
     </Box>
   )
   if (error || !settings) return (
     <Box sx={{ p: 4, textAlign: "center" }}>
-      <Typography sx={{ color: "error.main", mb: 2 }}>{error || "Failed to load settings"}</Typography>
-      <Button variant="outlined" onClick={fetchSettings}>Retry</Button>
+      <Typography sx={{ color: "error.main", mb: 2 }}>{error || "Falha ao carregar configurações"}</Typography>
+      <Button variant="outlined" onClick={fetchSettings}>Tentar novamente</Button>
     </Box>
   )
 
@@ -89,10 +89,10 @@ export default function Settings() {
           <KeyIcon sx={{ color: "text.secondary", fontSize: 26 }} />
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: -0.3 }}>
-              Settings
+              Configurações
             </Typography>
             <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              Manage your AI provider, messaging apps and system health
+              Gerencie seus provedores de IA, mensageiros e integridade do sistema
             </Typography>
           </Box>
         </Stack>
@@ -105,7 +105,7 @@ export default function Settings() {
         <Section
           icon={<SmartToyIcon sx={{ fontSize: 20 }} />}
           title="AI Provider"
-          description="Bring your own Anthropic, OpenAI or OpenRouter key, or your own OpenAI-compatible server — stored encrypted on this machine"
+          description="Conecte sua chave da Anthropic, OpenAI, OpenRouter ou servidor local compatível (Ollama, LM Studio) — criptografadas neste servidor"
           accentColor="#0d9f6e"
         >
           <AIProviderSection settings={settings} updateSettings={updateSettings} />
@@ -115,7 +115,7 @@ export default function Settings() {
         <Section
           icon={<KeyIcon sx={{ fontSize: 20 }} />}
           title="Service API Keys"
-          description="Per-service API keys (YouTube, etc.) — encrypted locally, override .env at runtime"
+          description="Chaves de API dos serviços (YouTube, Pexels, Pixabay, etc.) — criptografadas localmente"
           accentColor="#2563eb"
         >
           <ServiceKeysSection settings={settings} updateSettings={updateSettings} />
@@ -127,7 +127,7 @@ export default function Settings() {
         <Section
           icon={<PhoneIphoneIcon sx={{ fontSize: 20 }} />}
           title="Messaging"
-          description="Chat with ViralMint from your phone and get notified when a job finishes"
+          description="Interaja com o ViralMint pelo celular (Telegram, WhatsApp, Discord, Slack) e receba notificações de conclusão"
           accentColor="#5865F2"
         >
           <MessagingSection />
@@ -137,7 +137,7 @@ export default function Settings() {
         <Section
           icon={<MovieFilterIcon sx={{ fontSize: 20 }} />}
           title="Add-ons"
-          description="Optional engines that install on demand into your data folder"
+          description="Módulos opcionais que podem ser instalados sob demanda no seu diretório de dados"
           accentColor="#7c3aed"
         >
           <MotionGraphicsSection />
@@ -147,7 +147,7 @@ export default function Settings() {
         <Section
           icon={<MonitorHeartIcon sx={{ fontSize: 20 }} />}
           title="System Health"
-          description="Service status, dependency checks, and storage usage"
+          description="Status dos serviços locais, verificação de dependências e uso de armazenamento"
           accentColor="#dc2626"
         >
           <HealthDashboard />

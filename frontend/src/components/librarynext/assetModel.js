@@ -35,8 +35,8 @@ import { toDate } from "../../utils/format"
 // without reading a single word.
 export const ORIGINS = {
   created: {
-    label: "Created",
-    hint: "Made in ViralMint from a prompt, script or brief",
+    label: "Criados",
+    hint: "Gerados no ViralMint a partir de prompts, roteiros ou instruções",
     light: "#c96442",   // brand terracotta — the app's own act of making
     // Text-only step-down. Decoration and text have different contrast floors
     // — 3:1 vs 4.5:1 — and the brand terracotta falls between them: measured
@@ -51,14 +51,14 @@ export const ORIGINS = {
     // The word was wrong — the bucket is overwhelmingly videos downloaded from
     // links, so "Imported" read as a claim about the handful of disk imports.
     // "Sources" covers all three and matches the "By source" grouping.
-    label: "Sources",
-    hint: "Raw material that came from outside — downloaded from a link, imported from your disk, or uploaded",
+    label: "Fontes",
+    hint: "Materiais externos — baixados de links, importados do disco ou enviados",
     light: "#0e7490",
     dark: "#22b8cf",
   },
   edited: {
-    label: "Edited",
-    hint: "Made from something already in your library — a clip, a reframe, burned captions, extracted audio",
+    label: "Editados",
+    hint: "Criados a partir de itens da sua biblioteca — clipes, reframes, legendas, áudio extraído",
     light: "#6d5bd0",
     dark: "#a78bfa",
   },
@@ -90,10 +90,10 @@ export function originTextColor(origin, isDark) {
 
 // ── The media axis ──────────────────────────────────────────────────────────
 export const MEDIA = {
-  video: { label: "Video", plural: "videos" },
-  image: { label: "Image", plural: "images" },
-  audio: { label: "Audio", plural: "audio files" },
-  doc: { label: "Files", plural: "files" },
+  video: { label: "Vídeo", plural: "vídeos" },
+  image: { label: "Imagem", plural: "imagens" },
+  audio: { label: "Áudio", plural: "arquivos de áudio" },
+  doc: { label: "Arquivos", plural: "arquivos" },
 }
 
 export const MEDIA_KEYS = ["video", "image", "audio", "doc"]

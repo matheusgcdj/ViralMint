@@ -1,0 +1,15 @@
+.git
+.github
+.ekko-tmp
+node_modules
+frontend/node_modules
+desktop
+tests
+storage
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.DS_Store

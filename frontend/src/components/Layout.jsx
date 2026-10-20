@@ -31,9 +31,9 @@ const COLLAPSED_WIDTH = 64
 const navItems = [
   { to: "/",          icon: <ChatIcon />,             label: "Chat" },
   { to: "/scout",     icon: <TravelExploreIcon />,    label: "Scout" },
-  { to: "/channels",  icon: <SensorsIcon />,          label: "My Channels" },
+  { to: "/channels",  icon: <SensorsIcon />,          label: "Meus Canais" },
   { to: "/clips",     icon: <ContentCutIcon />,       label: "Clip Studio" },
-  { to: "/videos",    icon: <VideoLibraryIcon />,     label: "Library" },
+  { to: "/videos",    icon: <VideoLibraryIcon />,     label: "Biblioteca" },
   { to: "/stock",     icon: <PhotoLibraryIcon />,     label: "Smart Video" },
   { to: "/motion",    icon: <MovieFilterIcon />,      label: "Motion Graphics" },
   { to: "/tools",     icon: <BuildIcon />,            label: "Tools" },
@@ -44,7 +44,7 @@ const navItems = [
 
 const bottomItems = [
   ...pluginNavItems.filter(i => i.position === "bottom"),
-  { to: "/settings",  icon: <SettingsIcon />,     label: "Settings" },
+  { to: "/settings",  icon: <SettingsIcon />,     label: "Configurações" },
 ]
 
 export default function Layout() {
@@ -215,8 +215,8 @@ export default function Layout() {
           navigate away from whatever you were doing. */}
       {runningJobCount > 0 && (
         <Box sx={{ px: collapsed && !isNarrow ? 0.75 : 1.5, pb: 1 }}>
-          <Tooltip title="Show activity" placement="right" arrow>
-            <ListItemButton onClick={openActivity} aria-label="Show activity"
+          <Tooltip title="Mostrar atividades" placement="right" arrow>
+            <ListItemButton onClick={openActivity} aria-label="Mostrar atividades"
               sx={{
                 borderRadius: 2, py: 0.75,
                 justifyContent: collapsed && !isNarrow ? "center" : "flex-start",
@@ -227,7 +227,7 @@ export default function Layout() {
               </Badge>
               {!(collapsed && !isNarrow) && (
                 <Typography sx={{ fontSize: "0.78rem", fontWeight: 600 }}>
-                  {runningJobCount} job{runningJobCount === 1 ? "" : "s"} running
+                  {runningJobCount} {runningJobCount === 1 ? "tarefa em andamento" : "tarefas em andamento"}
                 </Typography>
               )}
             </ListItemButton>
@@ -241,7 +241,7 @@ export default function Layout() {
         {bottomItems.map(renderNavItem)}
         {/* Expand button at the bottom when collapsed */}
         {!isNarrow && collapsed && (
-          <Tooltip title="Expand sidebar" placement="right" arrow>
+          <Tooltip title="Expandir menu" placement="right" arrow>
             <ListItemButton
               onClick={() => setCollapsed(false)}
               sx={{

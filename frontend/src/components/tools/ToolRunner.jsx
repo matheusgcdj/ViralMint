@@ -94,9 +94,9 @@ function AutoPreview({ jobId }) {
   return (
     <Stack alignItems="center" spacing={1.5} sx={{ py: 6, px: 2 }}>
       <CheckCircleOutlinedIcon sx={{ fontSize: 48, color: "success.main" }} />
-      <Typography variant="body1" sx={{ fontWeight: 600 }}>Your file is ready</Typography>
+      <Typography variant="body1" sx={{ fontWeight: 600 }}>Seu arquivo está pronto</Typography>
       <Typography variant="caption" sx={{ color: "text.secondary", textAlign: "center" }}>
-        Download it below, or run the tool again with new settings.
+        Baixe o arquivo abaixo ou execute a ferramenta novamente com novos ajustes.
       </Typography>
     </Stack>
   )
@@ -114,7 +114,7 @@ export default function ToolRunner({
   canSubmit = true,
   children,            // tool-specific config UI
   onJobComplete,       // optional — (jobId) => void
-  processLabel = "Process",
+  processLabel = "Processar",
   // Optional cost / usage hint string (e.g. "Free", "BYOK"). Rendered as a
   // muted caption in the PageHero secondary row. ToolRunner just forwards the
   // value through.
@@ -127,7 +127,7 @@ export default function ToolRunner({
                        //   `/api/tools/download/{jobId}` URL. Used to switch
                        //   to ?bundle=true when variations > 1 so one click
                        //   downloads a ZIP of all outputs.
-  downloadLabel = "Download",  // optional override for the button label
+  downloadLabel = "Baixar",  // optional override for the button label
   // Optional human-readable reason the Process button is disabled, shown as
   // a tooltip on hover. Only surfaces when canSubmit is false (a missing
   // file/script reports its own message).
@@ -163,7 +163,7 @@ export default function ToolRunner({
   //   resultOpen     — the rail exists at all (false fully dismisses it)
   //   railCollapsed  — true shrinks it to a thin "Result ready" tab pinned
   //                    to the screen edge; click the tab to expand again.
-  // Auto-opens (expanded) on success; the hero keeps a "View result" button
+  // Auto-opens (expanded) on success; the hero keeps a "Ver resultado" button
   // to bring it back after a full dismiss.
   const [resultOpen, setResultOpen] = useState(false)
   const [railCollapsed, setRailCollapsed] = useState(false)
@@ -278,7 +278,7 @@ export default function ToolRunner({
     const form = new FormData()
     if (!hideFileInput) {
       if (!file) {
-        setError("Please select a file")
+        setError("Por favor, selecione um arquivo")
         return
       }
       form.append("file", file)
@@ -312,7 +312,7 @@ export default function ToolRunner({
       // hook above — the two used to derive it independently, which is how
       // /tools/subtitles ended up tagged `tool:subtitles` while the backend
       // created `tool:subtitle_export`.
-      startJob(data.job_id, toolJobTypeFor(endpoint), "Starting...")
+      startJob(data.job_id, toolJobTypeFor(endpoint), "Iniciando...")
       setJobId(data.job_id)
     } catch (e) {
       const msg = e?.response?.data?.detail || e.message || "Upload failed"
@@ -334,7 +334,7 @@ export default function ToolRunner({
   const submitBlockedReason = !submitDisabled
     ? ""
     : missingPrimaryInput
-      ? "Select a video file first"
+      ? "Selecione um arquivo de vídeo primeiro"
       : disabledReason
 
   // ⌘/Ctrl+Enter runs the tool from anywhere in the page (incl. while a
@@ -355,7 +355,7 @@ export default function ToolRunner({
 
   // Auto-open the result rail (expanded) the moment the job lands. Keyed on
   // the jobSuccess transition only — if the user dismisses it while the job
-  // is still terminal, it stays closed (reopen via the hero "View result"
+  // is still terminal, it stays closed (reopen via the hero "Ver resultado"
   // button) until a fresh run flips jobSuccess again.
   useEffect(() => {
     if (jobSuccess) { setResultOpen(true); setRailCollapsed(false) }
@@ -401,7 +401,7 @@ export default function ToolRunner({
           // The primary action stays available whenever a job ISN'T running,
           // so the user can immediately generate again (with tweaked inputs)
           // after a result lands — no page refresh needed. When a result
-          // exists but its rail was dismissed, a secondary "View result"
+          // exists but its rail was dismissed, a secondary "Ver resultado"
           // button reopens it.
           !jobRunning && (
             <Stack direction="row" spacing={1}>
@@ -412,7 +412,7 @@ export default function ToolRunner({
                   onClick={reopenResult}
                   sx={{ flexShrink: 0 }}
                 >
-                  View result
+                  Ver resultado
                 </Button>
               )}
               {/* Tooltip needs a non-disabled wrapper to receive hover
@@ -523,7 +523,7 @@ export default function ToolRunner({
                 <Stack spacing={1} alignItems="center">
                   <CloudUploadOutlinedIcon sx={{ fontSize: 40, color: "text.secondary" }} />
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    Drop a video here or click to browse
+                    Arraste um vídeo aqui ou clique para selecionar
                   </Typography>
                   <Typography variant="caption" sx={{ color: "text.secondary" }}>
                     {acceptExts.replace(/\./g, "").toUpperCase()} · up to {maxMB} MB

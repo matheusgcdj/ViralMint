@@ -65,6 +65,11 @@ def check_imagemagick():
     sys.exit(1)
 
 def check_node():
+    fe_dir = ROOT / "frontend"
+    dist_dir = fe_dir / "dist"
+    if dist_dir.exists():
+        print("✅ Frontend pre-built — skipping Node.js check")
+        return
     if not shutil.which("node"):
         print("❌ Node.js not found — required to build the frontend.")
         print("   Install from https://nodejs.org (v18+)")
@@ -76,9 +81,12 @@ def build_frontend():
     """Install npm deps and build if dist/ doesn't exist or is stale."""
     fe_dir = ROOT / "frontend"
     dist_dir = fe_dir / "dist"
+    if dist_dir.exists():
+        print("✅ Frontend dist ready")
+        return
     if not (fe_dir / "node_modules").exists():
         print("📦 Installing frontend dependencies...")
-        subprocess.run(["npm", "install"], cwd=fe_dir, check=True)
+        subprocess.run(["npm", "install", "--include=dev"], cwd=fe_dir, check=True)
     if not dist_dir.exists():
         print("🏗️  Building frontend...")
         subprocess.run(["npm", "run", "build"], cwd=fe_dir, check=True)
@@ -163,8 +171,9 @@ if __name__ == "__main__":
     build_frontend()
 
     port = int(os.getenv("PORT", "16888"))
+    host = os.getenv("HOST", "127.0.0.1")
     dev_mode = os.getenv("DEBUG", "true").lower() == "true"
-    start_uvicorn(port=port, reload=dev_mode)
+    start_uvicorn(host=host, port=port, reload=dev_mode)
     open_browser(port=port)
 
     print(f"\n✨ ViralMint running at http://localhost:{port}\n")
