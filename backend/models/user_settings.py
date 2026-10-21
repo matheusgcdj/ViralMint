@@ -23,6 +23,7 @@ class UserSettings(Base, TimestampMixin):
     pixabay_api_key_encrypted = Column(Text, nullable=True)         # Pixabay API key
     groq_api_key_encrypted = Column(Text, nullable=True)            # Groq Cloud Whisper STT key
     google_tts_api_keys_encrypted = Column(Text, nullable=True)      # Google Cloud TTS key(s) (single or comma-separated pool)
+    elevenlabs_api_keys_encrypted = Column(Text, nullable=True)      # ElevenLabs key(s) (single or comma-separated pool)
 
     # ── Scout credentials (user-specific cookies) ──────
     douyin_cookie_encrypted = Column(Text, nullable=True)

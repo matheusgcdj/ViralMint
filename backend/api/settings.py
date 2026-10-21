@@ -34,6 +34,7 @@ class SettingsResponse(BaseModel):
     pixabay_api_key_set: bool = False
     groq_api_key_set: bool = False
     google_tts_api_key_set: bool = False
+    elevenlabs_api_key_set: bool = False
 
     # OAuth / cookie status
     douyin_cookie_set: bool = False
@@ -74,6 +75,7 @@ class SettingsUpdate(BaseModel):
     pixabay_api_key: Optional[str] = None
     groq_api_key: Optional[str] = None
     google_tts_api_keys: Optional[str] = None  # single key or comma-separated pool
+    elevenlabs_api_keys: Optional[str] = None  # single key or comma-separated pool
 
     # Preferences
     preferred_voice_id: Optional[str] = None
@@ -138,6 +140,10 @@ async def get_settings():
     google_tts_set = bool(s and s.google_tts_api_keys_encrypted) or bool(
         app_settings.GOOGLE_TTS_API_KEY or app_settings.GOOGLE_TTS_API_KEYS
     )
+    # ElevenLabs — DB-stored key(s) take precedence, then .env fallback
+    elevenlabs_set = bool(s and s.elevenlabs_api_keys_encrypted) or bool(
+        app_settings.ELEVENLABS_API_KEY or app_settings.ELEVENLABS_API_KEYS
+    )
 
     if not s:
         return SettingsResponse(
@@ -150,6 +156,7 @@ async def get_settings():
             pixabay_api_key_set=pixabay_set,
             groq_api_key_set=groq_set,
             google_tts_api_key_set=google_tts_set,
+            elevenlabs_api_key_set=elevenlabs_set,
             whisper_quality="balanced",
         )
 
@@ -163,6 +170,7 @@ async def get_settings():
         pixabay_api_key_set=pixabay_set,
         groq_api_key_set=groq_set,
         google_tts_api_key_set=google_tts_set,
+        elevenlabs_api_key_set=elevenlabs_set,
         douyin_cookie_set=bool(s.douyin_cookie_encrypted),
         tiktok_cookie_set=bool(s.tiktok_cookie_encrypted),
         youtube_channel_title=s.youtube_channel_title,
@@ -243,6 +251,15 @@ async def update_settings(update: SettingsUpdate):
                     reconfigure_key_pool(keys_list)
             except Exception as e:
                 logger.warning("Could not reconfigure Google TTS key pool at runtime: %s", e)
+        if update.elevenlabs_api_keys is not None:
+            s.elevenlabs_api_keys_encrypted = encrypt(update.elevenlabs_api_keys) if update.elevenlabs_api_keys else None
+            try:
+                from backend.services.elevenlabs_service import reconfigure_key_pool
+                keys_list = [k.strip() for k in update.elevenlabs_api_keys.split(",") if k.strip()] if update.elevenlabs_api_keys else []
+                if keys_list:
+                    reconfigure_key_pool(keys_list)
+            except Exception as e:
+                logger.warning("Could not reconfigure ElevenLabs key pool at runtime: %s", e)
 
         # Preference fields
         if update.preferred_voice_id is not None:
@@ -478,6 +495,15 @@ async def get_health():
         pool = get_key_pool_status()
         if pool["total_keys"] > 0:
             health["google_tts_pool"] = pool
+    except Exception:
+        pass
+
+    # ElevenLabs key pool status
+    try:
+        from backend.services.elevenlabs_service import get_key_pool_status
+        pool = get_key_pool_status()
+        if pool["total_keys"] > 0:
+            health["elevenlabs_pool"] = pool
     except Exception:
         pass
 

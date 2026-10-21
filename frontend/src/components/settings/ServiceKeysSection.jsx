@@ -77,6 +77,18 @@ const SERVICES = [
     docsHint: "Google Cloud Console → APIs → Text-to-Speech → Credenciais. Separe múltiplas chaves por vírgula para somar cotas gratuitas",
     multiline: true,
   },
+  {
+    id: "elevenlabs",
+    label: "ElevenLabs (TTS Pool)",
+    description: "Vozes neurais de alta expressividade — pool multi-contas (7 contas) com failover automático e cooldown",
+    icon: <RecordVoiceOverIcon sx={{ color: "#6366F1", fontSize: 28 }} />,
+    settingsKey: "elevenlabs_api_keys",
+    setFlag: "elevenlabs_api_key_set",
+    placeholder: "xi-api-key-1,xi-api-key-2...",
+    docsHref: "https://elevenlabs.io/app/settings/api-keys",
+    docsHint: "ElevenLabs → Profile → API Keys. Separe as chaves por vírgula para rotacionar entre as contas",
+    multiline: true,
+  },
 ]
 
 function ServiceKeyRow({ service, settings, updateSettings }) {

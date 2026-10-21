@@ -99,6 +99,7 @@ async def init_db():
         await _add_column_if_missing(conn, "user_settings", "pixabay_api_key_encrypted", "TEXT", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "groq_api_key_encrypted", "TEXT", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "google_tts_api_keys_encrypted", "TEXT", existing=_cols)
+        await _add_column_if_missing(conn, "user_settings", "elevenlabs_api_keys_encrypted", "TEXT", existing=_cols)
 
     # Drift sentinel — compare every model's columns against the live DB
     # schema and log a loud warning for any column the model declares but

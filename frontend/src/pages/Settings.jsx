@@ -105,7 +105,7 @@ export default function Settings() {
       {/* ── Scrollable content ── */}
       <Box sx={{ flex: 1, overflow: "auto", p: { xs: 2, md: 3 } }}>
       <Stack spacing={3} sx={{ maxWidth: 900, mx: "auto" }}>
-        {/* AI Provider (BYOK) */}
+        {/* 1. Provedor de IA (BYOK) */}
         <Section
           icon={<SmartToyIcon sx={{ fontSize: 20 }} />}
           title="Provedor de IA"
@@ -115,17 +115,17 @@ export default function Settings() {
           <AIProviderSection settings={settings} updateSettings={updateSettings} />
         </Section>
 
-        {/* Voice and Narration (TTS) */}
+        {/* 2. Chaves de API de Serviços (BYOK) */}
         <Section
-          icon={<RecordVoiceOverIcon sx={{ fontSize: 20 }} />}
-          title="Voz e Narração (TTS)"
-          description="Provedor de narração padrão (Edge TTS gratuito, Google Cloud TTS com pool de contas ou OpenAI TTS) e catálogo de vozes"
-          accentColor="#4285F4"
+          icon={<KeyIcon sx={{ fontSize: 20 }} />}
+          title="Chaves de API de Serviços"
+          description="Chaves de API dos serviços (YouTube, Pexels, Pixabay, Groq, Google TTS pool, ElevenLabs pool) — criptografadas localmente"
+          accentColor="#2563eb"
         >
-          <TTSSection settings={settings} updateSettings={updateSettings} />
+          <ServiceKeysSection settings={settings} updateSettings={updateSettings} />
         </Section>
 
-        {/* Speech-to-Text / Captions (STT) */}
+        {/* 3. Transcrição e Legendas (STT) */}
         <Section
           icon={<GraphicEqIcon sx={{ fontSize: 20 }} />}
           title="Transcrição e Legendas (STT)"
@@ -135,37 +135,17 @@ export default function Settings() {
           <STTSection settings={settings} updateSettings={updateSettings} />
         </Section>
 
-        {/* Service API Keys (BYOK) */}
-        <Section
-          icon={<KeyIcon sx={{ fontSize: 20 }} />}
-          title="Chaves de API de Serviços"
-          description="Chaves de API dos serviços (YouTube, Pexels, Pixabay, etc.) — criptografadas localmente"
-          accentColor="#2563eb"
-        >
-          <ServiceKeysSection settings={settings} updateSettings={updateSettings} />
-        </Section>
-
-        {/* STT — Transcription engine (Groq Cloud / local Whisper) */}
-        <Section
-          icon={<GraphicEqIcon sx={{ fontSize: 20 }} />}
-          title="Transcrição (STT)"
-          description="Motor de transcrição de áudio para legendas — Groq Cloud (ultrarrápido) ou Whisper local"
-          accentColor="#F55036"
-        >
-          <STTSection settings={settings} updateSettings={updateSettings} />
-        </Section>
-
-        {/* TTS — Voice narration engine */}
+        {/* 4. Voz e Narração (TTS) */}
         <Section
           icon={<RecordVoiceOverIcon sx={{ fontSize: 20 }} />}
-          title="Narração (TTS)"
-          description="Escolha o provedor de voz padrão para narração dos vídeos — Edge TTS, OpenAI ou Google Cloud"
+          title="Voz e Narração (TTS)"
+          description="Provedor de narração padrão (Edge TTS gratuito, Google Cloud TTS com pool, ElevenLabs com pool de 7 contas ou OpenAI TTS)"
           accentColor="#4285F4"
         >
           <TTSSection settings={settings} updateSettings={updateSettings} />
         </Section>
 
-        {/* Messaging — Telegram / WhatsApp / Discord / Slack. Was the /messaging
+        {/* 5. Messaging — Telegram / WhatsApp / Discord / Slack. Was the /messaging
             page; /messaging now redirects to /settings#messaging, and
             ?messaging=<app> opens the setup dialog on that app's tab. */}
         <Section

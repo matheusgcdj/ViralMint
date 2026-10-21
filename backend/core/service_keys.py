@@ -26,6 +26,7 @@ _SERVICE_MAP = {
     "pixabay":    ("pixabay_api_key_encrypted",      ["PIXABAY_API_KEY"]),
     "groq":       ("groq_api_key_encrypted",         ["GROQ_API_KEY"]),
     "google_tts": ("google_tts_api_keys_encrypted",  ["GOOGLE_TTS_API_KEYS", "GOOGLE_TTS_API_KEY"]),
+    "elevenlabs": ("elevenlabs_api_keys_encrypted",  ["ELEVENLABS_API_KEYS", "ELEVENLABS_API_KEY"]),
 }
 
 

@@ -76,7 +76,7 @@ async def tts_preview(body: _PreviewBody):
     voice_id = re.sub(r"[^A-Za-z0-9_-]", "", (body.voice_id or "").strip())
     if not voice_id:
         raise HTTPException(400, "voice_id is required")
-    if provider not in ("edge_tts", "openai_tts", "google_tts"):
+    if provider not in ("edge_tts", "openai_tts", "google_tts", "elevenlabs"):
         raise HTTPException(400, f"Unknown provider: {provider}")
 
     sample_text = random.choice(_SAMPLES)
@@ -96,6 +96,13 @@ async def tts_preview(body: _PreviewBody):
             from backend.services.tts_service import tts_api_key
             api_key = tts_api_key("google_tts")
             await google_tts_service.generate_voice(
+                sample_text, voice_id=voice_id, api_key=api_key, output_path=output_path,
+            )
+        elif provider == "elevenlabs":
+            from backend.services import elevenlabs_service
+            from backend.services.tts_service import tts_api_key
+            api_key = tts_api_key("elevenlabs")
+            await elevenlabs_service.generate_voice(
                 sample_text, voice_id=voice_id, api_key=api_key, output_path=output_path,
             )
         else:
