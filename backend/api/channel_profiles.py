@@ -17,7 +17,7 @@ from backend.models.channel_profile import ChannelProfile, channel_profile_socia
 from backend.models.social_account import SocialAccount
 from backend.models.user_settings import UserSettings
 from backend.core.niche_presets import NICHE_PRESETS
-from backend.core.encryption import decrypt, encrypt
+from backend.core.crypto import decrypt, encrypt
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/channel-profiles", tags=["channel-profiles"])

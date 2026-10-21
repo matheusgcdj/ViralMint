@@ -186,6 +186,9 @@ if __name__ == "__main__":
     # Keep alive — wait for child processes
     try:
         for p in processes:
-            p.wait()
+            exit_code = p.wait()
+            if exit_code != 0:
+                print(f"❌ Server process {p.pid} exited with code {exit_code}")
+                sys.exit(exit_code)
     except KeyboardInterrupt:
         shutdown()
