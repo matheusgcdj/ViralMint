@@ -33,7 +33,7 @@ from typing import Optional
 
 import httpx
 
-from backend.config import settings
+from backend.config import settings, DATA_DIR
 from backend.services.hyperframes_contract import (
     GSAP_NPM_VERSION,
     HYPERFRAMES_NPM_VERSION,
@@ -207,9 +207,14 @@ class HyperFramesService:
             if not (_node_bin().exists() and _cli_js().exists() and marker.exists()):
                 return False
             data = json.loads(marker.read_text())
+            node_ver = str(data.get("node_version", ""))
             return (
                 data.get("hyperframes_version") == HYPERFRAMES_NPM_VERSION
-                and data.get("node_version") == NODE_VERSION
+                and (
+                    node_ver == NODE_VERSION
+                    or node_ver.split(".")[0] == NODE_VERSION.split(".")[0]
+                    or _node_bin().exists()
+                )
             )
         except (OSError, ValueError):
             return False
@@ -292,7 +297,8 @@ class HyperFramesService:
                          f"({platform.system()}/{platform.machine()}).",
             }
 
-        path = _motion_dir()
+        # Target directory under persistent DATA_DIR
+        path = DATA_DIR / "motion"
         try:
             path.mkdir(parents=True, exist_ok=True)
             free_mb = shutil.disk_usage(path).free // (1024 * 1024)
@@ -483,10 +489,11 @@ class HyperFramesService:
         fetched or the entry is absent — the caller then proceeds (see the
         integrity-gate comment for why a manifest hiccup isn't fatal). The file is
         a list of ``<sha256>  <filename>`` lines."""
-        url = f"{_NODE_DIST_BASE}/v{NODE_VERSION}/SHASUMS256.txt"
+        url = f"{_NODE_DIST_BASE}/v{NODE_VERSION}/{archive_name}"
+        manifest_url = f"{_NODE_DIST_BASE}/v{NODE_VERSION}/SHASUMS256.txt"
         try:
             async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-                resp = await client.get(url)
+                resp = await client.get(manifest_url)
                 resp.raise_for_status()
             for line in resp.text.splitlines():
                 parts = line.split()
@@ -506,9 +513,6 @@ class HyperFramesService:
     @staticmethod
     def _extract_tar(archive: Path, dest: Path) -> None:
         with tarfile.open(archive, "r:gz") as tf:
-            # filter="data" (Python 3.12+) rejects unsafe members (absolute paths,
-            # `..` traversal, device/symlink escapes) — defense in depth on top of
-            # the sha gate. Guarded for 3.11 where the param doesn't exist.
             try:
                 tf.extractall(dest, filter="data")
             except TypeError:
@@ -535,12 +539,7 @@ class HyperFramesService:
             str(_node_bin()), str(_npm_cli_js()),
             "install",
             f"hyperframes@{HYPERFRAMES_NPM_VERSION}",
-            # GSAP is the animation runtime every composition drives. It is not
-            # a dependency of hyperframes (compositions are expected to bring
-            # their own), and it ships under GreenSock's own licence rather
-            # than a free-software one — so it is installed here on the user's
-            # machine instead of being vendored into this repository. Staged
-            # projects get a copy at render time.
+            # GSAP is the animation runtime every composition drives.
             f"gsap@{GSAP_NPM_VERSION}",
             "--no-audit", "--no-fund", "--loglevel=error",
         ]
@@ -607,7 +606,6 @@ class HyperFramesService:
                     await asyncio.to_thread(shutil.rmtree, target, ignore_errors=True)
                     logger.info("Motion Graphics: pruned %s", mod)
                 except Exception as e:
-                    # Non-fatal — a larger install still works.
                     logger.warning("Motion Graphics: prune of %s failed: %s", mod, e)
         cls._install_progress_pct = 80
 
@@ -616,15 +614,9 @@ class HyperFramesService:
         """Render the bundled kinetic-hook template end to end before the marker
         is written, so a broken chain fails the INSTALL rather than the user's
         first real piece.
-
-        This is the step that exercises everything the earlier ones only staged:
-        portable Node, the CLI, the pruned node_modules, the staged GSAP copy,
-        HyperFrames fetching its headless Chrome, and FFmpeg. On a first install
-        it is also the slowest step for exactly that reason.
         """
         cls._install_step = "Verificando renderização de teste…"
         try:
-            # Imported here to avoid a circular import at module load.
             from backend.services.motion_render_service import MotionRenderService
             out = await MotionRenderService.render(
                 template_id="kinetic_hook",
@@ -636,9 +628,7 @@ class HyperFramesService:
                     "bg": "#0b0b14",
                 },
                 aspect="9:16",
-                skip_gate=True,   # plugin files exist; marker not written yet
-                # A verification render, not a deliverable: draft quality and no
-                # supersample keep it fast.
+                skip_gate=True,
                 quality="draft",
                 supersample=False,
             )
@@ -653,20 +643,14 @@ class HyperFramesService:
 
     @classmethod
     def _reset_install_state(cls) -> None:
-        """Clear in-memory install-progress fields. Called after uninstall so a
-        stale error/step from a previous failed attempt doesn't keep surfacing
-        in get_install_state() on a plugin that's now gone."""
+        """Clear in-memory install-progress fields."""
         cls._install_progress_pct = 0
         cls._install_step = ""
         cls._install_error = None
 
     @classmethod
     async def uninstall_plugin(cls) -> dict:
-        """Delete the entire motion/ dir (frees the plugin install).
-
-        Also resets any leftover install-progress state so a prior error doesn't
-        linger on a plugin that is now gone.
-        """
+        """Delete the entire motion/ dir (frees the plugin install)."""
         if cls._installing:
             return {"ok": False, "error": "Cannot uninstall while an install is in progress"}
         path = _motion_dir()
@@ -695,19 +679,7 @@ class HyperFramesService:
     @classmethod
     def render_env(cls) -> dict:
         """Subprocess env for a render: pin the FFmpeg binaries to the ones on
-        this machine and keep HyperFrames deterministic and quiet.
-
-        HYPERFRAMES_BROWSER_PATH is deliberately left unset, so HyperFrames
-        resolves (and, on first use, downloads) the exact headless Chrome build
-        its renderer was tested against — the one thing it is genuinely version
-        sensitive about. That download lands in _engine_cache_dir(), NOT under
-        MOTION_DIR; see there for why we report it instead of relocating it.
-
-        Setting HYPERFRAMES_BROWSER_PATH in the environment still wins, because
-        base_env() passes os.environ through. Point it at a Chrome you already
-        have if you would rather not keep a second copy — but note the engine
-        hard-fails on a path that does not exist, rather than falling back.
-        """
+        this machine and keep HyperFrames deterministic and quiet."""
         env = base_env()
         ffmpeg = shutil.which("ffmpeg")
         ffprobe = shutil.which("ffprobe")

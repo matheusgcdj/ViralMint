@@ -31,8 +31,14 @@ def check_python_version():
     print(f"✅ Python {sys.version.split()[0]}")
 
 def check_env_file():
-    env_path = ROOT / ".env"
+    from backend.config import DATA_DIR
+    env_path = DATA_DIR / ".env"
     if not env_path.exists():
+        legacy_env = ROOT / ".env"
+        if legacy_env.exists() and legacy_env.resolve() != env_path.resolve():
+            shutil.copy(legacy_env, env_path)
+            print("📋 Migrated legacy .env to persistent data dir")
+            return
         example = ROOT / ".env.example"
         if example.exists():
             shutil.copy(example, env_path)
@@ -41,9 +47,11 @@ def check_env_file():
             print("⚠️  No .env file found. Create one from .env.example")
 
 def ensure_storage_dirs():
-    for d in ["videos", "audio", "generated", "thumbnails", "tmp"]:
-        (ROOT / "storage" / d).mkdir(parents=True, exist_ok=True)
-    print("✅ Storage directories ready")
+    from backend.config import settings
+    root = settings.STORAGE_ROOT
+    for d in ["videos", "audio", "generated", "thumbnails", "tmp", "tools/in", "tools/out", "studio", "cache"]:
+        (root / d).mkdir(parents=True, exist_ok=True)
+    print(f"✅ Storage directories ready ({root})")
 
 def check_imagemagick():
     if shutil.which("magick") or shutil.which("convert"):
@@ -127,10 +135,6 @@ def start_uvicorn(host="127.0.0.1", port=16888, reload=False):
     return p
 
 def open_browser(port=16888, delay=2.5):
-    # The launcher owns browser-opening (it sets VIRALMINT_NO_BROWSER=1 and
-    # opens the tab itself once /health goes 200). When launched by the tray
-    # launcher, skip run.py's own auto-open so the user doesn't get two tabs.
-    # Standalone `python run.py` (var unset) keeps the original behavior.
     if os.environ.get("VIRALMINT_NO_BROWSER"):
         return
     def _open():

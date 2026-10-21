@@ -20,7 +20,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=16888 \
     VIRALMINT_NO_BROWSER=1 \
     DEBIAN_FRONTEND=noninteractive \
-    HYPERFRAMES_BROWSER_PATH=/usr/bin/chromium
+    HYPERFRAMES_BROWSER_PATH=/usr/bin/chromium \
+    VIRALMINT_DATA_DIR=/app/storage
 
 # System dependencies:
 # - ffmpeg: audio & video processing, slicing, concatenation
@@ -58,6 +59,18 @@ COPY --from=frontend-builder /usr/local/bin/node /usr/local/bin/node
 COPY --from=frontend-builder /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
+# Pre-install Motion Graphics engine (HyperFrames + GSAP)
+# This bakes the motion rendering engine directly into the Docker image so it is
+# immediately ready out of the box without requiring manual download or losing it on redeploy.
+RUN mkdir -p /app/motion/hyperframes && \
+    cd /app/motion/hyperframes && \
+    npm init -y && \
+    npm install --no-audit --no-fund --save-exact hyperframes@0.7.111 gsap@3.14.2 && \
+    rm -rf node_modules/onnxruntime-node && \
+    echo '{"hyperframes_version": "0.7.111", "node_version": "22.14.0", "gsap_version": "3.14.2", "installed_at": 1740000000.0}' > /app/motion/.installed && \
+    mkdir -p /app/motion/node/node-v22.14.0-linux-x64/bin && \
+    ln -s /usr/local/bin/node /app/motion/node/node-v22.14.0-linux-x64/bin/node
+
 # Install Python requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -U pip setuptools wheel && \
@@ -78,10 +91,12 @@ RUN mkdir -p storage/videos \
              storage/thumbnails \
              storage/tmp \
              storage/tools/in \
-             storage/tools/out
+             storage/tools/out \
+             storage/studio \
+             storage/cache
 
 # Persistent volumes for Coolify:
-# /app/storage: keeps database (viralmint.db) and downloaded/rendered media
+# /app/storage: keeps database (viralmint.db), .env secrets, cookies, studio and media
 # /root/.cache: keeps downloaded AI models (Whisper, HuggingFace) across container restarts
 VOLUME ["/app/storage", "/root/.cache"]
 

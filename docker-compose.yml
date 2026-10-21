@@ -13,6 +13,8 @@ services:
       - PORT=16888
       - DEBUG=false
       - VIRALMINT_NO_BROWSER=1
+      - VIRALMINT_DATA_DIR=/app/storage
+      - HYPERFRAMES_BROWSER_PATH=/usr/bin/chromium
       # Chaves de criptografia e sessão (geradas automaticamente se vazias)
       - SECRET_KEY=${SECRET_KEY:-}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}

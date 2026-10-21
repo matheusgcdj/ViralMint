@@ -13,17 +13,58 @@ logger = logging.getLogger(__name__)
 def _resolve_data_dir() -> Path:
     """Honor VIRALMINT_DATA_DIR (packaged builds point it at a user-writable
     path); dev runs and fresh checkouts fall back to CWD so the DB, storage
-    and .env all live relative to where you launched — matching the original
-    OSS behavior."""
+    and .env all live relative to where you launched.
+    In Docker container environments where /app/storage exists, default to
+    /app/storage to ensure SQLite database, .env, and user state are saved
+    in the persistent volume across redeployments and container restarts."""
     override = os.getenv("VIRALMINT_DATA_DIR")
     if override:
         p = Path(override).expanduser().resolve()
         p.mkdir(parents=True, exist_ok=True)
         return p
+
+    # Automatic Docker detection: /app/storage is the persistent volume
+    docker_storage = Path("/app/storage")
+    if docker_storage.is_dir() and Path("/app").is_dir():
+        return docker_storage
+
     return Path.cwd()
 
 
 DATA_DIR = _resolve_data_dir()
+
+
+def _migrate_legacy_data(target_dir: Path) -> None:
+    """If running with a persistent data dir (e.g. /app/storage) and files exist
+    in legacy CWD (/app or repo root), copy them over so no user data is lost."""
+    try:
+        cwd = Path.cwd()
+        if target_dir.resolve() == cwd.resolve():
+            return
+        # 1. Database
+        legacy_db = cwd / "viralmint.db"
+        target_db = target_dir / "viralmint.db"
+        if legacy_db.exists() and not target_db.exists():
+            import shutil
+            shutil.copy2(legacy_db, target_db)
+            for suffix in ["-wal", "-shm"]:
+                legacy_aux = cwd / f"viralmint.db{suffix}"
+                if legacy_aux.exists():
+                    shutil.copy2(legacy_aux, target_dir / f"viralmint.db{suffix}")
+            logger.info("Migrated legacy viralmint.db to persistent data dir: %s", target_db)
+
+        # 2. .env
+        legacy_env = cwd / ".env"
+        target_env = target_dir / ".env"
+        if legacy_env.exists() and not target_env.exists():
+            import shutil
+            shutil.copy2(legacy_env, target_env)
+            logger.info("Migrated legacy .env to persistent data dir: %s", target_env)
+    except Exception as e:
+        logger.warning("Error during legacy data migration check: %s", e)
+
+
+_migrate_legacy_data(DATA_DIR)
 
 
 class Settings(BaseSettings):
@@ -136,6 +177,8 @@ class Settings(BaseSettings):
     # ── Storage paths ─────────────────────────────────
     @property
     def STORAGE_ROOT(self) -> Path:
+        if DATA_DIR.name == "storage":
+            return DATA_DIR
         return DATA_DIR / "storage"
 
     @property
@@ -177,7 +220,15 @@ class Settings(BaseSettings):
     # be reachable from that path.
     @property
     def MOTION_DIR(self) -> Path:
-        return DATA_DIR / "motion"
+        # 1. Prioritize user/runtime custom install in DATA_DIR/motion
+        persistent_motion = DATA_DIR / "motion"
+        if (persistent_motion / ".installed").exists():
+            return persistent_motion
+        # 2. Bundled pre-baked motion in Docker container (/app/motion)
+        bundled_motion = Path("/app/motion")
+        if (bundled_motion / ".installed").exists():
+            return bundled_motion
+        return persistent_motion
 
     # Render motion pieces at 4x device-pixel ratio and let the encoder
     # downscale. Text and vectors re-rasterize, which is what a motion graphic
