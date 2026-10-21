@@ -286,7 +286,7 @@ export default function SampleShowcase({ samples = [], onUse, title = "Exemplos 
         onClick={toggle}
       >
         <Tooltip title="Mostrar exemplos" placement="right">
-          <IconButton size="small" aria-label="Show samples" sx={{ p: 0.5 }}>
+          <IconButton size="small" aria-label="Mostrar exemplos" sx={{ p: 0.5 }}>
             <AutoAwesomeIcon sx={{ fontSize: 18, color: "#C44CE3" }} />
           </IconButton>
         </Tooltip>
@@ -319,8 +319,8 @@ export default function SampleShowcase({ samples = [], onUse, title = "Exemplos 
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75, flexShrink: 0 }}>
         <AutoAwesomeIcon sx={{ fontSize: 15, color: "#C44CE3" }} />
         <Typography noWrap sx={{ fontSize: "0.72rem", fontWeight: 800, lineHeight: 1.1, flex: 1, minWidth: 0 }}>{title}</Typography>
-        <Tooltip title="Ocultar" placement="right">
-          <IconButton size="small" onClick={toggle} aria-label="Collapse samples" sx={{ p: 0.25 }}>
+        <Tooltip title="Recolher exemplos" placement="right">
+          <IconButton size="small" onClick={toggle} aria-label="Recolher exemplos" sx={{ p: 0.25 }}>
             <ChevronLeftIcon fontSize="small" />
           </IconButton>
         </Tooltip>

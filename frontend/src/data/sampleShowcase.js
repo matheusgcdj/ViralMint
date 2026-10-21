@@ -1,143 +1,74 @@
-// Curated "start from a sample" concepts for the vivid creation-page showcase
-// ("show value, don't explain it"). Each sample is a palette
-// + a short HOOK that animates in the thumbnail, a `bgQuery` (Pexels search term
-// for the real footage that plays behind the caption), and a ready-to-generate
-// SCRIPT + matching settings. Clicking one ("Make one like this") drops the
-// script + settings into the editor so the user can hit Generate immediately —
-// no blank-page paralysis.
-//
-// Rendering is layered (see SampleShowcase.jsx): an instant CSS gradient, a real
-// Pexels clip whose url is resolved SERVER-SIDE via /api/showcase/clip?q=<bgQuery>
-// (the Pexels key stays in the cloud — desktop never touches it) and fades in
-// when it plays, plus a canvas caption on top. Procedural gradient stays if the
-// cloud returns no url (signed out / offline). We ship NO video assets. This
-// array is the single swap point — edit/extend it to refresh the showcase.
-//
-// `apply` fields map 1:1 to SmartVideo state: visualStyle ∈ STYLES ids
-// (cinematic/vlog/card/educational/documentary), captionStyle ∈ viral/bold/classic,
-// musicGenre ∈ upbeat/lofi/cinematic, aspectRatio "9:16".
-
 export const SMART_VIDEO_SAMPLES = [
   {
     id: "rice-hack",
-    label: "Rice hack",
-    niche: "Cooking",
+    label: "Arroz soltinho",
+    niche: "Culinária",
     bgQuery: "cooking food kitchen",
-    hook: "You've been cooking rice WRONG",
+    hook: "Você cozinha arroz do jeito ERRADO",
     cA: "#C58A4A",
     cB: "#5C3E20",
     script:
-      "Stop boiling your rice like that. First, rinse it three times until the water runs clear — that's the secret to fluffy grains. Use one and a half cups of water per cup of rice. Bring it to a boil, then cover and drop to low for twelve minutes. Don't lift the lid. Let it rest five minutes off the heat, then fluff with a fork. Perfect every single time.",
+      "Pare de cozinhar o arroz desse jeito. Primeiro, lave os grãos até a água sair totalmente limpa — esse é o segredo para ficar soltinho. Use uma xícara e meia de água fervente para cada xícara de arroz. Deixe em fogo baixo por doze minutos com a panela semi-tampada. Não mexa. Deixe descansar cinco minutos desligado e solte com o garfo. Fica perfeito toda vez.",
     apply: { visualStyle: "vlog", captionStyle: "viral", musicGenre: "upbeat", aspectRatio: "9:16" },
   },
   {
     id: "back-fix",
-    label: "5-min back fix",
-    niche: "Fitness",
-    bgQuery: "home workout fitness",
-    hook: "Fix your back in 5 minutes",
-    cA: "#2B4566",
-    cB: "#B7D2E8",
+    label: "Coluna sem dor em 5min",
+    niche: "Saúde & Fitness",
+    bgQuery: "home workout stretching yoga",
+    hook: "Dor nas costas ao acordar? Faça isso",
+    cA: "#2D7D62",
+    cB: "#1B4737",
     script:
-      "If your lower back aches by noon, do this every morning. Lie on your back and pull one knee to your chest, hold for thirty seconds, then switch. Move into cat-cow for one minute to wake up your spine. Finish with a thirty-second glute bridge. Five minutes total. Do it for one week and feel the difference. Your future self will thank you.",
+      "Se você passa o dia sentado, sua lombar está sofrendo. Pare por dois minutos agora. Ajoelhe-se e estique os braços à frente na postura da criança por trinta segundos. Em seguida, faça o movimento do gato e vaca dez vezes para destravar cada vértebra. Faça isso diariamente e sinta a diferença na primeira semana.",
     apply: { visualStyle: "educational", captionStyle: "bold", musicGenre: "lofi", aspectRatio: "9:16" },
   },
   {
     id: "ai-email",
-    label: "AI email trick",
-    niche: "Tech / AI",
-    bgQuery: "technology laptop typing",
-    hook: "This free AI writes your emails",
-    cA: "#1E1B2E",
-    cB: "#0A0810",
+    label: "E-mails 10x mais rápidos",
+    niche: "Tecnologia & IA",
+    bgQuery: "laptop coffee typing desk office",
+    hook: "Pare de perder 1 hora escrevendo e-mails",
+    cA: "#3B6FB6",
+    cB: "#1D3A63",
     script:
-      "You're wasting an hour a day on email. Here's a free fix. Open any AI chat, paste the message you got, and type: reply politely and keep it short. In two seconds you get a draft. Tweak one line and send. I went from forty minutes in my inbox to ten. The tool is free — the time you save is not.",
+      "Você ainda gasta meia hora pensando em como responder aquele cliente? Pare agora. Abra a IA, cole o e-mail recebido e peça: 'Responda confirmando o prazo de sexta-feira com tom profissional e assertivo'. Em dez segundos você tem uma resposta impecável. Use a tecnologia para ganhar horas no seu dia.",
     apply: { visualStyle: "card", captionStyle: "viral", musicGenre: "upbeat", aspectRatio: "9:16" },
   },
   {
-    id: "rome-fell",
-    label: "Why Rome fell",
-    niche: "History",
-    bgQuery: "ancient rome ruins",
-    hook: "Why Rome REALLY fell",
-    cA: "#4A5568",
-    cB: "#1A202C",
+    id: "rome-fall",
+    label: "O fim do Império Romano",
+    niche: "História & Curiosidades",
+    bgQuery: "ancient ruins architecture statue history",
+    hook: "Roma não caiu por causa de guerras",
+    cA: "#9C413D",
+    cB: "#54211F",
     script:
-      "Rome didn't fall in a day, and it wasn't just the barbarians. The empire debased its own currency until money was worthless. It overstretched its borders past what its armies could defend. And it leaned on forced labor that hollowed out the middle class. Sound familiar? Empires rarely die from invasion. They rot from the inside. Follow for more history that hits different.",
-    apply: { visualStyle: "documentary", captionStyle: "bold", musicGenre: "cinematic", aspectRatio: "9:16" },
+      "A maioria acha que Roma caiu invadida por bárbaros. Mas a verdade é que o império ruiu por dentro. A inflação disparou, a moeda perdeu todo o valor e a corrupção destruiu o exército de dentro para fora. Quando os bárbaros finalmente cruzaram os portões, já não havia mais nada para defender.",
+    apply: { visualStyle: "documentary", captionStyle: "classic", musicGenre: "cinematic", aspectRatio: "9:16" },
   },
   {
-    id: "save-1000",
-    label: "Saved $1,000",
-    niche: "Finance",
-    bgQuery: "money cash saving",
-    hook: "I saved $1,000 in 30 days",
-    cA: "#1E1B2E",
-    cB: "#0A0810",
+    id: "save-thousand",
+    label: "Economize R$ 1.000 rápido",
+    niche: "Finanças Pessoais",
+    bgQuery: "piggy bank money savings wallet",
+    hook: "O segredo para juntar mil reais no mês",
+    cA: "#3E8A5E",
+    cB: "#1C482E",
     script:
-      "I saved a thousand dollars in one month with zero extra income. First I canceled three subscriptions I'd forgotten about — sixty bucks gone. I cooked every meal for two weeks and saved four hundred. Then I set one auto-transfer of twenty dollars a day into a separate account. Out of sight, out of mind. Thirty days later: a thousand dollars. Small moves, real money.",
-    apply: { visualStyle: "card", captionStyle: "viral", musicGenre: "lofi", aspectRatio: "9:16" },
-  },
-  {
-    id: "cheap-trip",
-    label: "Cheapest trip",
-    niche: "Travel",
-    bgQuery: "tropical beach travel",
-    hook: "A week abroad under $500",
-    cA: "#1B5E5F",
-    cB: "#C2552E",
-    script:
-      "Want a week abroad for under five hundred dollars? Go to Vietnam. A bowl of pho costs two dollars. A beachfront room runs fifteen a night. A motorbike to explore is five. The coastline rivals anywhere in the world and the coffee is unreal. Fly in, slow down, and watch your money last twice as long. Save this for your next trip.",
-    apply: { visualStyle: "cinematic", captionStyle: "classic", musicGenre: "upbeat", aspectRatio: "9:16" },
+      "Juntar os primeiros mil reais parece impossível até você usar a regra do corte invisível. Pegue seu extrato dos últimos 30 dias. Cancele duas assinaturas que você nem lembrava que tinha e substitua o delivery de fim de semana por uma refeição caseira especial. Em quatro semanas, os mil reais estarão na sua conta de reserva.",
+    apply: { visualStyle: "card", captionStyle: "bold", musicGenre: "upbeat", aspectRatio: "9:16" },
   },
   {
     id: "delete-apps",
-    label: "Delete 3 apps",
-    niche: "Productivity",
-    bgQuery: "smartphone phone desk",
-    hook: "Delete these 3 apps NOW",
-    cA: "#1E1B2E",
-    cB: "#0A0810",
+    label: "Apague esses 3 apps",
+    niche: "Produtividade",
+    bgQuery: "smartphone screen desk aesthetic",
+    hook: "Delete esses 3 apps para recuperar o foco",
+    cA: "#5C4B9B",
+    cB: "#2F2553",
     script:
-      "Delete these three apps right now and get an hour back every day. First, any game with a daily login streak — it's engineered to hook you. Second, the shopping app you open out of boredom. Third, the news app that just makes you anxious. Replace them with one book on your home screen. Watch what happens in a week.",
-    apply: { visualStyle: "card", captionStyle: "viral", musicGenre: "upbeat", aspectRatio: "9:16" },
-  },
-  {
-    id: "black-hole",
-    label: "Inside a black hole",
-    niche: "Space",
-    bgQuery: "galaxy space stars",
-    hook: "What's INSIDE a black hole?",
-    cA: "#4A5568",
-    cB: "#1A202C",
-    script:
-      "What's actually inside a black hole? Nobody knows, and that's the terrifying part. Past the event horizon, gravity is so strong that not even light escapes. Time slows to a crawl. At the center sits a singularity, where the physics we trust completely breaks down. A black hole isn't a hole — it's a one-way door out of the universe.",
-    apply: { visualStyle: "documentary", captionStyle: "bold", musicGenre: "cinematic", aspectRatio: "9:16" },
-  },
-  {
-    id: "five-second-rule",
-    label: "Beat procrastination",
-    niche: "Psychology",
-    bgQuery: "person walking morning sunrise",
-    hook: "The 5-second rule that works",
-    cA: "#2B4566",
-    cB: "#B7D2E8",
-    script:
-      "Here's the five-second rule that kills procrastination. The moment you feel the urge to act on a goal, count backwards — five, four, three, two, one — then move. Those five seconds interrupt the part of your brain that talks you out of it. It sounds too simple to work. Try it once tomorrow morning and you'll see why it does.",
-    apply: { visualStyle: "educational", captionStyle: "bold", musicGenre: "lofi", aspectRatio: "9:16" },
-  },
-  {
-    id: "cheap-skincare",
-    label: "$8 skincare",
-    niche: "Skincare",
-    bgQuery: "skincare beauty routine",
-    hook: "The $8 product derms love",
-    cA: "#C58A4A",
-    cB: "#5C3E20",
-    script:
-      "Dermatologists keep recommending the same eight-dollar product, and most people walk right past it. It's plain moisturizing cream with three ceramides that rebuild your skin barrier. No fancy claims. Use it morning and night, right after washing. Within two weeks the dry patches fade and your skin stops feeling tight. Good skincare doesn't have to cost a fortune.",
-    apply: { visualStyle: "vlog", captionStyle: "viral", musicGenre: "lofi", aspectRatio: "9:16" },
+      "Seu celular foi desenhado para roubar sua atenção. Experimente fazer isso hoje: desinstale os aplicativos de notícias rápidas, silencie grupos de promoções e tire os ícones de redes sociais da tela inicial. Em apenas três dias sua clareza mental e capacidade de foco vão dobrar.",
+    apply: { visualStyle: "educational", captionStyle: "viral", musicGenre: "lofi", aspectRatio: "9:16" },
   },
 ]
-
-export default SMART_VIDEO_SAMPLES

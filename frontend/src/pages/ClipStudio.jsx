@@ -58,7 +58,7 @@ import AppSkeleton from "../components/AppSkeleton"
 
 const SOURCE_RAIL_WIDTH = {
   storageKey: "vm_clipper_sources_w", initial: 200, min: 170, max: 420,
-  label: "the source list", anchor: "left",
+  label: "lista de fontes", anchor: "left",
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -262,10 +262,10 @@ export default function ClipStudio() {
       const res = await http.post("/api/downloaded/import", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
-      showSnackbar(res.data.message || "Video imported to your library", "success")
+      showSnackbar(res.data.message || "Vídeo importado para a sua biblioteca", "success")
       await fetchData()  // surface the new source immediately
     } catch (err) {
-      showSnackbar(err.response?.data?.detail || "Import failed", "error")
+      showSnackbar(err.response?.data?.detail || "Falha na importação", "error")
     } finally {
       setImporting(false)
     }
@@ -677,7 +677,7 @@ export default function ClipStudio() {
                 onKeyDown={e => { if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false) } }}
                 slotProps={{
                   input: { startAdornment: <SearchIcon sx={{ mr: 0.5, fontSize: 18, color: "text.secondary" }} /> },
-                  htmlInput: { "aria-label": "Search clips" },
+                  htmlInput: { "aria-label": "Buscar clipes", placeholder: "Buscar clipes..." },
                 }}
                 sx={{ width: compactHero ? 170 : 200 }}
               />
@@ -716,7 +716,7 @@ export default function ClipStudio() {
                   startIcon={importing
                     ? <CircularProgress size={14} color="inherit" />
                     : <FileUploadIcon fontSize="small" />}
-                  aria-label={compactHero ? (importing ? "Importing…" : "Import") : undefined}
+                  aria-label={compactHero ? (importing ? "Importando…" : "Importar") : undefined}
                   sx={{ whiteSpace: "nowrap", ...(compactHero && { minWidth: 0, px: 1, "& .MuiButton-startIcon": { mr: 0 } }) }}
                 >
                   {compactHero ? null : importing ? "Importando…" : "Importar"}

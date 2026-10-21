@@ -320,14 +320,14 @@ export default function DownloadedDetail({ video, onUseAsInspiration, onClose, o
           {/* Right column: AI Insights + Transcript */}
           <Grid size={{ xs: 12, md: embedded ? 12 : 8 }}>
             {video.insights ? (<>
-              <Typography variant="overline" sx={{ color: "text.secondary", mb: 1, display: "block" }}>AI Insights</Typography>
+              <Typography variant="overline" sx={{ color: "text.secondary", mb: 1, display: "block" }}>Insights de IA</Typography>
               <Stack spacing={1.5}>
-                {video.insights.hook && <InsightRow label="Hook" color="secondary.main" value={video.insights.hook} />}
-                {video.insights.structure && <InsightRow label="Structure" color="secondary.main" value={video.insights.structure} />}
-                {video.insights.tone && <InsightRow label="Tone" color="secondary.main" value={video.insights.tone} />}
-                {video.insights.why_viral && <InsightRow label="Why viral" color="warning.main" value={video.insights.why_viral} />}
-                {video.insights.suggested_angle && <InsightRow label="Your angle" color="primary.main" value={video.insights.suggested_angle} />}
-                {video.insights.suggested_title && <InsightRow label="Title idea" color="primary.main" value={video.insights.suggested_title} />}
+                {video.insights.hook && <InsightRow label="Gancho" color="secondary.main" value={video.insights.hook} />}
+                {video.insights.structure && <InsightRow label="Estrutura" color="secondary.main" value={video.insights.structure} />}
+                {video.insights.tone && <InsightRow label="Tom" color="secondary.main" value={video.insights.tone} />}
+                {video.insights.why_viral && <InsightRow label="Por que viralizou" color="warning.main" value={video.insights.why_viral} />}
+                {video.insights.suggested_angle && <InsightRow label="Ângulo sugerido" color="primary.main" value={video.insights.suggested_angle} />}
+                {video.insights.suggested_title && <InsightRow label="Ideia de título" color="primary.main" value={video.insights.suggested_title} />}
               </Stack>
 
               {/* ── AI Action Buttons (Notion-style inline refinement) ────── */}
@@ -405,11 +405,11 @@ export default function DownloadedDetail({ video, onUseAsInspiration, onClose, o
                           </Typography>
                         </Paper>
                       ))}
-                      <Typography variant="caption" sx={{ color: "text.disabled" }}>Click a title to copy</Typography>
+                      <Typography variant="caption" sx={{ color: "text.disabled" }}>Clique em um título para copiar</Typography>
                     </Stack>
                   ) : aiActionResult.action === "rewrite_for_platform" && typeof aiActionResult.result === "object" ? (
                     <Stack spacing={1}>
-                      {aiActionResult.result.hook && <InsightRow label="Hook" color="secondary.main" value={aiActionResult.result.hook} />}
+                      {aiActionResult.result.hook && <InsightRow label="Gancho" color="secondary.main" value={aiActionResult.result.hook} />}
                       {aiActionResult.result.suggested_angle && <InsightRow label="Angle" color="primary.main" value={aiActionResult.result.suggested_angle} />}
                       {aiActionResult.result.suggested_title && <InsightRow label="Title" color="primary.main" value={aiActionResult.result.suggested_title} />}
                       {aiActionResult.result.format_tips && <InsightRow label="Format Tips" color="warning.main" value={aiActionResult.result.format_tips} />}
@@ -430,7 +430,7 @@ export default function DownloadedDetail({ video, onUseAsInspiration, onClose, o
             </>) : !video.transcript && (
               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200, color: "text.disabled" }}>
                 <Typography variant="body2" sx={{ mb: 1 }}>No analysis yet</Typography>
-                <Typography variant="caption">Use the Re-analyze button to transcribe and extract insights</Typography>
+                <Typography variant="caption">Use o botão Reanalisar para transcrever e extrair insights</Typography>
               </Box>
             )}
 

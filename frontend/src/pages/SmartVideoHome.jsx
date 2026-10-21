@@ -59,7 +59,7 @@ export default function SmartVideoHome() {
   const [listError, setListError] = useState(null)
   const refresh = () => api.listProjects()
     .then((items) => { setListError(null); setProjects(items) })
-    .catch((e) => { setListError(e?.message || "Couldn't load your projects."); })
+    .catch((e) => { setListError(e?.message || "Não foi possível carregar seus projetos."); })
   useEffect(() => { refresh() }, [])
 
   // Legacy `/stock?script=|topic=|source=…` links (Library "Use as
@@ -89,8 +89,8 @@ export default function SmartVideoHome() {
     } catch { /* private mode */ }
     if (reuse) { navigate(`/stock/p/${reuse}`, { replace: true }); return }
     setHandingOff(true)
-    setHandoffLabel(h.start.script ? "Bringing your script over…"
-      : h.start.topic ? `Writing a script about “${h.start.topic}”…` : "Writing a script from that video…")
+    setHandoffLabel(h.start.script ? "Importando seu roteiro…"
+      : h.start.topic ? `Escrevendo roteiro sobre “${h.start.topic}”…` : "Criando roteiro a partir deste vídeo…")
     ;(async () => {
       try {
         let script = h.start.script || ""
@@ -117,8 +117,8 @@ export default function SmartVideoHome() {
         // choices (seen once in the harness). Nobody else has edited it yet.
         if (ops.length) await api.applyOps(p.id, null, ops).catch((e) => showSnackbar(e.message, "warning"))
         try { sessionStorage.setItem(key, JSON.stringify({ id: p.id, at: Date.now() })) } catch { /* private mode */ }
-        showSnackbar(h.start.script ? "Brought your plan over — every scene is yours to change before you render"
-          : "Drafted your script — every scene is yours to change before you render", "success")
+        showSnackbar(h.start.script ? "Plano importado — você pode editar cada cena antes de renderizar"
+          : "Roteiro gerado — você pode editar cada cena antes de renderizar", "success")
         navigate(`/stock/p/${p.id}`, { replace: true, state: { planned: true, planJobId: p.planJobId } })
       } catch (e) {
         showSnackbar(e.message || "Couldn't bring that over — start below", "warning")
@@ -185,7 +185,7 @@ export default function SmartVideoHome() {
                 size="small" variant="outlined" startIcon={<FolderOpenOutlinedIcon />}
                 onClick={() => setDrawerOpen(true)} sx={{ textTransform: "none", fontWeight: 700 }}
               >
-                Your projects
+                Seus projetos
               </Button>
             </Badge>
           </Stack>

@@ -116,11 +116,11 @@ export default function AssetDrawer({
     }
     try {
       await endpoints[item.source]()
-      showSnackbar("Deleted", "info")
+      showSnackbar("Item excluído", "info")
       onDeleted?.(item)
       onClose?.()
     } catch (e) {
-      showSnackbar(e.response?.data?.detail || "Could not delete that item", "error")
+      showSnackbar(e.response?.data?.detail || "Não foi possível excluir o item", "error")
     }
   }
 
@@ -178,7 +178,7 @@ export default function AssetDrawer({
                   {` · ${fmtDayLong(item.created_at)}`}
                 </Typography>
               </Box>
-              <IconButton size="small" onClick={onClose} aria-label="Close">
+              <IconButton size="small" onClick={onClose} aria-label="Fechar">
                 <CloseRoundedIcon fontSize="small" />
               </IconButton>
             </Stack>
@@ -255,7 +255,7 @@ export default function AssetDrawer({
                   fontWeight: 600, px: 1.5,
                 },
               }}>
-              <Tab label="Details" />
+              <Tab label="Detalhes" />
               <Tab label={`Lineage${hasLineage ? ` (${ancestors.length + derivatives.length})` : ""}`} />
             </Tabs>
             <Divider />
@@ -357,11 +357,11 @@ export default function AssetDrawer({
             }}>
               <Button variant="contained" size="small" startIcon={<DownloadRoundedIcon />}
                 sx={{ flex: 1 }} href={item.stream_url} download>
-                Save a copy
+                Baixar cópia
               </Button>
-              <Tooltip title="Delete">
+              <Tooltip title="Excluir">
                 <Button variant="outlined" size="small" color="error" sx={{ minWidth: 0, px: 1.25 }}
-                  aria-label="Delete" onClick={handleDelete}>
+                  aria-label="Excluir" onClick={handleDelete}>
                   <DeleteOutlineRoundedIcon fontSize="small" />
                 </Button>
               </Tooltip>
@@ -389,7 +389,7 @@ function LineageRow({ item, icon, onOpen }) {
   const oc = originColor(item.origin, theme.palette.mode === "dark")
   return (
     <Stack direction="row" spacing={1} alignItems="center"
-      {...buttonProps(() => onOpen?.(item), { label: `Open ${item.title}` })}
+      {...buttonProps(() => onOpen?.(item), { label: `Abrir ${item.title}` })}
       data-testid="lineage-row"
       sx={{
         p: 1, borderRadius: "10px", cursor: "pointer", border: 1, borderColor: "divider",

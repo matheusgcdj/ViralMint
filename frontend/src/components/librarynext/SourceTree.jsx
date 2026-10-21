@@ -56,7 +56,7 @@ export default function SourceTree({ families, loners, onOpen, dimmedIds }) {
               transition: "transform .15s ease",
             }} />
             <Typography sx={{ fontSize: "0.78rem", fontWeight: 600 }}>
-              Nothing made from these yet
+              Sem derivações ainda
             </Typography>
             <Typography sx={{ fontSize: "0.74rem", color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>
               {loners.length}
@@ -126,7 +126,7 @@ function Family({ root, nodes, onOpen, dimmedIds }) {
           flexShrink: 0, fontSize: "0.7rem", fontWeight: 700, color: originTextColor(root.origin, isDark),
           fontVariantNumeric: "tabular-nums",
         }}>
-          {count} derived
+          {count} derivado{count > 1 ? "s" : ""}
         </Typography>
       </Stack>
 

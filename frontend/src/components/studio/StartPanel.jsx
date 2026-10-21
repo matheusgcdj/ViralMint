@@ -242,7 +242,7 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
               >
                 <CircularProgress size={22} />
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  {workingLabel || `Writing a script about “${topic.trim()}”…`}
+                  {workingLabel || `Escrevendo roteiro sobre “${topic.trim()}”…`}
                 </Typography>
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>Usually 5–15 seconds</Typography>
               </Stack>
@@ -250,7 +250,7 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
             <Box
               component="textarea"
               ref={textRef}
-              aria-label="Script"
+              aria-label="Roteiro"
               value={script}
               onChange={(e) => { setScript(e.target.value); setCanRestore(false) }}
               onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); go() } }}
@@ -287,7 +287,7 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
                       onClick={() => { setScript(previousScript.current || ""); setCanRestore(false) }}
                       sx={{ textTransform: "none", ml: 1, py: 0, minWidth: 0 }}
                     >
-                      Restore previous script
+                      Restaurar roteiro anterior
                     </Button>
                   )}
                 </Typography>
@@ -298,7 +298,7 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
                 callers that need it (`plan: true`, used by the `?script=`
                 handoff), just not as a second thing to weigh up. */}
             <Tooltip title={!hasScript && topicReady
-              ? "Writes the script here first, so you can read and change it before anything is built."
+              ? "Gera o roteiro aqui primeiro, para você revisar e editar antes de iniciar a produção."
               : "Plans every scene and voices each line, so you can watch it before you render. ⌘Enter"}>
               <span>
                 <Button
@@ -358,7 +358,7 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
             ))}
             {overflow > 0 && (
               <Typography variant="body2" sx={{ color: "warning.main", px: 1, py: 1 }}>
-                {overflow} more scene{overflow === 1 ? "" : "s"} won't fit in one video. Shorten the script or split it into two videos.
+                Mais {overflow} {overflow === 1 ? "cena não cabe" : "cenas não cabem"} em um único vídeo. Encurte o roteiro ou divida em dois vídeos.
               </Typography>
             )}
           </Box>
@@ -368,7 +368,7 @@ export default function StartPanel({ onCreate, busy = false, preferTopic = false
               <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Estilo Visual</Typography>
               <ToggleButtonGroup
                 size="small" exclusive value={aspect} onChange={(_, v) => v && setAspect(v)}
-                aria-label="Aspect ratio"
+                aria-label="Proporção de tela"
                 sx={{ "& .MuiToggleButton-root": { py: 0.2, px: 1.2, fontWeight: 700, fontSize: "0.72rem" } }}
               >
                 {ASPECTS.map((a) => <ToggleButton key={a} value={a}>{a}</ToggleButton>)}

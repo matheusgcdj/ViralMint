@@ -81,7 +81,7 @@ export default function MotionGraphics() {
         const { data } = await http.post("/api/generate/motion/studio/sync-renders")
         if (data?.imported > 0) {
           showSnackbar(
-            `${data.imported} video${data.imported > 1 ? "s" : ""} added to your Library`,
+            `${data.imported} vídeo${data.imported > 1 ? "s adicionados" : " adicionado"} à sua Biblioteca`,
             "success")
         }
       } catch { /* the next tick retries; a toast here would be noise */ }
@@ -113,11 +113,11 @@ export default function MotionGraphics() {
           <>
             <Button size="small" variant="outlined" startIcon={<VideoLibraryIcon />}
               onClick={() => navigate("/videos")}>
-              Library
+              Biblioteca
             </Button>
             <Button size="small" variant={panelOpen ? "outlined" : "contained"}
               startIcon={<AutoAwesomeIcon />} onClick={() => setPanelOpen((v) => !v)}>
-              AI Compose
+              Compor com IA
             </Button>
           </>
         ) : null

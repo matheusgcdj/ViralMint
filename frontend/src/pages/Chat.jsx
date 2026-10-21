@@ -324,7 +324,7 @@ export default function Chat() {
             startIcon={<AddIcon />}
             onClick={handleNewChat}
           >
-            New chat
+            Novo chat
           </Button>
           <IconButton
             onClick={() => setSidebarOpen(o => !o)}

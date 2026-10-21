@@ -411,14 +411,14 @@ export default function Library() {
       await del(item)
       removeLocal(item.key)
       refresh()  // facet counts and pageCount come from the server
-      showSnackbar("Deleted", "success")
+      showSnackbar("Item excluído com sucesso", "success")
     } catch (e) {
-      showSnackbar(e.response?.data?.detail || "Could not delete that item", "error")
+      showSnackbar(e.response?.data?.detail || "Não foi possível excluir o item", "error")
     }
   }
 
   const confirmDeleteOne = (item) => openConfirm(
-    "Delete this item?",
+    "Excluir este item?",
     `“${item.title}” is removed from disk. This cannot be undone.`,
     () => deleteOne(item),
   )
@@ -542,7 +542,7 @@ export default function Library() {
                 input: {
                   startAdornment: <SearchIcon sx={{ mr: 0.5, fontSize: 18, color: "text.secondary" }} />,
                 },
-                htmlInput: { "aria-label": "Search library" },
+                htmlInput: { "aria-label": "Buscar na biblioteca" },
               }}
               sx={{ width: { xs: 140, sm: 250 } }}
             />
@@ -775,10 +775,10 @@ export default function Library() {
             }} />
           <Button size="small" startIcon={<DeleteOutlineRoundedIcon sx={{ fontSize: 16 }} />}
             onClick={() => openConfirm(
-              `Delete ${selected.size} item${selected.size === 1 ? "" : "s"}?`,
+              `Excluir ${selected.size} ${selected.size === 1 ? "item" : "itens"}?`,
               "The files are removed from disk. This cannot be undone.",
               deleteSelected,
-              { confirmLabel: `Delete ${selected.size}` },
+              { confirmLabel: `Excluir ${selected.size}` },
             )}>
             Delete
           </Button>
@@ -874,7 +874,7 @@ export default function Library() {
         // Same confirm every other delete route gets — the drawer must not be
         // the one place a single click destroys a file.
         onConfirmDelete={(item, perform) => openConfirm(
-          "Delete this item?",
+          "Excluir este item?",
           `“${item.title}” is removed from disk. This cannot be undone.`,
           perform,
         )}

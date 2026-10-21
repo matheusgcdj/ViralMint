@@ -581,7 +581,7 @@ export default function ToolRunner({
 
           {/* Failed */}
           {jobFailed && (
-            <Alert severity="error" action={<Button size="small" onClick={reset}>Try again</Button>}>
+            <Alert severity="error" action={<Button size="small" onClick={reset}>Tentar novamente</Button>}>
               {job?.step || terminal?.step || "Job failed"}
             </Alert>
           )}
@@ -648,7 +648,7 @@ export default function ToolRunner({
 
           {/* Footer actions */}
           <Stack direction="row" spacing={1} sx={{ p: 2, borderTop: 1, borderColor: "divider", flexShrink: 0 }}>
-            <Button fullWidth variant="outlined" onClick={reset}>Run again</Button>
+            <Button fullWidth variant="outlined" onClick={reset}>Executar novamente</Button>
             <Button
               fullWidth
               variant="contained"

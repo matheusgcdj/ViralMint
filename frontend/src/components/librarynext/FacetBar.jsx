@@ -117,7 +117,7 @@ export default function FacetBar({
             "& .MuiToggleButton-root": { px: 1.1, fontSize: "0.72rem", textTransform: "none", gap: 0.5 },
           }}
         >
-          <ToggleButton value="grid" aria-label="Grid view">
+          <ToggleButton value="grid" aria-label="Visualização em grade">
             <GridViewRoundedIcon sx={{ fontSize: 15 }} />
             <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Grade</Box>
           </ToggleButton>
@@ -132,7 +132,7 @@ export default function FacetBar({
         {view === "grid" && (
           <Tooltip title={dense ? "Visualização confortável" : "Visualização compacta"}>
             <IconButton size="small" onClick={() => onDenseChange(!dense)}
-              aria-label={dense ? "Comfortable tiles" : "Dense tiles"}
+              aria-label={dense ? "Cards confortáveis" : "Cards compactos"}
               aria-pressed={dense}
               sx={{ border: 1, borderColor: "divider", borderRadius: "8px", width: 28, height: 28, flexShrink: 0 }}>
               {dense ? <ViewModuleRoundedIcon sx={{ fontSize: 16 }} /> : <ViewComfyRoundedIcon sx={{ fontSize: 16 }} />}
@@ -223,7 +223,7 @@ export default function FacetBar({
 
         <Select
           size="small" value={sort} onChange={(e) => onSortChange(e.target.value)}
-          aria-label="Sort"
+          aria-label="Ordenar"
           sx={{ height: 28, fontSize: "0.76rem", "& .MuiSelect-select": { py: 0 }, minWidth: 116 }}
         >
           <MenuItem value="newest" sx={{ fontSize: "0.8rem" }}>Mais recentes</MenuItem>

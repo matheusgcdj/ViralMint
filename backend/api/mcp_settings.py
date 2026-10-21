@@ -41,26 +41,30 @@ router = APIRouter()
 
 
 def require_same_machine(request: Request) -> None:
-    """403 unless the caller is on this machine (a loopback peer address)."""
+    """403 unless the caller is on this machine, loopback, private network, or in container/reverse-proxy mode."""
+    if os.getenv("ALLOW_REMOTE_MCP", "").lower() in ("1", "true", "yes"):
+        return
     host = request.client.host if request.client else ""
     try:
-        local = ipaddress.ip_address(host).is_loopback
+        ip = ipaddress.ip_address(host)
+        if ip.is_loopback or ip.is_private:
+            return
     except ValueError:
-        local = False  # not an IP — not a peer we can vouch for
-    if not local:
-        raise HTTPException(
-            status_code=403,
-            detail=("The MCP token is only shown on the computer running "
-                    "ViralMint — open this page there."),
-        )
+        pass
+    if os.getenv("VIRALMINT_NO_BROWSER") or os.getenv("VIRALMINT_DATA_DIR") or getattr(app_settings, "FRONTEND_URL", ""):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail=("The MCP token is only shown on the computer running "
+                "ViralMint — open this page there."),
+    )
 
 
 def mcp_endpoint_url() -> str:
-    """The /mcp URL an MCP client on THIS machine should use.
-
-    A wildcard bind (LAN mode) is dialed over loopback — `http://0.0.0.0/…`
-    is not a destination on every OS.
-    """
+    """The /mcp URL an MCP client should use."""
+    frontend = getattr(app_settings, "FRONTEND_URL", "")
+    if frontend and "localhost" not in frontend and "127.0.0.1" not in frontend:
+        return f"{frontend.rstrip('/')}/mcp/"
     return f"http://{self_host()}:{app_settings.PORT}/mcp/"
 
 

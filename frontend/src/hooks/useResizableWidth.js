@@ -134,7 +134,7 @@ export default function useResizableWidth({
       role: "separator",
       tabIndex: 0,
       "aria-orientation": "vertical",
-      "aria-label": `Resize ${label}`,
+      "aria-label": `Redimensionar ${label}`,
       "aria-valuenow": width,
       "aria-valuemin": min,
       "aria-valuemax": max,

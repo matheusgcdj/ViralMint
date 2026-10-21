@@ -187,9 +187,9 @@ export default function McpSetupTab() {
 
   if (error || !config) return (
     <Alert severity="error" action={
-      <Button color="inherit" size="small" onClick={fetchConfig} startIcon={<RefreshIcon />}>Retry</Button>
+      <Button color="inherit" size="small" onClick={fetchConfig} startIcon={<RefreshIcon />}>Tentar novamente</Button>
     }>
-      {error || "Failed to load MCP config"}
+      {error || "Falha ao carregar configuração do MCP"}
     </Alert>
   )
 

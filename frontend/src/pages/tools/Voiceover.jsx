@@ -403,7 +403,7 @@ export default function ToolVoiceover() {
                 onClick={() => videoInputRef.current?.click()}
                 sx={{ textTransform: "none" }}
               >
-                Choose video (optional)
+                Escolher vídeo (opcional)
               </Button>
             )}
           </Box>

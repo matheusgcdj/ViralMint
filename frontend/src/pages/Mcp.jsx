@@ -131,7 +131,7 @@ export default function Mcp() {
             }
             label={
               <Typography sx={{ fontSize: "0.78rem", color: "text.secondary", fontWeight: 500 }}>
-                Advanced
+                Avançado
               </Typography>
             }
             sx={{ flexShrink: 0, mr: 0.5 }}
