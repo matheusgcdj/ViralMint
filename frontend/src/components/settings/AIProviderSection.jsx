@@ -105,7 +105,7 @@ export default function AIProviderSection({ settings, updateSettings }) {
       setProvider(settings.ai_provider || "openai")
       setModel(settings.ai_model || "")
       setBaseUrl(settings.ai_base_url || "")
-      if (!isConfigured(settings)) setEditing(true)
+      setEditing(!isConfigured(settings))
     }
   }, [settings?.ai_provider, settings?.ai_model, settings?.ai_api_key_set, settings?.ai_base_url])
 

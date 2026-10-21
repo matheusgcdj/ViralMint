@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Box, Stack, Typography, Card, CardContent, Button, IconButton,
   TextField, Switch, FormControlLabel, Chip, Alert, Tooltip,
@@ -115,8 +115,55 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
     setExpandedPlatform(expandedPlatform === platform ? null : platform)
   }
 
+  // Sincronizar campos de Client ID com o que já está salvo no servidor
+  useEffect(() => {
+    if (settings) {
+      if (settings.youtube_client_id !== undefined && settings.youtube_client_id !== null) {
+        setYtClientId(settings.youtube_client_id)
+      }
+      if (settings.tiktok_client_key !== undefined && settings.tiktok_client_key !== null) {
+        setTtClientKey(settings.tiktok_client_key)
+      }
+      if (settings.instagram_client_id !== undefined && settings.instagram_client_id !== null) {
+        setIgClientId(settings.instagram_client_id)
+      }
+      if (settings.instagram_user_id !== undefined && settings.instagram_user_id !== null) {
+        setIgDirectUserId(settings.instagram_user_id)
+      }
+    }
+  }, [
+    settings?.youtube_client_id,
+    settings?.tiktok_client_key,
+    settings?.instagram_client_id,
+    settings?.instagram_user_id,
+  ])
+
   // ── YouTube Actions ──
-  const handleConnectYoutube = () => {
+  const handleConnectYoutube = async () => {
+    const hasClientId = settings?.youtube_client_id_set || ytClientId.trim()
+    const hasClientSecret = settings?.youtube_client_secret_set || ytClientSecret.trim()
+
+    if (!hasClientId || !hasClientSecret) {
+      setExpandedPlatform("youtube")
+      showToast?.("Configure o Google OAuth Client ID e Client Secret abaixo antes de conectar.", "warning")
+      return
+    }
+
+    // Se o usuário preencheu novos valores no formulário, salva antes de redirecionar
+    if (ytClientId.trim() || ytClientSecret.trim()) {
+      setLoadingAction("youtube")
+      try {
+        const payload = {}
+        if (ytClientId.trim()) payload.youtube_client_id = ytClientId.trim()
+        if (ytClientSecret.trim()) payload.youtube_client_secret = ytClientSecret.trim()
+        await updateSettings(payload)
+      } catch (e) {
+        showToast?.("Erro ao salvar credenciais: " + (e.response?.data?.detail || e.message), "error")
+        setLoadingAction(null)
+        return
+      }
+    }
+
     setLoadingAction("youtube")
     const authUrl = `/api/settings/youtube-auth?redirect_uri=${encodeURIComponent(ytCallbackUri)}`
     window.location.href = authUrl
@@ -127,33 +174,77 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
     try {
       setLoadingAction("youtube_dc")
       await http.post("/api/settings/youtube-disconnect")
-      showToast("Conta do YouTube desconectada", "info")
+      showToast?.("Conta do YouTube desconectada", "info")
       if (fetchSettings) fetchSettings()
     } catch (e) {
-      showToast("Erro ao desconectar YouTube: " + (e.response?.data?.detail || e.message), "error")
+      showToast?.("Erro ao desconectar YouTube: " + (e.response?.data?.detail || e.message), "error")
     } finally {
       setLoadingAction(null)
     }
   }
 
   const handleSaveYoutubeCreds = async () => {
+    const payload = {}
+    if (ytClientId.trim()) payload.youtube_client_id = ytClientId.trim()
+    if (ytClientSecret.trim()) payload.youtube_client_secret = ytClientSecret.trim()
+    if (!payload.youtube_client_id && !payload.youtube_client_secret) {
+      showToast?.("Preencha ao menos o Client ID ou Client Secret para salvar.", "warning")
+      return
+    }
     try {
       setLoadingAction("youtube_save")
-      await updateSettings({
-        youtube_client_id: ytClientId,
-        youtube_client_secret: ytClientSecret,
-      })
-      showToast("Credenciais do YouTube salvas com sucesso!", "success")
+      await updateSettings(payload)
+      showToast?.("Credenciais do YouTube salvas com sucesso!", "success")
       setYtClientSecret("")
+      if (fetchSettings) fetchSettings()
     } catch (e) {
-      showToast("Erro ao salvar credenciais: " + (e.response?.data?.detail || e.message), "error")
+      showToast?.("Erro ao salvar credenciais: " + (e.response?.data?.detail || e.message), "error")
+    } finally {
+      setLoadingAction(null)
+    }
+  }
+
+  const handleClearYoutubeCreds = async () => {
+    if (!window.confirm("Deseja realmente remover as credenciais salvas do Google OAuth?")) return
+    try {
+      setLoadingAction("youtube_clear")
+      await http.post("/api/settings/clear-oauth-creds", { platform: "youtube" })
+      setYtClientId("")
+      setYtClientSecret("")
+      showToast?.("Credenciais do Google OAuth removidas com sucesso.", "info")
+      if (fetchSettings) fetchSettings()
+    } catch (e) {
+      showToast?.("Erro ao remover credenciais: " + (e.response?.data?.detail || e.message), "error")
     } finally {
       setLoadingAction(null)
     }
   }
 
   // ── TikTok Actions ──
-  const handleConnectTiktok = () => {
+  const handleConnectTiktok = async () => {
+    const hasClientKey = settings?.tiktok_client_key_set || ttClientKey.trim()
+    const hasClientSecret = settings?.tiktok_client_secret_set || ttClientSecret.trim()
+
+    if (!hasClientKey || !hasClientSecret) {
+      setExpandedPlatform("tiktok")
+      showToast?.("Configure o Client Key e Client Secret do TikTok abaixo antes de conectar.", "warning")
+      return
+    }
+
+    if (ttClientKey.trim() || ttClientSecret.trim()) {
+      setLoadingAction("tiktok")
+      try {
+        const payload = {}
+        if (ttClientKey.trim()) payload.tiktok_client_key = ttClientKey.trim()
+        if (ttClientSecret.trim()) payload.tiktok_client_secret = ttClientSecret.trim()
+        await updateSettings(payload)
+      } catch (e) {
+        showToast?.("Erro ao salvar credenciais: " + (e.response?.data?.detail || e.message), "error")
+        setLoadingAction(null)
+        return
+      }
+    }
+
     setLoadingAction("tiktok")
     const authUrl = `/api/settings/tiktok-upload-auth?redirect_uri=${encodeURIComponent(ttCallbackUri)}`
     window.location.href = authUrl
@@ -164,26 +255,47 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
     try {
       setLoadingAction("tiktok_dc")
       await http.post("/api/settings/tiktok-disconnect")
-      showToast("Conta do TikTok desconectada", "info")
+      showToast?.("Conta do TikTok desconectada", "info")
       if (fetchSettings) fetchSettings()
     } catch (e) {
-      showToast("Erro ao desconectar TikTok: " + (e.response?.data?.detail || e.message), "error")
+      showToast?.("Erro ao desconectar TikTok: " + (e.response?.data?.detail || e.message), "error")
     } finally {
       setLoadingAction(null)
     }
   }
 
   const handleSaveTiktokCreds = async () => {
+    const payload = {}
+    if (ttClientKey.trim()) payload.tiktok_client_key = ttClientKey.trim()
+    if (ttClientSecret.trim()) payload.tiktok_client_secret = ttClientSecret.trim()
+    if (!payload.tiktok_client_key && !payload.tiktok_client_secret) {
+      showToast?.("Preencha ao menos o Client Key ou Client Secret para salvar.", "warning")
+      return
+    }
     try {
       setLoadingAction("tiktok_save")
-      await updateSettings({
-        tiktok_client_key: ttClientKey,
-        tiktok_client_secret: ttClientSecret,
-      })
-      showToast("Credenciais do TikTok salvas com sucesso!", "success")
+      await updateSettings(payload)
+      showToast?.("Credenciais do TikTok salvas com sucesso!", "success")
       setTtClientSecret("")
+      if (fetchSettings) fetchSettings()
     } catch (e) {
-      showToast("Erro ao salvar credenciais: " + (e.response?.data?.detail || e.message), "error")
+      showToast?.("Erro ao salvar credenciais: " + (e.response?.data?.detail || e.message), "error")
+    } finally {
+      setLoadingAction(null)
+    }
+  }
+
+  const handleClearTiktokCreds = async () => {
+    if (!window.confirm("Deseja realmente remover as credenciais salvas do TikTok?")) return
+    try {
+      setLoadingAction("tiktok_clear")
+      await http.post("/api/settings/clear-oauth-creds", { platform: "tiktok" })
+      setTtClientKey("")
+      setTtClientSecret("")
+      showToast?.("Credenciais do TikTok removidas com sucesso.", "info")
+      if (fetchSettings) fetchSettings()
+    } catch (e) {
+      showToast?.("Erro ao remover credenciais: " + (e.response?.data?.detail || e.message), "error")
     } finally {
       setLoadingAction(null)
     }
@@ -215,7 +327,30 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
   }
 
   // ── Instagram Actions ──
-  const handleConnectInstagram = () => {
+  const handleConnectInstagram = async () => {
+    const hasClientId = settings?.instagram_client_id_set || igClientId.trim()
+    const hasClientSecret = settings?.instagram_client_secret_set || igClientSecret.trim()
+
+    if (!hasClientId || !hasClientSecret) {
+      setExpandedPlatform("instagram")
+      showToast?.("Configure o Meta App ID e App Secret abaixo antes de conectar.", "warning")
+      return
+    }
+
+    if (igClientId.trim() || igClientSecret.trim()) {
+      setLoadingAction("instagram")
+      try {
+        const payload = {}
+        if (igClientId.trim()) payload.instagram_client_id = igClientId.trim()
+        if (igClientSecret.trim()) payload.instagram_client_secret = igClientSecret.trim()
+        await updateSettings(payload)
+      } catch (e) {
+        showToast?.("Erro ao salvar credenciais: " + (e.response?.data?.detail || e.message), "error")
+        setLoadingAction(null)
+        return
+      }
+    }
+
     setLoadingAction("instagram")
     const authUrl = `/api/settings/instagram-auth?redirect_uri=${encodeURIComponent(igCallbackUri)}`
     window.location.href = authUrl
@@ -226,26 +361,47 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
     try {
       setLoadingAction("instagram_dc")
       await http.post("/api/settings/instagram-disconnect")
-      showToast("Conta do Instagram desconectada", "info")
+      showToast?.("Conta do Instagram desconectada", "info")
       if (fetchSettings) fetchSettings()
     } catch (e) {
-      showToast("Erro ao desconectar Instagram: " + (e.response?.data?.detail || e.message), "error")
+      showToast?.("Erro ao desconectar Instagram: " + (e.response?.data?.detail || e.message), "error")
     } finally {
       setLoadingAction(null)
     }
   }
 
   const handleSaveInstagramCreds = async () => {
+    const payload = {}
+    if (igClientId.trim()) payload.instagram_client_id = igClientId.trim()
+    if (igClientSecret.trim()) payload.instagram_client_secret = igClientSecret.trim()
+    if (!payload.instagram_client_id && !payload.instagram_client_secret) {
+      showToast?.("Preencha ao menos o App ID ou App Secret para salvar.", "warning")
+      return
+    }
     try {
       setLoadingAction("instagram_save")
-      await updateSettings({
-        instagram_client_id: igClientId,
-        instagram_client_secret: igClientSecret,
-      })
-      showToast("Credenciais do Instagram salvas com sucesso!", "success")
+      await updateSettings(payload)
+      showToast?.("Credenciais do Instagram salvas com sucesso!", "success")
       setIgClientSecret("")
+      if (fetchSettings) fetchSettings()
     } catch (e) {
-      showToast("Erro ao salvar credenciais: " + (e.response?.data?.detail || e.message), "error")
+      showToast?.("Erro ao salvar credenciais: " + (e.response?.data?.detail || e.message), "error")
+    } finally {
+      setLoadingAction(null)
+    }
+  }
+
+  const handleClearInstagramCreds = async () => {
+    if (!window.confirm("Deseja realmente remover as credenciais salvas do Meta/Instagram?")) return
+    try {
+      setLoadingAction("instagram_clear")
+      await http.post("/api/settings/clear-oauth-creds", { platform: "instagram" })
+      setIgClientId("")
+      setIgClientSecret("")
+      showToast?.("Credenciais do Meta/Instagram removidas com sucesso.", "info")
+      if (fetchSettings) fetchSettings()
+    } catch (e) {
+      showToast?.("Erro ao remover credenciais: " + (e.response?.data?.detail || e.message), "error")
     } finally {
       setLoadingAction(null)
     }
@@ -427,16 +583,25 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                   fullWidth
                   value={ytClientId}
                   onChange={(e) => setYtClientId(e.target.value)}
-                  helperText={settings?.youtube_client_id_set ? "✓ Client ID já configurado no servidor (preencha para atualizar)" : ""}
+                  helperText={
+                    settings?.youtube_client_id_set
+                      ? "✓ Client ID salvo e ativo no servidor"
+                      : "Cole o Client ID gerado no Google Cloud Console"
+                  }
                 />
                 <TextField
                   label="Google OAuth Client Secret"
-                  placeholder="Ex: GOCSPX-..."
+                  placeholder={settings?.youtube_client_secret_set ? "••••••••••••••••" : "Ex: GOCSPX-..."}
                   type={showYtSecret ? "text" : "password"}
                   size="small"
                   fullWidth
                   value={ytClientSecret}
                   onChange={(e) => setYtClientSecret(e.target.value)}
+                  helperText={
+                    settings?.youtube_client_secret_set
+                      ? "✓ Client Secret já configurado e ativo (preencha somente se desejar alterar)"
+                      : "Cole o Client Secret gerado no Google Cloud Console"
+                  }
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -447,16 +612,27 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                     ),
                   }}
                 />
-                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  {(settings?.youtube_client_id_set || settings?.youtube_client_secret_set) && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      onClick={handleClearYoutubeCreds}
+                      disabled={loadingAction === "youtube_clear"}
+                    >
+                      Remover Credenciais
+                    </Button>
+                  )}
                   <Button
-                    variant="outlined"
+                    variant="contained"
                     size="small"
                     onClick={handleSaveYoutubeCreds}
                     disabled={(!ytClientId && !ytClientSecret) || loadingAction === "youtube_save"}
                   >
                     Salvar Credenciais
                   </Button>
-                </Box>
+                </Stack>
               </Stack>
             </Box>
           </Collapse>
@@ -629,16 +805,25 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                     fullWidth
                     value={ttClientKey}
                     onChange={(e) => setTtClientKey(e.target.value)}
-                    helperText={settings?.tiktok_client_key_set ? "✓ Client Key já configurado no servidor" : ""}
+                    helperText={
+                      settings?.tiktok_client_key_set
+                        ? "✓ Client Key salvo e ativo no servidor"
+                        : "Cole o Client Key do TikTok Developer Portal"
+                    }
                   />
                   <TextField
                     label="TikTok Client Secret"
-                    placeholder="Ex: secret..."
+                    placeholder={settings?.tiktok_client_secret_set ? "••••••••••••••••" : "Ex: secret..."}
                     type={showTtSecret ? "text" : "password"}
                     size="small"
                     fullWidth
                     value={ttClientSecret}
                     onChange={(e) => setTtClientSecret(e.target.value)}
+                    helperText={
+                      settings?.tiktok_client_secret_set
+                        ? "✓ Client Secret já configurado e ativo (preencha somente se desejar alterar)"
+                        : "Cole o Client Secret do TikTok Developer Portal"
+                    }
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
@@ -649,16 +834,27 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                       ),
                     }}
                   />
-                  <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    {(settings?.tiktok_client_key_set || settings?.tiktok_client_secret_set) && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={handleClearTiktokCreds}
+                        disabled={loadingAction === "tiktok_clear"}
+                      >
+                        Remover Credenciais
+                      </Button>
+                    )}
                     <Button
-                      variant="outlined"
+                      variant="contained"
                       size="small"
                       onClick={handleSaveTiktokCreds}
                       disabled={(!ttClientKey && !ttClientSecret) || loadingAction === "tiktok_save"}
                     >
                       Salvar Credenciais
                     </Button>
-                  </Box>
+                  </Stack>
                 </Stack>
               </Box>
 
@@ -897,16 +1093,25 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                     fullWidth
                     value={igClientId}
                     onChange={(e) => setIgClientId(e.target.value)}
-                    helperText={settings?.instagram_client_id_set ? "✓ Meta App ID configurado no servidor" : ""}
+                    helperText={
+                      settings?.instagram_client_id_set
+                        ? "✓ Meta App ID salvo e ativo no servidor"
+                        : "Cole o App ID / Client ID da Meta Developer Console"
+                    }
                   />
                   <TextField
                     label="Meta App Secret (Client Secret)"
-                    placeholder="Ex: 4a2b..."
+                    placeholder={settings?.instagram_client_secret_set ? "••••••••••••••••" : "Ex: 4a2b..."}
                     type={showIgSecret ? "text" : "password"}
                     size="small"
                     fullWidth
                     value={igClientSecret}
                     onChange={(e) => setIgClientSecret(e.target.value)}
+                    helperText={
+                      settings?.instagram_client_secret_set
+                        ? "✓ App Secret já configurado e ativo (preencha somente se desejar alterar)"
+                        : "Cole o App Secret do aplicativo Meta"
+                    }
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
@@ -917,16 +1122,27 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                       ),
                     }}
                   />
-                  <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    {(settings?.instagram_client_id_set || settings?.instagram_client_secret_set) && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={handleClearInstagramCreds}
+                        disabled={loadingAction === "instagram_clear"}
+                      >
+                        Remover Credenciais
+                      </Button>
+                    )}
                     <Button
-                      variant="outlined"
+                      variant="contained"
                       size="small"
                       onClick={handleSaveInstagramCreds}
                       disabled={(!igClientId && !igClientSecret) || loadingAction === "instagram_save"}
                     >
                       Salvar Credenciais
                     </Button>
-                  </Box>
+                  </Stack>
                 </Stack>
               </Box>
             </Stack>

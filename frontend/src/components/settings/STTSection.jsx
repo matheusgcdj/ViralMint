@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2025-2026 ViralMint Contributors
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Box, Stack, Typography, FormControl, InputLabel, Select, MenuItem,
   RadioGroup, FormControlLabel, Radio, Chip, TextField, Button,
@@ -35,6 +35,12 @@ export default function STTSection({ settings, updateSettings }) {
 
   const [selectedQuality, setSelectedQuality] = useState(settings?.whisper_quality || "balanced")
   const [savingQuality, setSavingQuality] = useState(false)
+
+  useEffect(() => {
+    if (settings?.whisper_quality) {
+      setSelectedQuality(settings.whisper_quality)
+    }
+  }, [settings?.whisper_quality])
 
   const handleProviderChange = async (provider) => {
     setSavingProvider(true)

@@ -60,6 +60,16 @@ async def resolve_key(service: str, *, user_id: str = "local") -> str:
                 select(UserSettings).where(UserSettings.user_id == user_id)
             )
             s = result.scalar_one_or_none()
+            if not s and user_id != "local":
+                result = await db.execute(
+                    select(UserSettings).where(UserSettings.user_id == "local")
+                )
+                s = result.scalar_one_or_none()
+            if not s:
+                result = await db.execute(
+                    select(UserSettings).order_by(UserSettings.id.asc()).limit(1)
+                )
+                s = result.scalar_one_or_none()
         if s:
             encrypted = getattr(s, db_column, None)
             if encrypted:

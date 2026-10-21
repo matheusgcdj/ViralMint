@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from backend.database import AsyncSessionLocal
 from backend.models.user_settings import UserSettings
-from backend.core.crypto import encrypt
+from backend.core.crypto import encrypt, decrypt_safe
 from backend.core.http_utils import get_user_agent
 from backend.config import settings as app_settings
 
@@ -43,13 +43,19 @@ class SettingsResponse(BaseModel):
     tiktok_cookie_set: bool = False
     youtube_channel_title: Optional[str] = None
     youtube_connected: bool = False
+    youtube_client_id: Optional[str] = None
     youtube_client_id_set: bool = False
+    youtube_client_secret_set: bool = False
     tiktok_upload_connected: bool = False
+    tiktok_client_key: Optional[str] = None
     tiktok_client_key_set: bool = False
+    tiktok_client_secret_set: bool = False
     instagram_connected: bool = False
     instagram_user_id: Optional[str] = None
     instagram_account_name: Optional[str] = None
+    instagram_client_id: Optional[str] = None
     instagram_client_id_set: bool = False
+    instagram_client_secret_set: bool = False
     instagram_access_token_set: bool = False
 
     # Preferences
@@ -70,6 +76,10 @@ class SettingsResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ClearOAuthRequest(BaseModel):
+    platform: str
 
 
 class SettingsUpdate(BaseModel):
@@ -127,6 +137,9 @@ async def get_settings():
             select(UserSettings).where(UserSettings.user_id == "local")
         )
         s = result.scalar_one_or_none()
+        if not s:
+            result = await db.execute(select(UserSettings).order_by(UserSettings.id.asc()).limit(1))
+            s = result.scalar_one_or_none()
 
     # Determine effective provider and key status
     effective_provider = (s.ai_provider if s else None) or "openai"
@@ -175,17 +188,25 @@ async def get_settings():
     ) or (app_settings.STORAGE_ROOT / "yt_cookies.txt").exists()
 
     # YouTube OAuth status
-    youtube_client_id_set = bool(s and s.youtube_client_id_encrypted) or bool(app_settings.YOUTUBE_CLIENT_ID)
+    yt_cid = (decrypt_safe(s.youtube_client_id_encrypted) if (s and s.youtube_client_id_encrypted) else "") or app_settings.YOUTUBE_CLIENT_ID or ""
+    youtube_client_id_set = bool(yt_cid)
+    youtube_client_secret_set = bool(s and s.youtube_client_secret_encrypted) or bool(app_settings.YOUTUBE_CLIENT_SECRET)
     youtube_connected = bool(s and s.youtube_credentials_json_encrypted)
 
     # TikTok OAuth & Cookies
-    tiktok_client_key_set = bool(s and s.tiktok_client_key_encrypted) or bool(app_settings.TIKTOK_CLIENT_KEY)
+    tt_ckey = (decrypt_safe(s.tiktok_client_key_encrypted) if (s and s.tiktok_client_key_encrypted) else "") or app_settings.TIKTOK_CLIENT_KEY or ""
+    tiktok_client_key_set = bool(tt_ckey)
+    tiktok_client_secret_set = bool(s and s.tiktok_client_secret_encrypted) or bool(app_settings.TIKTOK_CLIENT_SECRET)
     tiktok_upload_connected = bool(s and s.tiktok_upload_token_encrypted)
     tiktok_cookie_set = bool(s and s.tiktok_cookie_encrypted)
 
     # Instagram Reels
-    instagram_client_id_set = bool(s and s.instagram_client_id_encrypted) or bool(
-        app_settings.INSTAGRAM_CLIENT_ID or app_settings.FACEBOOK_APP_ID
+    ig_cid = (decrypt_safe(s.instagram_client_id_encrypted) if (s and s.instagram_client_id_encrypted) else "") or (
+        app_settings.INSTAGRAM_CLIENT_ID or app_settings.FACEBOOK_APP_ID or ""
+    )
+    instagram_client_id_set = bool(ig_cid)
+    instagram_client_secret_set = bool(s and s.instagram_client_secret_encrypted) or bool(
+        app_settings.INSTAGRAM_CLIENT_SECRET or app_settings.FACEBOOK_APP_SECRET
     )
     instagram_access_token_set = bool(s and s.instagram_access_token_encrypted) or bool(app_settings.INSTAGRAM_ACCESS_TOKEN)
     instagram_connected = bool(s and (s.instagram_access_token_encrypted or s.instagram_user_id))
@@ -206,12 +227,18 @@ async def get_settings():
             google_tts_api_key_set=google_tts_set,
             elevenlabs_api_key_set=elevenlabs_set,
             youtube_cookies_set=youtube_cookies_set,
+            youtube_client_id=yt_cid or None,
             youtube_client_id_set=youtube_client_id_set,
+            youtube_client_secret_set=youtube_client_secret_set,
             youtube_connected=youtube_connected,
+            tiktok_client_key=tt_ckey or None,
             tiktok_client_key_set=tiktok_client_key_set,
+            tiktok_client_secret_set=tiktok_client_secret_set,
             tiktok_upload_connected=tiktok_upload_connected,
             tiktok_cookie_set=tiktok_cookie_set,
+            instagram_client_id=ig_cid or None,
             instagram_client_id_set=instagram_client_id_set,
+            instagram_client_secret_set=instagram_client_secret_set,
             instagram_access_token_set=instagram_access_token_set,
             instagram_connected=instagram_connected,
             upload_to_instagram=upload_to_instagram,
@@ -236,13 +263,19 @@ async def get_settings():
         tiktok_cookie_set=tiktok_cookie_set,
         youtube_channel_title=s.youtube_channel_title,
         youtube_connected=youtube_connected,
+        youtube_client_id=yt_cid or None,
         youtube_client_id_set=youtube_client_id_set,
+        youtube_client_secret_set=youtube_client_secret_set,
         tiktok_upload_connected=tiktok_upload_connected,
+        tiktok_client_key=tt_ckey or None,
         tiktok_client_key_set=tiktok_client_key_set,
+        tiktok_client_secret_set=tiktok_client_secret_set,
         instagram_connected=instagram_connected,
         instagram_user_id=instagram_user_id,
         instagram_account_name=instagram_account_name,
+        instagram_client_id=ig_cid or None,
         instagram_client_id_set=instagram_client_id_set,
+        instagram_client_secret_set=instagram_client_secret_set,
         instagram_access_token_set=instagram_access_token_set,
         preferred_voice_id=s.preferred_voice_id or "21m00Tcm4TlvDq8ikWAM",
         tts_provider=s.tts_provider or "edge_tts",
@@ -288,6 +321,9 @@ async def update_settings(update: SettingsUpdate):
             select(UserSettings).where(UserSettings.user_id == "local")
         )
         s = result.scalar_one_or_none()
+        if not s:
+            result = await db.execute(select(UserSettings).order_by(UserSettings.id.asc()).limit(1))
+            s = result.scalar_one_or_none()
         if not s:
             s = UserSettings(user_id="local")
             db.add(s)
@@ -374,23 +410,35 @@ async def update_settings(update: SettingsUpdate):
             s.music_volume_db = update.music_volume_db
         # Social BYOK Keys & Tokens
         if update.youtube_client_id is not None:
-            s.youtube_client_id_encrypted = encrypt(update.youtube_client_id.strip()) if update.youtube_client_id.strip() else None
+            val = update.youtube_client_id.strip()
+            if val:
+                s.youtube_client_id_encrypted = encrypt(val)
         if update.youtube_client_secret is not None:
-            s.youtube_client_secret_encrypted = encrypt(update.youtube_client_secret.strip()) if update.youtube_client_secret.strip() else None
+            val = update.youtube_client_secret.strip()
+            if val:
+                s.youtube_client_secret_encrypted = encrypt(val)
 
         if update.tiktok_client_key is not None:
-            s.tiktok_client_key_encrypted = encrypt(update.tiktok_client_key.strip()) if update.tiktok_client_key.strip() else None
+            val = update.tiktok_client_key.strip()
+            if val:
+                s.tiktok_client_key_encrypted = encrypt(val)
         if update.tiktok_client_secret is not None:
-            s.tiktok_client_secret_encrypted = encrypt(update.tiktok_client_secret.strip()) if update.tiktok_client_secret.strip() else None
+            val = update.tiktok_client_secret.strip()
+            if val:
+                s.tiktok_client_secret_encrypted = encrypt(val)
         if update.tiktok_cookie is not None:
             clean_tc = update.tiktok_cookie.strip()
             s.tiktok_cookie_encrypted = encrypt(clean_tc) if clean_tc else None
             s.tiktok_cookie_set_at = datetime.utcnow() if clean_tc else None
 
         if update.instagram_client_id is not None:
-            s.instagram_client_id_encrypted = encrypt(update.instagram_client_id.strip()) if update.instagram_client_id.strip() else None
+            val = update.instagram_client_id.strip()
+            if val:
+                s.instagram_client_id_encrypted = encrypt(val)
         if update.instagram_client_secret is not None:
-            s.instagram_client_secret_encrypted = encrypt(update.instagram_client_secret.strip()) if update.instagram_client_secret.strip() else None
+            val = update.instagram_client_secret.strip()
+            if val:
+                s.instagram_client_secret_encrypted = encrypt(val)
         if update.instagram_access_token is not None:
             s.instagram_access_token_encrypted = encrypt(update.instagram_access_token.strip()) if update.instagram_access_token.strip() else None
         if update.instagram_user_id is not None:
@@ -407,6 +455,29 @@ async def update_settings(update: SettingsUpdate):
 
         await db.commit()
 
+    return await get_settings()
+
+
+@router.post("/settings/clear-oauth-creds")
+async def clear_oauth_creds(body: ClearOAuthRequest):
+    """Clear stored BYOK OAuth client credentials for a specific platform."""
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(select(UserSettings).where(UserSettings.user_id == "local"))
+        s = res.scalar_one_or_none()
+        if not s:
+            res = await db.execute(select(UserSettings).order_by(UserSettings.id.asc()).limit(1))
+            s = res.scalar_one_or_none()
+        if s:
+            if body.platform == "youtube":
+                s.youtube_client_id_encrypted = None
+                s.youtube_client_secret_encrypted = None
+            elif body.platform == "tiktok":
+                s.tiktok_client_key_encrypted = None
+                s.tiktok_client_secret_encrypted = None
+            elif body.platform == "instagram":
+                s.instagram_client_id_encrypted = None
+                s.instagram_client_secret_encrypted = None
+            await db.commit()
     return await get_settings()
 
 

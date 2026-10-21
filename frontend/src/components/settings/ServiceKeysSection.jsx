@@ -124,7 +124,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
   // jump back to edit mode so the form is shown. Don't yank the user OUT of
   // edit mode if a save just landed — handleSave() owns that transition.
   useEffect(() => {
-    if (!keyIsSet) setEditing(true)
+    setEditing(!keyIsSet)
   }, [keyIsSet])
 
   const handleSave = async () => {
