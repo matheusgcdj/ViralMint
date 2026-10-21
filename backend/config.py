@@ -103,6 +103,11 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_API_KEYS: str = ""
 
+    # ── YouTube Anti-Bot Session Cookies ─────────────
+    # Netscape cookies.txt content or path to bypass YouTube "sign-in to confirm you're not a bot"
+    YOUTUBE_COOKIES: str = ""
+    YOUTUBE_COOKIE_PATH: str = ""
+
     # ── Service keys (BYOK) ───────────────────────────
     # All optional — features gracefully degrade when keys are missing.
     YOUTUBE_API_KEY: str = ""           # YouTube scout, channel reader, comments
@@ -187,7 +192,7 @@ def _sanitize_settings(s: Settings) -> Settings:
         "CUSTOM_AI_MODEL", "CUSTOM_AI_BASE_URL", "CUSTOM_AI_API_KEY",
         "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY",
         "PEXELS_API_KEY", "PIXABAY_API_KEY", "YOUTUBE_API_KEY", "TIKHUB_API_KEY",
-        "GROQ_API_KEY", "GOOGLE_TTS_API_KEY", "GOOGLE_TTS_API_KEYS", "ELEVENLABS_API_KEY", "ELEVENLABS_API_KEYS",
+        "GROQ_API_KEY", "GOOGLE_TTS_API_KEY", "GOOGLE_TTS_API_KEYS", "ELEVENLABS_API_KEY", "ELEVENLABS_API_KEYS", "YOUTUBE_COOKIE_PATH",
     ]
     for field in string_fields:
         val = getattr(s, field, "")

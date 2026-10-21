@@ -522,6 +522,11 @@ def _fetch_via_ytdlp(channel_id: str, max_results: int) -> list:
             "extract_flat": True,
             "playlistend": min(max_results, 100),
         }
+        try:
+            from backend.services.ytdlp_service import _apply_cookies
+            _apply_cookies(opts)
+        except Exception:
+            pass
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
 

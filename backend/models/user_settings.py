@@ -25,7 +25,10 @@ class UserSettings(Base, TimestampMixin):
     google_tts_api_keys_encrypted = Column(Text, nullable=True)      # Google Cloud TTS key(s) (single or comma-separated pool)
     elevenlabs_api_keys_encrypted = Column(Text, nullable=True)      # ElevenLabs key(s) (single or comma-separated pool)
 
-    # ── Scout credentials (user-specific cookies) ──────
+    # ── Scout credentials & Anti-bot (user-specific cookies) ──
+    youtube_cookies_encrypted = Column(Text, nullable=True)         # YouTube cookies.txt content for yt-dlp anti-bot
+    youtube_cookies_set_at = Column(DateTime, nullable=True)
+
     douyin_cookie_encrypted = Column(Text, nullable=True)
     douyin_cookie_set_at = Column(DateTime, nullable=True)
 

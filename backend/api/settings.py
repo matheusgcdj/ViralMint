@@ -35,6 +35,8 @@ class SettingsResponse(BaseModel):
     groq_api_key_set: bool = False
     google_tts_api_key_set: bool = False
     elevenlabs_api_key_set: bool = False
+    youtube_cookies_set: bool = False
+    youtube_cookies_set_at: Optional[datetime] = None
 
     # OAuth / cookie status
     douyin_cookie_set: bool = False
@@ -76,6 +78,7 @@ class SettingsUpdate(BaseModel):
     groq_api_key: Optional[str] = None
     google_tts_api_keys: Optional[str] = None  # single key or comma-separated pool
     elevenlabs_api_keys: Optional[str] = None  # single key or comma-separated pool
+    youtube_cookies: Optional[str] = None      # Netscape cookies.txt content (empty string to clear)
 
     # Preferences
     preferred_voice_id: Optional[str] = None
@@ -144,6 +147,10 @@ async def get_settings():
     elevenlabs_set = bool(s and s.elevenlabs_api_keys_encrypted) or bool(
         app_settings.ELEVENLABS_API_KEY or app_settings.ELEVENLABS_API_KEYS
     )
+    # YouTube Anti-bot Cookies — DB-stored take precedence, then .env / file fallback
+    youtube_cookies_set = bool(s and s.youtube_cookies_encrypted) or bool(
+        app_settings.YOUTUBE_COOKIES or app_settings.YOUTUBE_COOKIE_PATH
+    ) or (app_settings.STORAGE_ROOT / "yt_cookies.txt").exists()
 
     if not s:
         return SettingsResponse(
@@ -157,6 +164,7 @@ async def get_settings():
             groq_api_key_set=groq_set,
             google_tts_api_key_set=google_tts_set,
             elevenlabs_api_key_set=elevenlabs_set,
+            youtube_cookies_set=youtube_cookies_set,
             whisper_quality="balanced",
         )
 
@@ -171,6 +179,8 @@ async def get_settings():
         groq_api_key_set=groq_set,
         google_tts_api_key_set=google_tts_set,
         elevenlabs_api_key_set=elevenlabs_set,
+        youtube_cookies_set=youtube_cookies_set,
+        youtube_cookies_set_at=s.youtube_cookies_set_at if s else None,
         douyin_cookie_set=bool(s.douyin_cookie_encrypted),
         tiktok_cookie_set=bool(s.tiktok_cookie_encrypted),
         youtube_channel_title=s.youtube_channel_title,
@@ -262,6 +272,24 @@ async def update_settings(update: SettingsUpdate):
                     reconfigure_key_pool(keys_list)
             except Exception as e:
                 logger.warning("Could not reconfigure ElevenLabs key pool at runtime: %s", e)
+        if update.youtube_cookies is not None:
+            clean_ck = update.youtube_cookies.strip()
+            if clean_ck:
+                s.youtube_cookies_encrypted = encrypt(clean_ck)
+                s.youtube_cookies_set_at = datetime.utcnow()
+                try:
+                    from backend.services.ytdlp_service import sync_youtube_cookies_to_disk
+                    sync_youtube_cookies_to_disk(clean_ck)
+                except Exception as e:
+                    logger.warning("Could not sync YouTube cookies to disk: %s", e)
+            else:
+                s.youtube_cookies_encrypted = None
+                s.youtube_cookies_set_at = None
+                try:
+                    from backend.services.ytdlp_service import clear_youtube_cookies
+                    clear_youtube_cookies()
+                except Exception as e:
+                    logger.warning("Could not clear YouTube cookies from disk: %s", e)
 
         # Preference fields
         if update.preferred_voice_id is not None:
@@ -412,6 +440,48 @@ async def test_cookie(body: dict):
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    elif platform == "youtube":
+        cookie_text = cookie.strip()
+        if not cookie_text or cookie_text == "__check_saved__":
+            from backend.core.service_keys import resolve_key_sync
+            cookie_text = resolve_key_sync("youtube_cookies").strip()
+            if not cookie_text:
+                disk_cookie = app_settings.STORAGE_ROOT / "yt_cookies.txt"
+                if disk_cookie.exists():
+                    cookie_text = disk_cookie.read_text(encoding="utf-8", errors="ignore").strip()
+        if not cookie_text:
+            return {"ok": False, "error": "Nenhum cookie fornecido ou configurado"}
+
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8")
+        try:
+            tmp.write(cookie_text)
+            tmp.flush()
+            tmp.close()
+            import yt_dlp
+            test_opts = {
+                "quiet": True,
+                "no_warnings": True,
+                "cookiefile": tmp.name,
+                "extract_flat": True,
+                "skip_download": True,
+                "socket_timeout": 12,
+            }
+            with yt_dlp.YoutubeDL(test_opts) as ydl:
+                info = ydl.extract_info("https://www.youtube.com/watch?v=jNQXAC9IVRw", download=False)
+                if info and info.get("id"):
+                    return {"ok": True, "title": info.get("title", "Me at the zoo")}
+            return {"ok": False, "error": "Não foi possível validar o cookie com o YouTube"}
+        except Exception as e:
+            return {"ok": False, "error": f"Erro ao testar cookies no YouTube: {e}"}
+        finally:
+            try:
+                import os
+                if os.path.exists(tmp.name):
+                    os.unlink(tmp.name)
+            except Exception:
+                pass
+
     return {"ok": False, "error": f"Unknown platform: {platform}"}
 
 
@@ -434,6 +504,7 @@ async def get_health():
         for platform, cookie_field, set_at_field in [
             ("douyin_cookie", "douyin_cookie_encrypted", "douyin_cookie_set_at"),
             ("tiktok_cookie", "tiktok_cookie_encrypted", "tiktok_cookie_set_at"),
+            ("youtube_cookies", "youtube_cookies_encrypted", "youtube_cookies_set_at"),
         ]:
             cookie = getattr(s, cookie_field, None) if s else None
             set_at = getattr(s, set_at_field, None) if s else None

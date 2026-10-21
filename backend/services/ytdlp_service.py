@@ -404,67 +404,115 @@ def _detect_cookie_browser() -> str | None:
     return None
 
 
+def sync_youtube_cookies_to_disk(content: str | None = None) -> Path | None:
+    """Ensure YouTube cookies from DB, env or parameter are synchronized to disk."""
+    global _COOKIE_FILE, _COOKIE_FILE_AGE
+    cookie_path = settings.STORAGE_ROOT / "yt_cookies.txt"
+    tmp_cookie_path = settings.TMP_DIR / "yt_cookies.txt"
+
+    if content is not None:
+        cookies = content.strip()
+    else:
+        try:
+            from backend.core.service_keys import resolve_key_sync
+            cookies = resolve_key_sync("youtube_cookies").strip()
+        except Exception as e:
+            logger.debug("Failed to resolve youtube_cookies: %s", e)
+            cookies = ""
+
+    if cookies:
+        # If it's a file path pointing to an existing file
+        if "\n" not in cookies and Path(cookies).exists():
+            _COOKIE_FILE = Path(cookies)
+            _COOKIE_FILE_AGE = _COOKIE_FILE.stat().st_mtime
+            return _COOKIE_FILE
+
+        cookie_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_cookie_path.parent.mkdir(parents=True, exist_ok=True)
+        normalized = cookies.replace("\r\n", "\n")
+        cookie_path.write_text(normalized, encoding="utf-8")
+        try:
+            tmp_cookie_path.write_text(normalized, encoding="utf-8")
+        except Exception:
+            pass
+        _COOKIE_FILE = cookie_path
+        _COOKIE_FILE_AGE = time.time()
+        logger.info(f"Synchronized YouTube cookies to {cookie_path} ({len(normalized)} bytes)")
+        return cookie_path
+
+    # If not provided, check if existing file on disk is present
+    if cookie_path.exists() and cookie_path.stat().st_size > 0:
+        _COOKIE_FILE = cookie_path
+        _COOKIE_FILE_AGE = cookie_path.stat().st_mtime
+        return cookie_path
+
+    if tmp_cookie_path.exists() and tmp_cookie_path.stat().st_size > 0:
+        _COOKIE_FILE = tmp_cookie_path
+        _COOKIE_FILE_AGE = tmp_cookie_path.stat().st_mtime
+        return tmp_cookie_path
+
+    return None
+
+
+def clear_youtube_cookies():
+    """Clear cached YouTube cookies from memory and disk."""
+    global _COOKIE_FILE, _COOKIE_FILE_AGE
+    _COOKIE_FILE = None
+    _COOKIE_FILE_AGE = 0
+    for p in [settings.STORAGE_ROOT / "yt_cookies.txt", settings.TMP_DIR / "yt_cookies.txt"]:
+        try:
+            if p.exists():
+                p.unlink()
+        except Exception:
+            pass
+
+
 def _get_cookie_file() -> Path | None:
     """
-    Return path to a cached cookies.txt file, extracting from browser if needed.
-    Only triggers Keychain prompt once per hour max.
+    Return path to a valid cookies.txt file.
+    Order of precedence:
+    1. Fast path: in-memory cache is fresh
+    2. Synchronized cookies from DB / env / storage file
+    3. Auto-detected browser cookies (local desktop runs only)
     """
     global _COOKIE_FILE, _COOKIE_FILE_AGE
 
-    cookie_path = settings.TMP_DIR / "yt_cookies.txt"
-
-    # Fast path: in-memory cache is fresh
+    # 1. Fast path: in-memory cache is fresh
     if _COOKIE_FILE and _COOKIE_FILE.exists() and (time.time() - _COOKIE_FILE_AGE) < _COOKIE_MAX_AGE:
         return _COOKIE_FILE
 
-    # Check if file already exists on disk (survives module reloads / server restarts)
-    if cookie_path.exists() and cookie_path.stat().st_size > 0:
-        file_age = time.time() - cookie_path.stat().st_mtime
-        if file_age < _COOKIE_MAX_AGE:
-            _COOKIE_FILE = cookie_path
-            _COOKIE_FILE_AGE = cookie_path.stat().st_mtime
-            logger.info(f"Reusing cached cookie file ({cookie_path.stat().st_size} bytes, {int(file_age)}s old)")
-            return _COOKIE_FILE
+    # 2. Check DB / env / storage file
+    synced = sync_youtube_cookies_to_disk()
+    if synced and synced.exists() and synced.stat().st_size > 0:
+        return synced
 
-    # Need to extract fresh cookies from browser (triggers one Keychain prompt)
+    # 3. Fall back to local browser auto-detection if on desktop
     browser = _detect_cookie_browser()
-    if not browser:
-        # No browser, but stale cookie file is better than nothing
-        if cookie_path.exists() and cookie_path.stat().st_size > 0:
-            _COOKIE_FILE = cookie_path
-            _COOKIE_FILE_AGE = time.time()
-            return _COOKIE_FILE
-        return None
+    if browser:
+        cookie_path = settings.TMP_DIR / "yt_cookies.txt"
+        cookie_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Extracting fresh cookies from {browser} (Keychain prompt expected)...")
+        try:
+            import yt_dlp
+            opts = {
+                **_yt_dlp_base_opts(),
+                **_yt_dlp_js_opts(),
+                "cookiesfrombrowser": (browser,),
+                "cookiefile": str(cookie_path),
+                "extract_flat": True,
+                "skip_download": True,
+                "http_headers": _yt_dlp_http_headers(),
+            }
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.extract_info("https://www.youtube.com/watch?v=jNQXAC9IVRw", download=False)
 
-    cookie_path.parent.mkdir(parents=True, exist_ok=True)
-    logger.info(f"Extracting fresh cookies from {browser} (Keychain prompt expected)...")
-
-    try:
-        import yt_dlp
-        opts = {
-            **_yt_dlp_base_opts(),
-            **_yt_dlp_js_opts(),
-            "cookiesfrombrowser": (browser,),
-            "cookiefile": str(cookie_path),
-            "extract_flat": True,
-            "skip_download": True,
-            "http_headers": _yt_dlp_http_headers(),
-        }
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            ydl.extract_info("https://www.youtube.com/watch?v=jNQXAC9IVRw", download=False)
-
-        if cookie_path.exists() and cookie_path.stat().st_size > 0:
-            _COOKIE_FILE = cookie_path
-            _COOKIE_FILE_AGE = time.time()
-            logger.info(f"Browser cookies cached to {cookie_path} ({cookie_path.stat().st_size} bytes)")
-            return _COOKIE_FILE
-    except Exception as e:
-        logger.warning(f"Failed to extract browser cookies: {e}")
-        # Use stale file if available
-        if cookie_path.exists() and cookie_path.stat().st_size > 0:
-            _COOKIE_FILE = cookie_path
-            _COOKIE_FILE_AGE = time.time()
-            return _COOKIE_FILE
+            if cookie_path.exists() and cookie_path.stat().st_size > 0:
+                _COOKIE_FILE = cookie_path
+                _COOKIE_FILE_AGE = time.time()
+                logger.info(f"Browser cookies cached to {cookie_path} ({cookie_path.stat().st_size} bytes)")
+                return _COOKIE_FILE
+        except Exception as e:
+            logger.warning(f"Failed to extract browser cookies: {e}")
 
     return None
 
@@ -499,7 +547,12 @@ def _drop_cookies_for_403(opts: dict) -> bool:
 
 def _is_bot_detection_error(error_str: str) -> bool:
     """Check if the error is a YouTube bot detection / sign-in required error."""
-    indicators = ["sign in to confirm", "not a bot", "cookies-from-browser", "login required"]
+    indicators = [
+        "sign in to confirm", "not a bot", "cookies-from-browser",
+        "login required", "confirm you're not a bot", "requires sign-in",
+        "bot detection", "sign-in to verify", "sign in to verify",
+        "automated queries", "unusual traffic",
+    ]
     return any(ind in error_str.lower() for ind in indicators)
 
 
@@ -1138,8 +1191,17 @@ async def download_video(
 
                     # ── Bot detection: retry with fresh cookies ────
                     if _is_bot_detection_error(str(e)) and attempt == 0:
+                        cookie_file = _get_cookie_file()
+                        if cookie_file and "cookiefile" not in video_opts:
+                            logger.warning(f"Bot detection triggered, applying cookies from {cookie_file} and retrying")
+                            _cleanup_partial_files(output_dir, file_stem)
+                            video_opts["cookiefile"] = str(cookie_file)
+                            base_opts["cookiefile"] = str(cookie_file)
+                            import time as _time
+                            _time.sleep(2)
+                            continue  # Retry with cookies
                         browser = _detect_cookie_browser()
-                        if browser:
+                        if browser and "cookiesfrombrowser" not in video_opts:
                             logger.warning(f"Bot detection triggered, retrying with {browser} cookies")
                             _cleanup_partial_files(output_dir, file_stem)
                             _apply_cookies(video_opts)
@@ -1149,8 +1211,9 @@ async def download_video(
                         else:
                             _cleanup_partial_files(output_dir, file_stem)
                             raise DownloadError(
-                                "YouTube requires sign-in to verify you're not a bot. "
-                                "Install Chrome/Brave/Firefox and log into YouTube, then retry."
+                                "O YouTube exige verificação anti-bot neste servidor. "
+                                "Adicione os Cookies de Sessão do YouTube (cookies.txt) em "
+                                "Configurações > Chaves de API de Serviços para autenticar os downloads."
                             )
 
                     # ── Transient errors: retry once after delay ────

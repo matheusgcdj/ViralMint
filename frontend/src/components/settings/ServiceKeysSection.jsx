@@ -14,6 +14,10 @@ import ImageSearchIcon from "@mui/icons-material/ImageSearchOutlined"
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibraryOutlined"
 import GraphicEqIcon from "@mui/icons-material/GraphicEqOutlined"
 import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOverOutlined"
+import CookieIcon from "@mui/icons-material/Cookie"
+import UploadFileIcon from "@mui/icons-material/UploadFile"
+import PlayArrowIcon from "@mui/icons-material/PlayArrowOutlined"
+import http from "../../api/http"
 import useAppStore from "../../store/appStore"
 
 /**
@@ -31,6 +35,20 @@ const SERVICES = [
     placeholder: "AIzaSy...",
     docsHref: "https://console.cloud.google.com/apis/credentials",
     docsHint: "Obtenha uma chave gratuita no Google Cloud Console → Credenciais → Criar chave de API (10.000 unidades/dia grátis)",
+  },
+  {
+    id: "youtube_cookies",
+    label: "Cookies de Sessão do YouTube (Anti-Bot)",
+    description: "Arquivo cookies.txt para autenticar downloads e contornar a exigência de 'sign-in to verify you\'re not a bot' no YouTube",
+    icon: <CookieIcon sx={{ color: "#E53E3E", fontSize: 28 }} />,
+    settingsKey: "youtube_cookies",
+    setFlag: "youtube_cookies_set",
+    placeholder: "Cole o conteúdo do arquivo cookies.txt (formato Netscape) ou clique em Carregar cookies.txt abaixo",
+    docsHref: "https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp",
+    docsHint: "Exporte com uma extensão como 'Get cookies.txt LOCALLY' no Chrome/Firefox logado no YouTube e envie ou cole aqui",
+    multiline: true,
+    allowFileUpload: true,
+    allowTest: true,
   },
   {
     id: "pexels",
@@ -99,6 +117,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
   const [apiKey, setApiKey] = useState("")
   const [showKey, setShowKey] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
 
   // When the parent's keyIsSet flips (e.g. another tab cleared the key),
@@ -111,7 +130,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
   const handleSave = async () => {
     const value = apiKey.trim()
     if (!value) {
-      showSnackbar("Cole sua chave de API primeiro", "warning")
+      showSnackbar("Cole ou carregue a configuração primeiro", "warning")
       return
     }
     setSaving(true)
@@ -119,11 +138,45 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
       await updateSettings({ [service.settingsKey]: value })
       setApiKey("")
       setEditing(false)
-      showSnackbar(`Chave da ${service.label} salva`, "success")
+      showSnackbar(`${service.label} salvo com sucesso`, "success")
     } catch (e) {
       // updateSettings already shows a snackbar on error
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = event.target?.result
+      if (typeof text === "string" && text.trim()) {
+        setApiKey(text.trim())
+        showSnackbar(`Arquivo ${file.name} carregado (${(file.size / 1024).toFixed(1)} KB). Clique em Salvar para aplicar.`, "info")
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  const handleTest = async () => {
+    setTesting(true)
+    try {
+      const payload = {
+        platform: service.id === "youtube_cookies" ? "youtube" : service.id,
+        cookie: apiKey.trim() || "__check_saved__",
+      }
+      const res = await http.post("/api/settings/test-cookie", payload)
+      if (res.data?.ok) {
+        showSnackbar(`Cookies do YouTube válidos! Conexão autenticada estabelecida (${res.data.title || "OK"})`, "success")
+      } else {
+        showSnackbar(`Falha no teste: ${res.data?.error || "Cookie inválido"}`, "error")
+      }
+    } catch (e) {
+      showSnackbar(`Erro ao testar: ${e.response?.data?.detail || e.message}`, "error")
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -134,7 +187,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
       await updateSettings({ [service.settingsKey]: "" })
       setApiKey("")
       setEditing(true)
-      showSnackbar(`Chave da ${service.label} removida — utilizando configuração do ambiente (.env)`, "info")
+      showSnackbar(`${service.label} removido — utilizando configuração padrão ou do ambiente (.env)`, "info")
     } catch (e) {
       // handled in updateSettings
     } finally {
@@ -165,7 +218,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
                 color="success"
                 variant="outlined"
                 icon={<CheckCircleIcon fontSize="small" />}
-                label="chave configurada"
+                label="configurado"
                 sx={{ fontWeight: 500 }}
               />
             )}
@@ -177,23 +230,35 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
       </Stack>
 
       {!editing && keyIsSet ? (
-        <Stack direction="row" spacing={1.5}>
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
           <Button
             variant="outlined"
             size="small"
             startIcon={<EditIcon />}
             onClick={() => { setEditing(true); setApiKey("") }}
-            disabled={saving}
+            disabled={saving || testing}
           >
             Alterar
           </Button>
+          {service.allowTest && (
+            <Button
+              variant="outlined"
+              size="small"
+              color="info"
+              startIcon={<PlayArrowIcon />}
+              onClick={handleTest}
+              disabled={saving || testing}
+            >
+              {testing ? "Testando…" : "Testar Conexão"}
+            </Button>
+          )}
           <Button
             variant="outlined"
             color="error"
             size="small"
             startIcon={<DeleteIcon />}
             onClick={() => setConfirmRemove(true)}
-            disabled={saving}
+            disabled={saving || testing}
           >
             Remover
           </Button>
@@ -218,7 +283,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
                 </Link>
               </>
             }
-            disabled={saving}
+            disabled={saving || testing}
             autoComplete="off"
             InputProps={{
               endAdornment: (
@@ -230,22 +295,46 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
               ),
             }}
           />
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
             <Button
               variant="contained"
               size="small"
               startIcon={<SaveIcon />}
               onClick={handleSave}
-              disabled={saving || !apiKey.trim()}
+              disabled={saving || testing || !apiKey.trim()}
             >
               {saving ? "Salvando…" : "Salvar"}
             </Button>
+            {service.allowFileUpload && (
+              <Button
+                variant="outlined"
+                size="small"
+                component="label"
+                startIcon={<UploadFileIcon />}
+                disabled={saving || testing}
+              >
+                Carregar cookies.txt
+                <input type="file" accept=".txt" hidden onChange={handleFileUpload} />
+              </Button>
+            )}
+            {service.allowTest && apiKey.trim() && (
+              <Button
+                variant="outlined"
+                size="small"
+                color="info"
+                startIcon={<PlayArrowIcon />}
+                onClick={handleTest}
+                disabled={saving || testing}
+              >
+                {testing ? "Testando…" : "Testar"}
+              </Button>
+            )}
             {keyIsSet && (
               <Button
                 variant="outlined"
                 size="small"
                 onClick={() => { setEditing(false); setApiKey("") }}
-                disabled={saving}
+                disabled={saving || testing}
               >
                 Cancelar
               </Button>
@@ -255,16 +344,16 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
       )}
 
       <Dialog open={confirmRemove} onClose={() => setConfirmRemove(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Remover chave da {service.label}?</DialogTitle>
+        <DialogTitle>Remover {service.label}?</DialogTitle>
         <DialogContent>
           <Typography variant="body2">
-            Isso remove a chave criptografada do banco de dados local. O ViralMint utilizará a chave correspondente configurada no arquivo <code>.env</code> (se houver).
+            Isso remove a configuração criptografada do banco de dados local. O ViralMint utilizará a configuração correspondente no arquivo <code>.env</code> ou padrão (se houver).
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmRemove(false)}>Cancelar</Button>
           <Button color="error" variant="contained" onClick={handleRemove}>
-            Remover chave
+            Remover
           </Button>
         </DialogActions>
       </Dialog>

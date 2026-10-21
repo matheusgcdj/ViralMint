@@ -83,6 +83,7 @@ export default function HealthDashboard() {
     { label: "yt-dlp", key: "ytdlp", description: "Downloader de vídeos", extra: health.ytdlp?.version ? `v${health.ytdlp.version}` : null },
     { label: "Douyin Cookie", key: "douyin_cookie", description: "Acesso ao scout do Douyin", extra: health.douyin_cookie?.age_days != null ? `${health.douyin_cookie.age_days}d old` : null },
     { label: "TikTok Cookie", key: "tiktok_cookie", description: "Acesso ao scout do TikTok", extra: health.tiktok_cookie?.age_days != null ? `${health.tiktok_cookie.age_days}d old` : null },
+    { label: "YouTube Cookies", key: "youtube_cookies", description: "Sessão anti-bot para downloads do YouTube", extra: health.youtube_cookies?.age_days != null ? `${health.youtube_cookies.age_days}d` : null },
   ]
 
   return (

@@ -27,6 +27,7 @@ _SERVICE_MAP = {
     "groq":       ("groq_api_key_encrypted",         ["GROQ_API_KEY"]),
     "google_tts": ("google_tts_api_keys_encrypted",  ["GOOGLE_TTS_API_KEYS", "GOOGLE_TTS_API_KEY"]),
     "elevenlabs": ("elevenlabs_api_keys_encrypted",  ["ELEVENLABS_API_KEYS", "ELEVENLABS_API_KEY"]),
+    "youtube_cookies": ("youtube_cookies_encrypted", ["YOUTUBE_COOKIES", "YOUTUBE_COOKIE_PATH", "YOUTUBE_COOKIES_FILE"]),
 }
 
 
