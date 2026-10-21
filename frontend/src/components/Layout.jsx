@@ -32,7 +32,7 @@ const navItems = [
   { to: "/",          icon: <ChatIcon />,             label: "Chat" },
   { to: "/scout",     icon: <TravelExploreIcon />,    label: "Scout" },
   { to: "/channels",  icon: <SensorsIcon />,          label: "Meus Canais" },
-  { to: "/clips",     icon: <ContentCutIcon />,       label: "Clip Studio" },
+  { to: "/clips",     icon: <ContentCutIcon />,       label: "Estúdio de Cortes" },
   { to: "/videos",    icon: <VideoLibraryIcon />,     label: "Biblioteca" },
   { to: "/stock",     icon: <PhotoLibraryIcon />,     label: "Smart Video" },
   { to: "/motion",    icon: <MovieFilterIcon />,      label: "Motion Graphics" },

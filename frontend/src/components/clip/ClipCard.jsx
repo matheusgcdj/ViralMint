@@ -105,7 +105,7 @@ function ClipCard({ clip, isSelected, onClick, checked, onCheck, collapsed = fal
               fontWeight: 600, fontSize: "0.72rem", lineHeight: 1.25,
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>
-              {clip.title || "Untitled Clip"}
+              {clip.title || "Clipe sem título"}
             </Typography>
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
               {score != null && (
@@ -244,7 +244,7 @@ function ClipCard({ clip, isSelected, onClick, checked, onCheck, collapsed = fal
         />
         {/* Caption warning */}
         {clip.caption_status === "failed" && (
-          <Tooltip title="Captions failed to apply">
+          <Tooltip title="Falha ao aplicar legendas">
             <WarningAmberIcon sx={{ position: "absolute", top: 4, right: 4, fontSize: 18, color: "warning.main" }} />
           </Tooltip>
         )}
@@ -265,7 +265,7 @@ function ClipCard({ clip, isSelected, onClick, checked, onCheck, collapsed = fal
           tags the clip without competing with the title. */}
       <Box sx={{ p: 1 }}>
         <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "0.7rem", lineHeight: 1.2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-          {clip.title || "Untitled Clip"}
+          {clip.title || "Clipe sem título"}
         </Typography>
         {hookLabel && (
           <Chip

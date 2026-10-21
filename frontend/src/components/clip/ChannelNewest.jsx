@@ -60,7 +60,7 @@ export default function ChannelNewest({ sources, onOpenSource, onRefresh }) {
         onRefresh?.()
         setPending((p) => (p ? { ...p, jobId: null, landedAt: Date.now() } : p))
       } else {
-        setFailed((f) => ({ ...f, [pending.channelId]: error || (status === "cancelled" ? "Download cancelled." : "Download failed.") }))
+        setFailed((f) => ({ ...f, [pending.channelId]: error || (status === "cancelled" ? "Download cancelado." : "Falha no download.") }))
         setPending(null)
       }
     },
@@ -72,7 +72,7 @@ export default function ChannelNewest({ sources, onOpenSource, onRefresh }) {
     const s = sourceFor(sources, { url: pending.url, video_id: pending.videoId })
     if (s) { onOpenSource?.(s.id); setPending(null); return undefined }
     const t = setTimeout(() => {
-      setFailed((f) => ({ ...f, [pending.channelId]: "Downloaded, but it hasn't shown up as a source — check the Library." }))
+      setFailed((f) => ({ ...f, [pending.channelId]: "Baixado, mas ainda não apareceu como fonte — verifique a Biblioteca." }))
       setPending(null)
     }, Math.max(0, APPEAR_TIMEOUT_MS - (Date.now() - pending.landedAt)))
     return () => clearTimeout(t)
@@ -94,15 +94,15 @@ export default function ChannelNewest({ sources, onOpenSource, onRefresh }) {
   if (!channels.length) {
     return (
       <Typography data-testid="channel-newest-empty" variant="caption" sx={{ display: "block", color: "text.secondary", px: 0.5, pb: 0.5 }}>
-        Follow a channel to clip each new upload —{" "}
-        <Link component={RouterLink} to="/channels" sx={{ fontWeight: 700 }}>connect a channel</Link>
+        Siga um canal para criar cortes de novos envios —{" "}
+        <Link component={RouterLink} to="/channels" sx={{ fontWeight: 700 }}>conectar canal</Link>
       </Typography>
     )
   }
   return (
     <Box data-testid="channel-newest" sx={{ pb: 0.5 }}>
       <Typography variant="caption" sx={{ display: "block", color: "text.secondary", fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", fontSize: "0.65rem", px: 0.5, mb: 0.5 }}>
-        Newest from your channels
+        Mais recentes dos seus canais
       </Typography>
       <Stack spacing={0.5}>
         {channels.map((ch) => {
@@ -111,10 +111,10 @@ export default function ChannelNewest({ sources, onOpenSource, onRefresh }) {
           const existing = video ? sourceFor(sources, video) : null
           const mine = pending?.channelId === ch.id
           const at = video ? publishedAt(video) : null
-          let label = "Clip it"
-          if (existing) label = "Open bench"
-          else if (mine && pending.jobId) label = watch?.pct ? `Downloading ${Math.round(watch.pct)}%` : "Downloading…"
-          else if (mine) label = "Opening…"
+          let label = "Criar corte"
+          if (existing) label = "Abrir mesa de corte"
+          else if (mine && pending.jobId) label = watch?.pct ? `Baixando ${Math.round(watch.pct)}%` : "Baixando…"
+          else if (mine) label = "Abrindo…"
           return (
             // Stacked, not side by side: the sources pane is ~190px wide, and a
             // row layout left the video's title as three letters and an ellipsis.
@@ -127,7 +127,7 @@ export default function ChannelNewest({ sources, onOpenSource, onRefresh }) {
                 {!entry && <CircularProgress size={10} sx={{ mt: 0.25 }} />}
                 {entry && !video && (
                   <Typography variant="caption" noWrap sx={{ display: "block", color: "text.secondary" }}>
-                    {entry.error ? "Couldn't read this channel right now." : "No videos yet."}
+                    {entry.error ? "Não foi possível carregar este canal agora." : "Nenhum vídeo ainda."}
                   </Typography>
                 )}
                 {video && (

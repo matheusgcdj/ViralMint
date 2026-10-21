@@ -28,6 +28,7 @@ class ExtractOptions:
     max_clips: int = 3
     caption_style: str = "viral"
     whisper_quality: str = "balanced"
+    whisper_backend: str = "auto"
     force_retranscribe: bool = False
     min_duration: Optional[int] = None
     max_duration: Optional[int] = None

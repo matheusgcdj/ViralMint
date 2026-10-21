@@ -98,6 +98,7 @@ async def init_db():
         await _add_column_if_missing(conn, "user_settings", "pexels_api_key_encrypted", "TEXT", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "pixabay_api_key_encrypted", "TEXT", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "groq_api_key_encrypted", "TEXT", existing=_cols)
+        await _add_column_if_missing(conn, "user_settings", "stt_provider", "VARCHAR(20)", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "google_tts_api_keys_encrypted", "TEXT", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "elevenlabs_api_keys_encrypted", "TEXT", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "youtube_cookies_encrypted", "TEXT", existing=_cols)

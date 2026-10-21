@@ -1026,6 +1026,7 @@ class ExtractClipsRequest(BaseModel):
     max_clips: Optional[int] = None
     caption_style: str = "viral"
     whisper_quality: str = "balanced"
+    whisper_backend: Optional[str] = "auto"
     force_retranscribe: bool = False
     min_duration: Optional[int] = None
     max_duration: Optional[int] = None
@@ -1171,6 +1172,7 @@ async def extract_clips(video_id: str, body: ExtractClipsRequest | None = None):
         max_clips=max_clips,
         caption_style=caption_style,
         whisper_quality=whisper_quality,
+        whisper_backend=req.whisper_backend or "auto",
         force_retranscribe=force_retranscribe,
         min_duration=min_duration,
         max_duration=max_duration,
@@ -1220,6 +1222,7 @@ class SuggestClipsRequest(BaseModel):
     target_platform: Optional[str] = None
     genre: Optional[str] = None
     whisper_quality: str = "balanced"
+    whisper_backend: Optional[str] = "auto"
     force_retranscribe: bool = False
 
 
@@ -1303,6 +1306,7 @@ async def suggest_clips(video_id: str, body: SuggestClipsRequest | None = None):
         min_duration=min_duration,
         max_duration=max_duration,
         whisper_quality=wq,
+        whisper_backend=req.whisper_backend or "auto",
         force_retranscribe=bool(req.force_retranscribe),
         user_query=(req.user_query or "").strip() or None,
         target_platform=(req.target_platform or "").strip().lower() or None,

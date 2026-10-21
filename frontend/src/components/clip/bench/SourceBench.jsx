@@ -518,7 +518,7 @@ export default function SourceBench({
               : <AutoAwesomeIcon sx={{ fontSize: 15 }} />}
             sx={{ textTransform: "none", fontSize: "0.7rem", fontWeight: 700, py: 0.1, px: 0.75, minWidth: 0 }}
           >
-            {suggesting ? "Reading…" : "Ask AI"}
+            {suggesting ? "Lendo…" : "Perguntar à IA"}
           </Button>
         </span>
       </Tooltip>
@@ -530,58 +530,57 @@ export default function SourceBench({
       >
         <Stack spacing={1.5} sx={{ p: 2, width: 360 }}>
           <Typography variant="caption" sx={{ color: "text.secondary" }}>
-            The AI reads the transcript and proposes the strongest moments.
-            They arrive as blocks you can drag, retime or delete —{" "}
-            <strong>nothing is cut</strong> until you press Cut.
+            A IA analisa a transcrição e propõe os melhores momentos.
+            Eles aparecem como blocos editáveis na linha do tempo —{" "}
+            <strong>nada é cortado</strong> até você clicar em Cortar.
           </Typography>
           <Stack direction="row" spacing={1.25}>
             <TextField
-              label="How many" type="number" size="small" sx={{ flex: 1 }}
+              label="Quantidade" type="number" size="small" sx={{ flex: 1 }}
               value={ai.max_clips}
               slotProps={{ htmlInput: { min: 1, max: MAX_RANGES } }}
               onChange={(e) => setAi((p) => ({ ...p, max_clips: e.target.value }))}
             />
             <TextField
-              label="Min (s)" type="number" size="small" sx={{ flex: 1 }}
+              label="Mín (s)" type="number" size="small" sx={{ flex: 1 }}
               value={ai.min_duration}
               slotProps={{ htmlInput: { min: 10, max: 120 } }}
               onChange={(e) => setAi((p) => ({ ...p, min_duration: e.target.value }))}
             />
             <TextField
-              label="Max (s)" type="number" size="small" sx={{ flex: 1 }}
+              label="Máx (s)" type="number" size="small" sx={{ flex: 1 }}
               value={ai.max_duration}
               slotProps={{ htmlInput: { min: 15, max: 180 } }}
               onChange={(e) => setAi((p) => ({ ...p, max_duration: e.target.value }))}
             />
           </Stack>
           <TextField
-            label="Find specific moments" size="small" fullWidth
-            placeholder={'e.g. "every joke that landed"'}
+            label="Buscar momentos específicos" size="small" fullWidth
+            placeholder={'ex.: "todas as piadas", "momentos de tensão"'}
             value={ai.user_query}
             slotProps={{ htmlInput: { maxLength: 500 } }}
             onChange={(e) => setAi((p) => ({ ...p, user_query: e.target.value }))}
           />
           <Stack direction="row" spacing={1.25}>
-            <TextField select label="Target platform" size="small" sx={{ flex: 1 }}
+            <TextField select label="Plataforma de destino" size="small" sx={{ flex: 1 }}
               value={ai.target_platform}
               onChange={(e) => setAi((p) => ({ ...p, target_platform: e.target.value }))}>
               {PLATFORMS.map((o) => <MenuItem key={o.v} value={o.v}>{o.label}</MenuItem>)}
             </TextField>
-            <TextField select label="Content genre" size="small" sx={{ flex: 1 }}
+            <TextField select label="Gênero do conteúdo" size="small" sx={{ flex: 1 }}
               value={ai.genre}
               onChange={(e) => setAi((p) => ({ ...p, genre: e.target.value }))}>
               {GENRES.map((o) => <MenuItem key={o.v} value={o.v}>{o.label}</MenuItem>)}
             </TextField>
           </Stack>
           <Typography variant="caption" sx={{ color: "text.secondary" }}>
-            Up to {MAX_RANGES} proposals — every one is cut through the same path
-            as a hand-drawn range.{" "}
+            Até {MAX_RANGES} propostas — cada uma processada exatamente como um corte manual.{" "}
             {/* A real button: the <span> it was took clicks but no focus,
                 so keyboard users could never reach Auto-cut from here. */}
             <Link component="button" type="button" variant="caption"
               onClick={() => { setAiAnchor(null); onOpenDialog() }}
               sx={{ fontWeight: 600, verticalAlign: "baseline" }}>
-              Need more? Auto-cut instead →
+              Precisa de mais? Usar Cortes Automáticos →
             </Link>
           </Typography>
           <Button
@@ -593,7 +592,7 @@ export default function SourceBench({
             onClick={() => { setAiAnchor(null); findMoments() }}
             sx={{ textTransform: "none", fontWeight: 700 }}
           >
-            {suggesting ? "Reading the video…" : "Find moments"}
+            {suggesting ? "Lendo o vídeo…" : "Encontrar momentos"}
           </Button>
         </Stack>
       </Popover>
@@ -631,9 +630,9 @@ export default function SourceBench({
         <Box sx={{ flex: 1 }} />
 
         <Tooltip title={segments.length
-          ? (snapEnabled ? "Handles snap to sentence boundaries — click to free them (or hold Alt while dragging)"
-                         : "Handles move freely — click to snap them to sentence boundaries")
-          : "This video has no transcript, so there are no sentence boundaries to snap to"}>
+          ? (snapEnabled ? "Alinhamento magnético às frases ativado — clique para soltar (ou segure Alt ao arrastar)"
+                         : "Alinhamento magnético desativado — clique para alinhar às frases")
+          : "Este vídeo não possui transcrição para alinhamento magnético"}>
           <span>
             <IconButton size="small" disabled={!segments.length}
               aria-label={snapEnabled ? "Snapping to sentences is on" : "Snapping to sentences is off"}
@@ -751,14 +750,14 @@ export default function SourceBench({
           onClick={togglePlay}
           sx={{ textTransform: "none", fontWeight: 700, minWidth: 128, ...DISABLED_CONTAINED }}
         >
-          {playing ? "Pause" : R.active ? `Play clip ${R.ranges.indexOf(R.active) + 1}` : "Play clip"}
+          {playing ? "Pausar" : R.active ? `Reproduzir corte ${R.ranges.indexOf(R.active) + 1}` : "Reproduzir corte"}
         </Button>
         {/* A secondary toggle beside the primary button, not a second
             filled-orange "button". Stable label; aria-pressed says the state. */}
         <Tooltip describeChild title={scoped
-          ? "On: playback starts at IN and stops at OUT. Turn off to play through the whole video"
-          : "Off: playback runs through the whole video. Turn on to play only the selected clip"}>
-          <ToggleChip label="Selection only" pressed={scoped} onToggle={() => setScoped((v) => !v)} />
+          ? "Ativado: reproduz apenas do início ao fim do corte selecionado"
+          : "Desativado: reproduz o vídeo completo continuamente"}>
+          <ToggleChip label="Apenas seleção" pressed={scoped} onToggle={() => setScoped((v) => !v)} />
         </Tooltip>
         {R.active && (
           <Typography variant="caption" sx={{ color: "text.secondary", fontFamily: "ui-monospace, monospace" }}>
@@ -804,13 +803,13 @@ export default function SourceBench({
         />
         <Stack direction="row" spacing={1.5} sx={{ mt: 0.75, px: 0.25 }} alignItems="center" flexWrap="wrap" useFlexGap>
           <Typography variant="caption" sx={{ color: "text.secondary" }}>
-            Drag on the strip to make a clip · drag its edges to trim
+            Arraste na faixa para criar um clipe · arraste as bordas para ajustar
           </Typography>
           <Box sx={{ flex: 1 }} />
           {segments.length > 0 && (
-            <LegendDot color="success.main" label="speech" />
+            <LegendDot color="success.main" label="fala" />
           )}
-          {ghosts.length > 0 && <LegendDot color="text.disabled" label="already cut" />}
+          {ghosts.length > 0 && <LegendDot color="text.disabled" label="já cortado" />}
         </Stack>
       </Box>
 
@@ -818,7 +817,7 @@ export default function SourceBench({
       <Divider sx={{ flexShrink: 0 }} />
       <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap sx={{ flexShrink: 0 }}>
         <TextField
-          select size="small" label="Captions" sx={{ width: 132 }}
+          select size="small" label="Legendas" sx={{ width: 132 }}
           value={settings.caption_style}
           onChange={(e) => onSettings({ caption_style: e.target.value })}
         >
@@ -826,7 +825,7 @@ export default function SourceBench({
         </TextField>
         {settings.caption_style !== "none" && (
           <TextField
-            select size="small" label="Emoji" sx={{ width: 112 }}
+            select size="small" label="AutoEmoji" sx={{ width: 112 }}
             value={settings.emoji_style}
             onChange={(e) => onSettings({ emoji_style: e.target.value })}
           >
@@ -835,12 +834,12 @@ export default function SourceBench({
         )}
         {/* describeChild: the tooltip DESCRIBES the chip; its name stays the
             label (without it MUI made the tooltip text the accessible name). */}
-        <Tooltip describeChild title="Convert a landscape source to 9:16 with a blurred fill">
+        <Tooltip describeChild title="Converte vídeos horizontais para 9:16 com fundo desfocado">
           <ToggleChip label="Vertical 9:16" pressed={!!settings.force_vertical}
             onToggle={() => onSettings({ force_vertical: !settings.force_vertical })} />
         </Tooltip>
-        <Tooltip describeChild title="Trim silent gaps and filler words INSIDE each cut — your in/out points don't move">
-          <ToggleChip label="Trim silence" pressed={!!settings.remove_silence}
+        <Tooltip describeChild title="Remove pausas e hesitações dentro de cada corte — seus pontos de corte não mudam">
+          <ToggleChip label="Remover silêncio" pressed={!!settings.remove_silence}
             onToggle={() => onSettings({ remove_silence: !settings.remove_silence })} />
         </Tooltip>
         {/* Transcription used to be reachable only through the dialog,
@@ -868,7 +867,7 @@ export default function SourceBench({
         >
           <Stack spacing={1.25} sx={{ p: 2, width: 300 }}>
             <TextField
-              select size="small" fullWidth label="Whisper quality"
+              select size="small" fullWidth label="Qualidade do Whisper"
               value={settings.whisper_quality}
               onChange={(e) => onSettings({ whisper_quality: e.target.value })}
             >
@@ -892,7 +891,7 @@ export default function SourceBench({
 
         {tooShort && (
           <Typography variant="caption" sx={{ color: "warning.main" }}>
-            This video is shorter than one second
+            Este vídeo tem menos de um segundo
           </Typography>
         )}
         {/* Cut moved to the page hero (top-right, before Auto-cut) — the
@@ -936,12 +935,12 @@ function PasteRangesDialog({ open, onClose, duration, room, onAdd }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <ContentPasteIcon color="primary" /> Paste timestamps
+        <ContentPasteIcon color="primary" /> Colar marcações de tempo
       </DialogTitle>
       <DialogContent>
         <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 1.5 }}>
-          One range per line, or separated by commas. <code>0:42-1:05</code>,{" "}
-          <code>2:10 → 2:38</code>, <code>1:02:00 to 1:02:30</code> all work.
+          Uma marcação por linha ou separadas por vírgula. Formatos como <code>0:42-1:05</code>,{" "}
+          <code>2:10 → 2:38</code> ou <code>1:02:00 até 1:02:30</code> são aceitos.
         </Typography>
         <TextField
           autoFocus multiline minRows={5} maxRows={12} fullWidth size="small"
@@ -953,8 +952,8 @@ function PasteRangesDialog({ open, onClose, duration, room, onAdd }) {
         <Stack spacing={0.5} sx={{ mt: 1.25 }}>
           {ranges.length > 0 && (
             <Typography variant="caption" sx={{ color: "success.main", fontWeight: 700 }}>
-              {ranges.length} range{ranges.length !== 1 ? "s" : ""} read
-              {willAdd < ranges.length && ` · only ${willAdd} will fit`}
+              {ranges.length} {ranges.length !== 1 ? "faixas lidas" : "faixa lida"}
+              {willAdd < ranges.length && ` · apenas ${willAdd} cabem na mesa`}
             </Typography>
           )}
           {errors.map((e, i) => (
@@ -965,10 +964,10 @@ function PasteRangesDialog({ open, onClose, duration, room, onAdd }) {
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>Cancelar</Button>
         <Button variant="contained" disabled={willAdd === 0}
           onClick={() => onAdd(ranges.slice(0, willAdd))}>
-          Add {willAdd || ""} to timeline
+          Adicionar {willAdd || ""} à linha do tempo
         </Button>
       </DialogActions>
     </Dialog>

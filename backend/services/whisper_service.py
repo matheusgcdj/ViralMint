@@ -354,7 +354,7 @@ class WhisperService:
         on_progress=None,
         on_download=None,
         user_id: str = "local",
-        backend: str = "local",
+        backend: str = "auto",
     ) -> dict:
         """
         Transcribe audio file. Returns:
@@ -402,25 +402,31 @@ class WhisperService:
             raise ValueError(f"No audio stream found in {audio_path}")
 
         # ── Groq cloud backend ────────────────────────────────────────────
-        if backend == "groq":
-            from backend.config import settings as app_settings
-            groq_key = getattr(app_settings, "GROQ_API_KEY", "") or ""
-            # Check DB for per-user configured key
+        effective_backend = backend
+        if effective_backend == "auto":
             try:
                 from backend.database import AsyncSessionLocal
                 from backend.models.user_settings import UserSettings
-                from backend.core.crypto import decrypt
                 from sqlalchemy import select
                 async with AsyncSessionLocal() as db_session:
                     res = await db_session.execute(
                         select(UserSettings).where(UserSettings.user_id == user_id)
                     )
                     s_row = res.scalar_one_or_none()
-                    if s_row and s_row.groq_api_key_encrypted:
-                        groq_key = decrypt(s_row.groq_api_key_encrypted)
+                    if s_row and s_row.stt_provider == "local":
+                        effective_backend = "local"
+                    else:
+                        effective_backend = "groq"
             except Exception as e:
-                logger.debug("Could not read Groq key from DB: %s", e)
+                logger.debug("Could not read stt_provider from DB: %s", e)
+                effective_backend = "groq"
+
+        if effective_backend == "groq":
+            from backend.core.service_keys import resolve_key
+            groq_key = await resolve_key("groq", user_id=user_id)
+
             if groq_key:
+                temp_audio_file = None
                 try:
                     from backend.services.groq_whisper_service import (
                         groq_transcribe, GROQ_WHISPER_MODELS,
@@ -428,21 +434,56 @@ class WhisperService:
                     groq_model = GROQ_WHISPER_MODELS.get(
                         "accurate" if quality in ("accurate", "best") else "fast"
                     )
-                    return await groq_transcribe(
-                        audio_path=audio_path,
-                        api_key=groq_key,
-                        language=language,
-                        model=groq_model,
-                        word_timestamps=not timing_only or True,
-                    )
+
+                    path_obj = Path(audio_path)
+                    target_audio = path_obj
+
+                    # If file is > 25MB or a video container, extract compressed mono MP3 (64k)
+                    # which fits up to ~50 minutes of speech under Groq's 25MB limit.
+                    file_size_mb = path_obj.stat().st_size / (1024 * 1024)
+                    if file_size_mb > 24.0 or path_obj.suffix.lower() in (".mp4", ".mov", ".mkv", ".avi", ".webm"):
+                        import uuid
+                        import subprocess
+                        temp_audio = Path(f"/tmp/vm_groq_audio_{uuid.uuid4().hex[:8]}.mp3")
+                        cmd = [
+                            "ffmpeg", "-y", "-i", str(path_obj),
+                            "-vn", "-ac", "1", "-b:a", "64k", "-ar", "16000",
+                            str(temp_audio)
+                        ]
+                        proc = await asyncio.to_thread(subprocess.run, cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        if proc.returncode == 0 and temp_audio.exists():
+                            compressed_mb = temp_audio.stat().st_size / (1024 * 1024)
+                            if compressed_mb <= 25.0:
+                                target_audio = temp_audio
+                                temp_audio_file = temp_audio
+                            else:
+                                logger.info("Audio too large for Groq even compressed (%.1f MB > 25MB), falling back to local Whisper", compressed_mb)
+                                target_audio = None
+                                temp_audio.unlink(missing_ok=True)
+
+                    if target_audio is not None:
+                        logger.info("Using Groq Whisper Cloud (%s) for %s (%.1f MB)", groq_model, path_obj.name, target_audio.stat().st_size / (1024 * 1024))
+                        result = await groq_transcribe(
+                            audio_path=target_audio,
+                            api_key=groq_key,
+                            language=language,
+                            model=groq_model,
+                            word_timestamps=True,
+                        )
+                        return result
                 except Exception as e:
                     # Fall back to local on Groq failure (file too large,
-                    # rate limited, network issues) rather than failing the
-                    # whole job.
+                    # rate limited, network issues) rather than failing the whole job.
                     logger.warning(
                         "Groq Whisper failed for %s, falling back to local: %s",
                         Path(audio_path).name, e,
                     )
+                finally:
+                    if temp_audio_file and temp_audio_file.exists():
+                        try:
+                            temp_audio_file.unlink()
+                        except Exception:
+                            pass
             else:
                 logger.debug(
                     "Groq backend requested but GROQ_API_KEY not set — "

@@ -290,7 +290,7 @@ class AnalyzerAgent:
             )
             user_settings = result.scalar_one_or_none()
 
-        whisper_quality = "balanced"
+        whisper_quality = (user_settings.whisper_quality if user_settings else None) or "balanced"
 
         total = len(videos)
         failed_count = 0
@@ -330,6 +330,7 @@ class AnalyzerAgent:
                     # download. A bare `load()` here did neither.
                     transcript_data = await whisper_service.transcribe(
                         audio_path, quality=whisper_quality,
+                        backend="auto", user_id=user_id,
                         on_download=job_download_notice(job_id, user_id))
                     transcript_source = "whisper"
 

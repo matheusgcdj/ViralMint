@@ -1055,6 +1055,7 @@ async def run_suggest_clips(
             force_retranscribe=opts.force_retranscribe,
             job_id=job_id,
             user_id=user_id,
+            whisper_backend=getattr(opts, "whisper_backend", "auto") or "auto",
         )
         if not segments:
             raise ValueError(

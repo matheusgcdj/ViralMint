@@ -15,66 +15,30 @@ import SubtitlesOutlinedIcon from "@mui/icons-material/SubtitlesOutlined"
 import GraphicEqOutlinedIcon from "@mui/icons-material/GraphicEqOutlined"
 import CropPortraitOutlinedIcon from "@mui/icons-material/CropPortraitOutlined"
 import RecordVoiceOverOutlinedIcon from "@mui/icons-material/RecordVoiceOverOutlined"
+import BoltIcon from "@mui/icons-material/BoltOutlined"
 import { formatTime } from "./clipFormat"
 import { CAPTION_STYLES } from "../tools/captionOptions"
 import { clipSettingsPayload } from "./useClipSettings"
 import { autoCutEstimate } from "./autoClipCount"
+import useAppStore from "../../store/appStore"
 
-/* ── Auto-cut ──────────────────────────────────────────────────
-   The express lane: trust the AI, cut now, don't review.
-
-   This dialog used to be the ONLY way to cut anything, and carried a
-   "My ranges" tab where you typed timestamps at a video you couldn't see.
-   The cutting bench (components/clip/bench/) replaced that outright, so
-   the tab is gone and this surface has exactly one job — the one the bench
-   deliberately can't do:
-
-     * any number of clips (the bench caps at _MANUAL_MAX_RANGES, because
-       every proposal it shows has to survive the round trip back through
-       manual mode to be cut)
-     * cut immediately, with no proposal step
-
-   Everything that applies per-clip — captions, emoji, silence, vertical,
-   transcription — is NOT owned here. It comes from `useClipSettings`, held
-   once by ClipStudio and shared with the bench, because two copies of the
-   same four controls is how a caption style chosen in one place quietly
-   failed to apply in the other.
-
-   To hand-pick ranges, or to see the AI's picks before they become files,
-   use the bench — "Ask AI" in its Ranges rail is the reviewable half of
-   this same search.
-*/
-
-/* ── Extract Clips Dialog ──────────────────────────────────── */
+/* ── Cortes Automáticos de Clipes ────────────────────────────── */
 
 const WHISPER_QUALITIES = [
-  { value: "fast", label: "Fast (base)", desc: "~30s per 5min video" },
-  { value: "balanced", label: "Balanced (small)", desc: "~90s per 5min video" },
-  { value: "accurate", label: "Accurate (medium)", desc: "~3min per 5min video" },
-  { value: "best", label: "Best (large-v3)", desc: "~8min per 5min video" },
+  { value: "groq_auto", label: "⚡ Groq Cloud Whisper (Ultra-Rápido)", desc: "~5s via LPU na nuvem" },
+  { value: "fast", label: "Local: Rápido (Base)", desc: "~30s por 5min de vídeo" },
+  { value: "balanced", label: "Local: Equilibrado (Small)", desc: "~90s por 5min de vídeo" },
+  { value: "accurate", label: "Local: Preciso (Medium)", desc: "~3min por 5min de vídeo" },
+  { value: "best", label: "Local: Máxima Qualidade (Large-v3)", desc: "~8min por 5min de vídeo" },
 ]
 
-// Style vocab comes from the shared captionOptions list (10 styles, guarded
-// by tests/test_caption_styles_parity.py) — this dialog kept its own literal
-// copy once and drifted to 7, hiding the urban/warm/mono pack on /clips.
-// "none" (captions off) is the Captions row's SWITCH state, not a chip:
-// clip extraction can skip burn-in entirely and that's the default
-// (caption_service.captions_disabled handles "none" upstream).
 const CAPTION_STYLE_OPTIONS = CAPTION_STYLES.map((s) => ({ v: s.value, label: s.label }))
 const EMOJI_STYLE_OPTIONS = [
-  { v: "none", label: "Off" },
-  { v: "minimal", label: "Minimal" },
-  { v: "moderate", label: "Moderate" },
-  { v: "heavy", label: "Heavy" },
+  { v: "none", label: "Desativado" },
+  { v: "minimal", label: "Mínimo" },
+  { v: "moderate", label: "Moderado" },
+  { v: "heavy", label: "Intenso" },
 ]
-
-/* ── Settings-group rows ──────────────────────────────────────
-   The four shared concerns (captions / pacing / aspect / transcription)
-   render as one outlined group of compact rows — icon, label, current
-   state on the right, switch or chevron. The row IS the summary; the
-   controls only exist while a row is open. This is what keeps the
-   dialog scroll-free by default: the tallest section (11 style chips +
-   emoji) collapses to a 44px row until captions are switched on. */
 
 function SettingRow({ icon, label, sublabel, summary, control, onRowClick, expanded, children, divider }) {
   return (
@@ -115,29 +79,23 @@ function SettingRow({ icon, label, sublabel, summary, control, onRowClick, expan
   )
 }
 
-// Visual-only switch: the whole row is the click target (single handler,
-// no double-toggle), the switch just renders the state.
 function RowSwitch({ checked }) {
   return <Switch checked={checked} size="small" sx={{ pointerEvents: "none", flexShrink: 0 }} />
 }
 
 export default function ExtractDialog({ open, onClose, video, onExtract, settings, onSettings }) {
+  const globalSettings = useAppStore((s) => s.settings)
+  const groqConfigured = !!globalSettings?.groq_api_key_set
   const hasSegments = !!video?.has_transcript_segments
-  // AI targeting only. Everything per-clip lives in `settings`, owned by
-  // ClipStudio and shared with the bench.
+
   const [ai, setAi] = useState({
     min_duration: null, max_duration: null, max_clips: null,
     user_query: "", target_platform: "", genre: "",
   })
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [transcriptOpen, setTranscriptOpen] = useState(false)
-  // Remember the last picked style so toggling captions off and on again
-  // restores the user's choice instead of resetting to viral.
   const lastStyle = useRef("viral")
 
-  // Reset the per-source intent when the video changes — a stale "find
-  // Lionel Messi goals" on a cooking podcast is just confusing. The shared
-  // per-clip settings deliberately DO persist: those are habits.
   useEffect(() => {
     setAi({ min_duration: null, max_duration: null, max_clips: null,
             user_query: "", target_platform: "", genre: "" })
@@ -153,29 +111,25 @@ export default function ExtractDialog({ open, onClose, video, onExtract, setting
   const durationError = ai.min_duration && ai.max_duration && ai.max_duration - ai.min_duration < 1
   const canSubmit = !durationError
 
-  // Say what the button will do before it does it. This is the surface that
-  // can produce the most: a blank "Clips (max)" means ~1 clip per 30s, so a
-  // 22-minute source silently means 43 renders — 43 caption burns, and a
-  // Library page to weed afterwards. The button said "Extract now" and named
-  // no figure at all.
-  //
-  // "up to", and meant literally: max_clips is the ceiling the runner is
-  // given, and it scales down when the video has less quality material. The
-  // real count can be lower than this and never higher, which is the only
-  // direction this may be wrong.
   const estimate = autoCutEstimate({
     durationSeconds: video.duration_seconds,
     requested: ai.max_clips,
-    // A "Min (s)" of 60 means at most duration/60 clips fit, whatever the
-    // count field says — quote what can actually be produced.
     minDurationSeconds: ai.min_duration,
   })
+
+  // Determine current active transcription summary
+  const isGroqActive = settings.whisper_backend === "groq" || (settings.whisper_backend === "auto" && groqConfigured)
+  const currentEngineSummary = hasSegments && !settings.force_retranscribe
+    ? "Em cache · Transcrição dispensada"
+    : isGroqActive
+      ? "⚡ Groq Cloud Whisper (~5s)"
+      : (WHISPER_QUALITIES.find(q => q.value === settings.whisper_quality)?.label || settings.whisper_quality)
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <AutoAwesomeIcon color="secondary" /> Auto-cut clips
-        <Tooltip title="Reads the transcript, picks the most viral moments and cuts them straight away — no review step. To see the picks on a timeline and adjust them before cutting, use Ask AI on the bench." arrow>
+        <AutoAwesomeIcon color="secondary" /> Cortes Automáticos de Clipes
+        <Tooltip title="A IA lê a transcrição, seleciona os momentos mais virais e realiza os cortes diretamente — sem etapa de revisão. Para ver as escolhas na linha do tempo antes de cortar, use Perguntar à IA na mesa de corte." arrow>
           <IconButton size="small" sx={{ ml: "auto", color: "text.secondary" }}>
             <InfoOutlinedIcon sx={{ fontSize: 18 }} />
           </IconButton>
@@ -183,73 +137,51 @@ export default function ExtractDialog({ open, onClose, video, onExtract, setting
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 0.5 }}>
-          From: <strong>{video.title || "Untitled"}</strong> ({formatTime(video.duration_seconds)})
+          Vídeo Fonte: <strong>{video.title || "Sem título"}</strong> ({formatTime(video.duration_seconds)})
         </Typography>
         <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 2 }}>
-          Cuts as soon as you press the button — no review step.
+          Corta os clipes assim que você clica no botão — sem etapa de revisão prévia.
         </Typography>
 
         <Stack spacing={2.5}>
-          {/* ── Layout contract (2026-08-01 reorganization) ──
-              1. Mode-specific body FIRST — what to cut (ranges | AI targeting).
-              2. "Style & polish" ONCE, shared — captions / emoji / silence /
-                 vertical apply identically in both modes. They used to render
-                 per-tab (buried under Advanced in AI mode, inline in manual),
-                 so the same control sat at a different place and prominence
-                 depending on the tab.
-              3. "Transcription" LAST — plumbing with correct defaults; the
-                 least-touched section shouldn't be the first thing shown. */}
-
-          {/* Clip length & count — the two knobs that shape what the AI hunts
-              for. Count is the MAX; the backend auto-scales down when the
-              content doesn't support that many quality clips. */}
+          {/* Duração e quantidade de clipes */}
           <Box>
             <Typography variant="caption" sx={{ fontWeight: 600, mb: 0.5, display: "block" }}>
-              Clip length & count (leave empty for auto)
+              Duração e quantidade de clipes (deixe vazio para automático)
             </Typography>
             <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
-              <TextField label="Min (s)" type="number" size="small" sx={{ width: 90 }}
+              <TextField label="Mín (s)" type="number" size="small" sx={{ width: 90 }}
                 value={ai.min_duration || ""}
                 error={!!durationError}
                 slotProps={{ htmlInput: { min: 10, max: 120 } }}
                 onChange={e => setAi(p => ({ ...p, min_duration: parseInt(e.target.value) || null }))} />
-              <Typography variant="body2" sx={{ color: "text.secondary" }}>to</Typography>
-              <TextField label="Max (s)" type="number" size="small" sx={{ width: 90 }}
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>até</Typography>
+              <TextField label="Máx (s)" type="number" size="small" sx={{ width: 90 }}
                 value={ai.max_duration || ""}
                 error={!!durationError}
                 slotProps={{ htmlInput: { min: 15, max: 180 } }}
                 onChange={e => setAi(p => ({ ...p, max_duration: parseInt(e.target.value) || null }))} />
-              {/* Beside the length, not pushed to the far edge: the three
-                  fields are one sentence ("10 to 60s, up to 8 clips"). */}
               <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-              <TextField label="Clips (max)" type="number" size="small" sx={{ width: 110 }}
+              <TextField label="Clipes (máx)" type="number" size="small" sx={{ width: 110 }}
                 value={ai.max_clips || ""}
                 slotProps={{ htmlInput: { min: 1, max: 99 } }}
                 onChange={e => setAi(p => ({ ...p, max_clips: parseInt(e.target.value) || null }))} />
             </Stack>
             <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.5, display: "block" }}>
               {ai.max_clips
-                ? `Up to ${estimate.clips} clip${estimate.clips === 1 ? "" : "s"}, 15–60s each — fewer if the video has less quality material.`
+                ? `Até ${estimate.clips} ${estimate.clips === 1 ? "clipe" : "clipes"}, 15–60s cada — menos se o vídeo tiver menos material de qualidade.`
                 : video.duration_seconds
-                  ? `Blank means ~1 clip per 30s of content: up to ${estimate.clips} for this ${Math.round(video.duration_seconds / 60)}-minute video. Fewer if it has less quality material.`
-                  /* Duration unknown (an import ffprobe could not read): the
-                     backend falls back to a flat 5, so say 5 rather than
-                     inventing a "0-minute video". */
-                  : `Blank means ~1 clip per 30s of content — up to ${estimate.clips} here, since this video's length is unknown.`}
+                  ? `Vazio significa ~1 clipe a cada 30s: até ${estimate.clips} para este vídeo de ${Math.round(video.duration_seconds / 60)} minutos.`
+                  : `Vazio significa ~1 clipe a cada 30s de conteúdo — até ${estimate.clips} aqui.`}
             </Typography>
             {durationError && (
               <Typography variant="caption" sx={{ color: "error.main", mt: 0.5, display: "block" }}>
-                Max must be at least 1 second greater than Min
+                O Máx deve ser pelo menos 1 segundo maior que o Mín
               </Typography>
             )}
           </Box>
 
-          {/* Advanced-options expander — collapses the 3 AI-targeting knobs so
-              the dialog opens compact. All defaults are sensible; the user only
-              has to touch these for niche cases (genre bias, custom query,
-              platform bias). The button and its Collapse are ONE item of the
-              outer Stack: as two, the closed Collapse still took a spacing slot
-              and left a ~40px hole under "Advanced options". */}
+          {/* Opções avançadas */}
           <Box>
             <Button
               variant="text"
@@ -262,85 +194,74 @@ export default function ExtractDialog({ open, onClose, video, onExtract, setting
                 "&:hover": { bgcolor: "action.hover", color: "primary.main" },
               }}
             >
-              Advanced options
+              Opções avançadas
               <Typography variant="caption" sx={{ ml: 0.75, color: "text.secondary", fontWeight: 500 }}>
-                find specific moments · platform · genre
+                buscar momentos específicos · plataforma · gênero
               </Typography>
             </Button>
 
           <Collapse in={advancedOpen} timeout={200}>
             <Stack spacing={2.5} sx={{ pt: 1.5 }}>
 
-              {/* User query — natural-language clip filter (Opus's "ClipAnything"
-                  equivalent). When non-empty, the AI ranks segments by match to
-                  this query first, then virality. Empty = pure virality default. */}
+              {/* Busca por linguagem natural */}
               <Box>
                 <Typography variant="caption" sx={{ fontWeight: 600, mb: 0.5, display: "block" }}>
-                  Find specific moments <Chip label="optional" size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: "0.6rem" }} />
+                  Buscar momentos específicos <Chip label="opcional" size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: "0.6rem" }} />
                 </Typography>
                 <TextField
                   size="small" fullWidth
-                  placeholder='e.g. "every joke that landed", "all Q&A moments", "moments where he raises his voice"'
+                  placeholder='ex.: "todas as piadas", "momentos de perguntas e respostas", "quando ele eleva o tom de voz"'
                   value={ai.user_query}
                   onChange={e => setAi(p => ({ ...p, user_query: e.target.value }))}
                   slotProps={{ htmlInput: { maxLength: 500 } }}
                 />
                 <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.5, display: "block" }}>
-                  Leave empty to find the most viral clips automatically.
+                  Deixe em branco para encontrar os clipes mais virais automaticamente.
                 </Typography>
               </Box>
 
-              {/* Target platform — biases the AI hook-type ranker. Each
-                  platform's algorithm rewards different hook patterns:
-                  TikTok prefers shocking_claim / emotional_peak / contrarian;
-                  LinkedIn prefers actionable_tip / number_promise / contrarian;
-                  YouTube Shorts sits in between. Empty (default) = vanilla
-                  virality ranking, no bias. */}
+              {/* Plataforma de destino */}
               <Box>
                 <Typography variant="caption" sx={{ fontWeight: 600, mb: 0.5, display: "block" }}>
-                  Target platform <Chip label="optional" size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: "0.6rem" }} />
+                  Plataforma de destino <Chip label="opcional" size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: "0.6rem" }} />
                 </Typography>
                 <TextField select size="small" fullWidth
                   value={ai.target_platform}
                   onChange={e => setAi(p => ({ ...p, target_platform: e.target.value }))}
                 >
-                  <MenuItem value="">Any (general viral ranking)</MenuItem>
-                  <MenuItem value="tiktok">TikTok — shock / contrarian / emotional</MenuItem>
-                  <MenuItem value="youtube_shorts">YouTube Shorts — curiosity / numbers / story</MenuItem>
-                  <MenuItem value="reels">Instagram Reels — emotional / lifestyle</MenuItem>
-                  <MenuItem value="linkedin">LinkedIn — actionable / data-backed</MenuItem>
-                  <MenuItem value="twitter">Twitter / X — hot takes / debates</MenuItem>
+                  <MenuItem value="">Qualquer (ranking viral geral)</MenuItem>
+                  <MenuItem value="tiktok">TikTok — choque / controverso / emocional</MenuItem>
+                  <MenuItem value="youtube_shorts">YouTube Shorts — curiosidade / números / história</MenuItem>
+                  <MenuItem value="reels">Instagram Reels — emocional / estilo de vida</MenuItem>
+                  <MenuItem value="linkedin">LinkedIn — acionável / dados e negócios</MenuItem>
+                  <MenuItem value="twitter">Twitter / X — opiniões fortes / debates</MenuItem>
                 </TextField>
                 <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.5, display: "block" }}>
-                  Biases which hook types the AI prioritizes. Clip length is unchanged.
+                  Direciona quais tipos de ganchos a IA prioriza na seleção.
                 </Typography>
               </Box>
 
-              {/* Genre — biases the AI's clip-selection heuristics. Different
-                  content types reward different picks: a podcast clip needs a
-                  standalone insight, a tutorial needs a complete tip, a gaming
-                  clip wants a hype moment. Pairs cleanly with target_platform —
-                  you can pick both. */}
+              {/* Gênero de conteúdo */}
               <Box>
                 <Typography variant="caption" sx={{ fontWeight: 600, mb: 0.5, display: "block" }}>
-                  Content genre <Chip label="optional" size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: "0.6rem" }} />
+                  Gênero do conteúdo <Chip label="opcional" size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: "0.6rem" }} />
                 </Typography>
                 <TextField select size="small" fullWidth
                   value={ai.genre}
                   onChange={e => setAi(p => ({ ...p, genre: e.target.value }))}
                 >
-                  <MenuItem value="">Auto-detect (no genre bias)</MenuItem>
-                  <MenuItem value="podcast">Podcast — guest's quotable moments</MenuItem>
-                  <MenuItem value="interview">Interview — best Q&amp;A answers</MenuItem>
-                  <MenuItem value="qa">Q&amp;A / AMA — question + answer pairs</MenuItem>
-                  <MenuItem value="vlog">Vlog — reactions + storytelling beats</MenuItem>
-                  <MenuItem value="tutorial">Tutorial / how-to — standalone tips</MenuItem>
-                  <MenuItem value="gaming">Gaming — big plays + reactions</MenuItem>
-                  <MenuItem value="reaction">Reaction — emotional peaks</MenuItem>
-                  <MenuItem value="lecture">Lecture / educational — concept explainers</MenuItem>
+                  <MenuItem value="">Detecção automática (sem viés)</MenuItem>
+                  <MenuItem value="podcast">Podcast — momentos marcantes do convidado</MenuItem>
+                  <MenuItem value="interview">Entrevista — melhores respostas de P&amp;R</MenuItem>
+                  <MenuItem value="qa">Perguntas &amp; Respostas — pergunta + resposta</MenuItem>
+                  <MenuItem value="vlog">Vlog — reações e narrativa pessoal</MenuItem>
+                  <MenuItem value="tutorial">Tutorial / Guia — dicas práticas independentes</MenuItem>
+                  <MenuItem value="gaming">Jogos / Gaming — jogadas épicas e reações</MenuItem>
+                  <MenuItem value="reaction">Reação — picos emocionais</MenuItem>
+                  <MenuItem value="lecture">Palestra / Educativo — explicações conceituais</MenuItem>
                 </TextField>
                 <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.5, display: "block" }}>
-                  Tells the AI what shape a "good clip" has for this content type.
+                  Indica à IA a estrutura ideal de um "bom clipe" para este tipo de formato.
                 </Typography>
               </Box>
 
@@ -348,24 +269,18 @@ export default function ExtractDialog({ open, onClose, video, onExtract, setting
           </Collapse>
           </Box>
 
-          {/* ── Shared settings group — applies to every clip ──────
-              One outlined group, four compact rows. Rendered ONCE for
-              both modes: these run per-clip AFTER the cut, identically
-              whether the range came from the AI or the user (silence
-              removal included — it trims INSIDE each already-cut clip,
-              so a hand-picked range never shifts). */}
+          {/* Configurações de cada clipe */}
           <Box>
             <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", letterSpacing: 0.3, display: "block", mb: 0.75 }}>
-              Every clip
+              Configurações de cada clipe
             </Typography>
             <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
 
+              {/* Legendas */}
               <SettingRow
                 icon={<SubtitlesOutlinedIcon />}
-                label="Captions"
-                sublabel={!captionsOn ? "Off also hides the AI hook overlay" : null}
-                // The style name while on; nothing while off — the switch says
-                // it, as it does on every other row (only this one read "Off").
+                label="Legendas"
+                sublabel={!captionsOn ? "Desativado também oculta a sobreposição de gancho da IA" : null}
                 summary={captionsOn
                   ? (CAPTION_STYLE_OPTIONS.find(o => o.v === settings.caption_style)?.label || settings.caption_style)
                   : null}
@@ -402,36 +317,37 @@ export default function ExtractDialog({ open, onClose, video, onExtract, setting
                       ))}
                     </Stack>
                     <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.5, display: "block" }}>
-                      Adds 🔥 💰 ❤️ after matching words in the captions.
+                      Adiciona 🔥 💰 ❤️ após palavras correspondentes nas legendas.
                     </Typography>
                   </Box>
                 </Stack>
               </SettingRow>
 
+              {/* Silêncio */}
               <SettingRow
                 icon={<GraphicEqOutlinedIcon />}
-                label="Remove silence & fillers"
-                sublabel={'Cuts "um"s and dead air inside each clip'}
+                label="Remover silêncios e hesitações"
+                sublabel='Corta pausas longas e "hã/éé" dentro de cada clipe'
                 control={<RowSwitch checked={settings.remove_silence} />}
                 onRowClick={() => set({ remove_silence: !settings.remove_silence })}
                 divider
               />
 
+              {/* Vertical 9:16 */}
               <SettingRow
                 icon={<CropPortraitOutlinedIcon />}
-                label="Force vertical (9:16)"
-                sublabel="Blur-fill landscape sources into portrait"
+                label="Forçar formato vertical (9:16)"
+                sublabel="Preenche vídeos horizontais em 9:16 com fundo desfocado"
                 control={<RowSwitch checked={settings.force_vertical} />}
                 onRowClick={() => set({ force_vertical: !settings.force_vertical })}
                 divider
               />
 
+              {/* Transcrição STT */}
               <SettingRow
                 icon={<RecordVoiceOverOutlinedIcon />}
-                label="Transcription"
-                summary={hasSegments && !settings.force_retranscribe
-                  ? "Cached · Whisper skipped"
-                  : WHISPER_QUALITIES.find(q => q.value === settings.whisper_quality)?.label || settings.whisper_quality}
+                label="Motor de Transcrição (STT)"
+                summary={currentEngineSummary}
                 control={
                   <ExpandMoreIcon sx={{
                     fontSize: 20, color: "text.secondary", flexShrink: 0,
@@ -455,9 +371,9 @@ export default function ExtractDialog({ open, onClose, video, onExtract, setting
                     }
                     label={
                       <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                        Run Whisper {hasSegments
-                          ? <Chip label="cached transcript available" size="small" color="success" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: "0.65rem" }} />
-                          : <Chip label="required" size="small" color="warning" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: "0.65rem" }} />
+                        Executar Transcrição {hasSegments
+                          ? <Chip label="transcrição em cache disponível" size="small" color="success" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: "0.65rem" }} />
+                          : <Chip label="necessário" size="small" color="warning" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: "0.65rem" }} />
                         }
                       </Typography>
                     }
@@ -465,29 +381,60 @@ export default function ExtractDialog({ open, onClose, video, onExtract, setting
                   />
                   {!hasSegments && (
                     <Typography variant="caption" sx={{ color: "text.secondary", display: "block", ml: 4, mb: 1 }}>
-                      No word-level transcript found — Whisper transcribes the audio first
-                      {!captionsOn ? " (still used for silence detection and per-clip titles)" : ""}
+                      Nenhuma transcrição em nível de palavra encontrada — o áudio será transcrito primeiro.
                     </Typography>
                   )}
                   {hasSegments && settings.force_retranscribe && (
                     <Typography variant="caption" sx={{ color: "warning.main", display: "block", ml: 4, mb: 1 }}>
-                      Re-transcribes with the selected model (replaces the cached transcript)
+                      Transcreve novamente com o motor selecionado (substitui o cache existente).
                     </Typography>
                   )}
-                  <TextField select size="small" fullWidth
-                    value={settings.whisper_quality}
-                    onChange={e => set({ whisper_quality: e.target.value })}
-                    disabled={!transcribeEnabled}
-                  >
-                    {WHISPER_QUALITIES.map(q => (
-                      <MenuItem key={q.value} value={q.value}>
-                        <Stack direction="row" justifyContent="space-between" sx={{ width: "100%" }}>
-                          <Typography variant="body2">{q.label}</Typography>
-                          <Typography variant="caption" sx={{ color: "text.secondary", ml: 2 }}>{q.desc}</Typography>
-                        </Stack>
-                      </MenuItem>
-                    ))}
-                  </TextField>
+
+                  <Stack spacing={1.5} sx={{ mt: 1 }}>
+                    <TextField select size="small" fullWidth
+                      label="Motor & Qualidade"
+                      value={isGroqActive ? "groq_auto" : (settings.whisper_quality || "balanced")}
+                      onChange={e => {
+                        const val = e.target.value
+                        if (val === "groq_auto") {
+                          set({ whisper_backend: "groq", whisper_quality: "fast" })
+                        } else {
+                          set({ whisper_backend: "local", whisper_quality: val })
+                        }
+                      }}
+                      disabled={!transcribeEnabled}
+                    >
+                      {groqConfigured && (
+                        <MenuItem value="groq_auto">
+                          <Stack direction="row" justifyContent="space-between" sx={{ width: "100%" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: "primary.main" }}>
+                              ⚡ Groq Whisper Cloud (Ultra-Rápido ~5s)
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: "text.secondary", ml: 2 }}>
+                              LPU na nuvem (Recomendado)
+                            </Typography>
+                          </Stack>
+                        </MenuItem>
+                      )}
+                      {WHISPER_QUALITIES.filter(q => q.value !== "groq_auto").map(q => (
+                        <MenuItem key={q.value} value={q.value}>
+                          <Stack direction="row" justifyContent="space-between" sx={{ width: "100%" }}>
+                            <Typography variant="body2">{q.label}</Typography>
+                            <Typography variant="caption" sx={{ color: "text.secondary", ml: 2 }}>{q.desc}</Typography>
+                          </Stack>
+                        </MenuItem>
+                      ))}
+                    </TextField>
+
+                    {isGroqActive && (
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ bgcolor: "action.hover", p: 1, borderRadius: 1.5 }}>
+                        <BoltIcon sx={{ color: "#F55036", fontSize: 18 }} />
+                        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                          Motor Groq Cloud ativo: transcrição quase instantânea com Whisper Large v3 e fallback local para arquivos &gt; 25MB.
+                        </Typography>
+                      </Stack>
+                    )}
+                  </Stack>
                 </Box>
               </SettingRow>
 
@@ -496,21 +443,18 @@ export default function ExtractDialog({ open, onClose, video, onExtract, setting
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>Cancelar</Button>
         <Button variant="contained" startIcon={<ContentCutIcon />}
           disabled={!canSubmit}
           onClick={() => {
             onExtract(video.id, {
-              // Whisper has to run when there is no cached transcript, and
-              // the payload has to say so or the chosen model is dropped —
-              // derived once in clipSettingsPayload, shared with the bench.
               ...clipSettingsPayload(settings, { hasTranscript: hasSegments }),
               ...ai,
               mode: "ai",
             })
             onClose()
           }}>
-          {`Cut now · ${estimate.label}`}
+          {`Cortar agora · ${estimate.label}`}
         </Button>
       </DialogActions>
     </Dialog>

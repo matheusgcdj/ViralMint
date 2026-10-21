@@ -153,7 +153,7 @@ function FramePane({
             alignItems: "center", justifyContent: "center",
             fontSize: "0.65rem", color: "text.secondary", textAlign: "center", px: 1,
           }}>
-            No range selected
+            Nenhum corte selecionado
           </Typography>
         )}
       </Box>
@@ -167,7 +167,7 @@ function FramePane({
         }}>
           {stampOf(time)}
         </Typography>
-        <Tooltip title="Back one frame">
+        <Tooltip title="Voltar um quadro">
           <span>
             <IconButton size="small" disabled={disabled} aria-label={`${label} back one frame`}
               onClick={() => onNudge(-FRAME_STEP)} sx={{ p: 0.15 }}>
@@ -175,7 +175,7 @@ function FramePane({
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title={`Snap ${label} to the playhead`}>
+        <Tooltip title={`Alinhar ${label} ao cursor`}>
           <span>
             <IconButton size="small" disabled={disabled} aria-label={`Snap ${label} to the playhead`}
               onClick={onSetToPlayhead} sx={{ p: 0.15 }}>
@@ -183,7 +183,7 @@ function FramePane({
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title="Forward one frame">
+        <Tooltip title="Avançar um quadro">
           <span>
             <IconButton size="small" disabled={disabled} aria-label={`${label} forward one frame`}
               onClick={() => onNudge(FRAME_STEP)} sx={{ p: 0.15 }}>

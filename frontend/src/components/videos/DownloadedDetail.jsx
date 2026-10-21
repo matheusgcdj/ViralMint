@@ -199,7 +199,7 @@ export default function DownloadedDetail({ video, onUseAsInspiration, onClose, o
           )}
           <Button variant="contained" startIcon={<MovieCreationIcon />}
             onClick={(e) => onUseAsInspiration(video.id, e)}>
-            {video.platform === "news" ? "Create Video from Article" : "Use as Inspiration"}
+            {video.platform === "news" ? "Criar Vídeo da Notícia" : "Usar como Inspiração"}
           </Button>
         </Stack>
         {!embedded && (

@@ -86,7 +86,7 @@ function useElementWidth() {
 }
 
 export default function ClipStudio() {
-  useDocumentTitle("Clip Studio")
+  useDocumentTitle("Estúdio de Cortes")
   const navigate = useNavigate()
   const showSnackbar = useAppStore((s) => s.showSnackbar)
   const activeJobs = useAppStore((s) => s.activeJobs)
@@ -428,6 +428,9 @@ export default function ClipStudio() {
       // skipped in manual mode because the backend ignores them there
       // and sending unused fields just noises up the request shape.
       const payload = { caption_style: opts.caption_style }
+      if (opts.whisper_backend) {
+        payload.whisper_backend = opts.whisper_backend
+      }
       if (opts.force_retranscribe) {
         payload.whisper_quality = opts.whisper_quality
         payload.force_retranscribe = true
@@ -459,13 +462,13 @@ export default function ClipStudio() {
       await http.post(`/api/downloaded/${videoId}/extract-clips`, payload)
       showSnackbar(
         isManual
-          ? `Cutting ${opts.time_ranges?.length || "your"} clip${opts.time_ranges?.length !== 1 ? "s" : ""} at the times you picked`
-          : "Extracting viral clips — AI will find the best moments",
+          ? `Cortando ${opts.time_ranges?.length || ""} ${opts.time_ranges?.length === 1 ? "clipe" : "clipes"} nos tempos selecionados`
+          : "Extraindo clipes virais — a IA selecionará os melhores momentos",
         "success",
       )
       return true
     } catch (e) {
-      showSnackbar(`Extract failed: ${e.response?.data?.detail || e.message}`, "error")
+      showSnackbar(`Falha na extração: ${e.response?.data?.detail || e.message}`, "error")
       return false
     } finally {
       setExtracting(false)
@@ -493,11 +496,11 @@ export default function ClipStudio() {
     if (!selectedClip) return
     try {
       await http.delete(`/api/videos/${selectedClip.id}`)
-      showSnackbar("Clip deleted", "success")
+      showSnackbar("Clipe excluído com sucesso", "success")
       setClips(prev => prev.filter(c => c.id !== selectedClip.id))
       setSelectedClip(null)
     } catch (e) {
-      showSnackbar(`Delete failed: ${e.response?.data?.detail || e.message}`, "error")
+      showSnackbar(`Falha ao excluir: ${e.response?.data?.detail || e.message}`, "error")
     }
   }
 
@@ -524,7 +527,7 @@ export default function ClipStudio() {
     setRegenThumb(true)
     try {
       const res = await http.post(`/api/videos/${selectedClip.id}/regenerate-thumbnail`)
-      showSnackbar("Thumbnail regenerated!", "success")
+      showSnackbar("Thumbnail recriada com sucesso!", "success")
       // thumb_v busts the immutable thumbnail cache — the URL is the version
       // signal (?v=), and without a new value the regenerated image never
       // appears: same URL, so React doesn't reload the <img> and the browser
@@ -533,7 +536,7 @@ export default function ClipStudio() {
       setSelectedClip(prev => ({ ...prev, thumbnail_path: res.data.thumbnail_path, thumb_v: thumbV }))
       setClips(prev => prev.map(c => c.id === selectedClip.id ? { ...c, thumbnail_path: res.data.thumbnail_path, thumb_v: thumbV } : c))
     } catch (e) {
-      showSnackbar(`Thumbnail regen failed: ${e.response?.data?.detail || e.message}`, "error")
+      showSnackbar(`Falha ao recriar thumbnail: ${e.response?.data?.detail || e.message}`, "error")
     } finally {
       setRegenThumb(false)
     }
@@ -551,7 +554,7 @@ export default function ClipStudio() {
   const handleZipChecked = async () => {
     if (checkedClips.size === 0) return
     if (checkedClips.size > 50) {
-      showSnackbar("Select at most 50 clips for a ZIP download", "warning")
+      showSnackbar("Selecione no máximo 50 clipes para download em ZIP", "warning")
       return
     }
     setZipping(true)
@@ -565,9 +568,9 @@ export default function ClipStudio() {
       a.download = `viralmint-clips-${checkedClips.size}.zip`
       a.click()
       URL.revokeObjectURL(url)
-      showSnackbar(`Downloaded ${checkedClips.size} clip${checkedClips.size !== 1 ? "s" : ""} as ZIP`, "success")
+      showSnackbar(`${checkedClips.size} ${checkedClips.size === 1 ? "clipe baixado" : "clipes baixados"} em ZIP`, "success")
     } catch (e) {
-      showSnackbar(`ZIP download failed: ${e.response?.data?.detail || e.message}`, "error")
+      showSnackbar(`Falha no download do ZIP: ${e.response?.data?.detail || e.message}`, "error")
     } finally {
       setZipping(false)
     }
@@ -580,13 +583,13 @@ export default function ClipStudio() {
       const { data } = await http.post("/api/videos/bulk-delete", {
         clip_ids: [...checkedClips],
       })
-      showSnackbar(`Deleted ${data.deleted} clip${data.deleted !== 1 ? "s" : ""}`, "success")
+      showSnackbar(`${data.deleted} ${data.deleted === 1 ? "clipe excluído" : "clipes excluídos"}`, "success")
       // Remove deleted clips from local state
       setClips(prev => prev.filter(c => !checkedClips.has(c.id)))
       if (selectedClip && checkedClips.has(selectedClip.id)) setSelectedClip(null)
       setCheckedClips(new Set())
     } catch (e) {
-      showSnackbar(`Delete failed: ${e.response?.data?.detail || e.message}`, "error")
+      showSnackbar(`Falha ao excluir: ${e.response?.data?.detail || e.message}`, "error")
     } finally {
       setDeleting(false)
     }
@@ -608,13 +611,13 @@ export default function ClipStudio() {
     setSaving(true)
     try {
       const res = await http.patch(`/api/videos/${selectedClip.id}`, editDraft)
-      showSnackbar("Clip metadata updated", "success")
+      showSnackbar("Metadados do clipe atualizados com sucesso", "success")
       const updated = { ...selectedClip, ...res.data, youtube_tags: res.data.youtube_tags }
       setSelectedClip(updated)
       setClips(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
       setEditing(false)
     } catch (e) {
-      showSnackbar(`Save failed: ${e.response?.data?.detail || e.message}`, "error")
+      showSnackbar(`Falha ao salvar: ${e.response?.data?.detail || e.message}`, "error")
     } finally {
       setSaving(false)
     }
@@ -643,7 +646,7 @@ export default function ClipStudio() {
 
       <PageHero
         icon={<ContentCutOutlinedIcon sx={{ fontSize: 22 }} />}
-        title="Clip Studio"
+        title="Estúdio de Cortes"
         dense={compactHero}
         // "118 clips · 37 source videos" — not "from 37 videos": clips can
         // come from sources no longer on the rail, so the rail's per-card
@@ -735,10 +738,10 @@ export default function ClipStudio() {
                 scissors, which is what made them read as duplicates. */}
             {onBench && (
               <Tooltip describeChild title={benchTooShort
-                ? "This video is shorter than one second — there is nothing to cut"
+                ? "Este vídeo tem menos de um segundo — não há o que cortar"
                 : cutCount
-                  ? "Cut exactly the ranges on the timeline"
-                  : "Drag on the filmstrip, press N, or Ask AI to add a range first"}>
+                  ? "Cortar exatamente as faixas da linha do tempo"
+                  : "Arraste na faixa, pressione N ou use IA para adicionar faixas primeiro"}>
                 <span>
                   <Button
                     variant="contained" color="primary"
@@ -750,16 +753,16 @@ export default function ClipStudio() {
                     sx={{ whiteSpace: "nowrap", fontWeight: 700, ...DISABLED_CONTAINED }}
                   >
                     {clipJobRunning
-                      ? "Cutting…"
+                      ? "Cortando…"
                       : cutCount
-                        ? `Cut ${cutCount} clip${cutCount !== 1 ? "s" : ""}`
-                        : "Cut clips"}
+                        ? `Cortar ${cutCount} ${cutCount !== 1 ? "clipes" : "clipe"}`
+                        : "Cortar clipes"}
                   </Button>
                 </span>
               </Tooltip>
             )}
             {selectedSourceId && selectedSourceId !== "all" && (
-              <Tooltip describeChild title="AI picks the moments and cuts them straight away — no review step, any number of clips. To see the picks first and adjust them, use Ask AI on the bench.">
+              <Tooltip describeChild title="A IA seleciona os melhores momentos e os corta diretamente — sem revisão. Para ver as escolhas antes e ajustá-las, use Perguntar à IA na mesa de corte.">
                 <Button
                   variant="contained" color="primary"
                   disabled={extracting || clipJobRunning}
@@ -771,7 +774,7 @@ export default function ClipStudio() {
                     if (src) { setExtractTarget(src); setExtractDialogOpen(true) }
                   }}
                   sx={{ whiteSpace: "nowrap", ...DISABLED_CONTAINED }}>
-                  {clipJobRunning ? "Cutting…" : "Auto-cut"}
+                  {clipJobRunning ? "Cortando…" : "Cortes Automáticos"}
                 </Button>
               </Tooltip>
             )}
@@ -780,12 +783,12 @@ export default function ClipStudio() {
       />
 
       {/* ── Active jobs progress ─────────────────────────────── */}
-      <ActiveJobsBanner filter={clipJobFilter} fallbackLabel="Extracting clips…" />
+      <ActiveJobsBanner filter={clipJobFilter} fallbackLabel="Extraindo clipes…" />
 
       {/* ── Main Layout ─────────────────────────────────────── */}
       <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* ── Left: Source Videos ──────────────────────────────
+        {/* ── Left: Vídeos Fonte ──────────────────────────────
             Drag its right edge to resize; the width is remembered. It was a
             fixed 200px while every other column in the app (Smart Video's
             media bin and Project panel) gives — so long source titles
@@ -813,7 +816,7 @@ export default function ClipStudio() {
             p: 1.5, display: "flex", flexDirection: "column", gap: 0.5,
           }}>
           <Typography variant="overline" sx={{ color: "text.secondary", px: 0.5, fontSize: "0.65rem" }}>
-            Source Videos
+            Vídeos Fonte
           </Typography>
 
           <TextField
@@ -935,7 +938,7 @@ export default function ClipStudio() {
           {sources.length === 0 && clips.length > 0 && (
             <Box sx={{ p: 2, textAlign: "center" }}>
               <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                No source videos yet. Download a video or import one.
+                Nenhum vídeo fonte ainda. Baixe um vídeo ou importe um arquivo.
               </Typography>
             </Box>
           )}
@@ -956,16 +959,16 @@ export default function ClipStudio() {
                 sx={{ "& .MuiToggleButton-root": { textTransform: "none", py: 0.25, px: 1.25, fontSize: "0.75rem", fontWeight: 700 } }}
               >
                 <ToggleButton value="bench">
-                  <MovieFilterOutlinedIcon sx={{ fontSize: 15, mr: 0.5 }} />Bench
+                  <MovieFilterOutlinedIcon sx={{ fontSize: 15, mr: 0.5 }} />Mesa de Corte
                 </ToggleButton>
                 <ToggleButton value="clip">
-                  <SlideshowOutlinedIcon sx={{ fontSize: 15, mr: 0.5 }} />Clip
+                  <SlideshowOutlinedIcon sx={{ fontSize: 15, mr: 0.5 }} />Visualizador de Clipe
                 </ToggleButton>
               </ToggleButtonGroup>
               <Typography variant="caption" sx={{ color: "text.secondary" }}>
                 {centerMode === "bench"
-                  ? "Cut new clips from the source"
-                  : "Review and edit a finished clip"}
+                  ? "Cortar novos clipes do vídeo fonte"
+                  : "Revisar e editar um clipe finalizado"}
               </Typography>
             </Stack>
           )}
@@ -1049,7 +1052,7 @@ export default function ClipStudio() {
                       <Stack direction="row" spacing={1} alignItems="center">
                         <AccessTimeIcon sx={{ fontSize: 16, color: "text.secondary" }} />
                         <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                          {formatTime(selectedClip.clip_start_seconds)} — {formatTime(selectedClip.clip_end_seconds)} in source
+                          {formatTime(selectedClip.clip_start_seconds)} — {formatTime(selectedClip.clip_end_seconds)} na fonte
                         </Typography>
                       </Stack>
                     </GlassPanel>
@@ -1081,13 +1084,13 @@ export default function ClipStudio() {
                     <Chip label={`${formatTime(selectedClip.duration_seconds)}`} icon={<AccessTimeIcon />} size="small" variant="outlined" />
                     <Chip label={selectedClip.aspect_ratio || "9:16"} size="small" variant="outlined" />
                     {selectedClip.caption_status === "applied" && (
-                      <Chip icon={<CheckCircleIcon />} label="Captions" size="small" color="success" variant="outlined" />
+                      <Chip icon={<CheckCircleIcon />} label="Legendas" size="small" color="success" variant="outlined" />
                     )}
                     {selectedClip.caption_status === "failed" && (
-                      <Chip icon={<WarningAmberIcon />} label="Captions failed" size="small" color="warning" variant="filled" />
+                      <Chip icon={<WarningAmberIcon />} label="Falha nas legendas" size="small" color="warning" variant="filled" />
                     )}
                     {selectedClip.metadata_status === "fallback" && (
-                      <Chip icon={<WarningAmberIcon />} label="AI meta failed" size="small" color="warning" variant="outlined" />
+                      <Chip icon={<WarningAmberIcon />} label="Falha na meta IA" size="small" color="warning" variant="outlined" />
                     )}
                   </Stack>
                 </Box>
@@ -1104,7 +1107,7 @@ export default function ClipStudio() {
                         <Button size="small" variant="outlined"
                           startIcon={regenThumb ? <CircularProgress size={14} /> : <PhotoCameraIcon />}
                           disabled={regenThumb} onClick={handleRegenThumbnail}>
-                          {regenThumb ? "Generating..." : "Regen Thumbnail"}
+                          {regenThumb ? "Gerando..." : "Recriar Thumbnail"}
                         </Button>
                         <Button size="small" variant="contained" color="error" startIcon={<UploadIcon />}
                           onClick={() => handleUpload("youtube")}>
@@ -1116,8 +1119,8 @@ export default function ClipStudio() {
                         </Button>
                         <Button size="small" variant="outlined" color="inherit" startIcon={<DeleteIcon />}
                           onClick={() => openConfirm(
-                            "Delete this clip?",
-                            "This will permanently remove the clip and its files from disk.",
+                            "Excluir este clipe?",
+                            "Isso removerá permanentemente o clipe e seus arquivos do disco.",
                             handleDelete,
                           )}>
                           Delete
@@ -1138,19 +1141,19 @@ export default function ClipStudio() {
 
                   {editing ? (
                     <Stack spacing={2}>
-                      <TextField label="Clip Title" size="small" fullWidth
+                      <TextField label="Título do Clipe" size="small" fullWidth
                         value={editDraft.title} onChange={e => setEditDraft(p => ({ ...p, title: e.target.value }))} />
                       <Divider />
                       <Typography variant="overline" sx={{ color: "text.secondary" }}>YouTube Shorts</Typography>
-                      <TextField label="Title" size="small" fullWidth
+                      <TextField label="Título" size="small" fullWidth
                         value={editDraft.youtube_title} onChange={e => setEditDraft(p => ({ ...p, youtube_title: e.target.value }))} />
-                      <TextField label="Description" size="small" fullWidth multiline minRows={2} maxRows={4}
+                      <TextField label="Descrição" size="small" fullWidth multiline minRows={2} maxRows={4}
                         value={editDraft.youtube_description} onChange={e => setEditDraft(p => ({ ...p, youtube_description: e.target.value }))} />
-                      <TextField label="Tags (comma-separated)" size="small" fullWidth
+                      <TextField label="Tags (separadas por vírgula)" size="small" fullWidth
                         value={editDraft.youtube_tags} onChange={e => setEditDraft(p => ({ ...p, youtube_tags: e.target.value }))} />
                       <Divider />
                       <Typography variant="overline" sx={{ color: "text.secondary" }}>TikTok</Typography>
-                      <TextField label="Caption" size="small" fullWidth
+                      <TextField label="Legenda" size="small" fullWidth
                         value={editDraft.tiktok_title} onChange={e => setEditDraft(p => ({ ...p, tiktok_title: e.target.value }))} />
                     </Stack>
                   ) : (
@@ -1235,7 +1238,7 @@ export default function ClipStudio() {
                 <EmptyState
                   icon={<ContentCutIcon />}
                   title="Nenhum clipe ainda"
-                  description="O Clip Studio transforma vídeos longos em shorts virais. Adicione um vídeo primeiro — baixe da internet ou importe o seu — e extraia os melhores momentos."
+                  description="O Estúdio de Cortes transforma vídeos longos em shorts virais. Adicione um vídeo primeiro — baixe da internet ou importe o seu — e extraia os melhores momentos."
                   primaryAction={{
                     label: "Baixar um vídeo",
                     startIcon: <CloudDownloadIcon />,
@@ -1250,9 +1253,9 @@ export default function ClipStudio() {
                 <EmptyState
                   icon={<ContentCutIcon />}
                   title="Nenhum clipe ainda"
-                  description="Pick a source video and extract clips — AI finds the most viral moments for you."
+                  description="Escolha um vídeo fonte e extraia clipes — a IA encontra os momentos mais virais para você."
                   primaryAction={{
-                    label: `Auto-cut from ${sources[0].title?.slice(0, 30) || "first video"}`,
+                    label: `Cortes Automáticos de ${sources[0].title?.slice(0, 30) || "primeiro vídeo"}`,
                     startIcon: <ContentCutIcon />,
                     onClick: () => { setExtractTarget(sources[0]); setExtractDialogOpen(true) },
                   }}
@@ -1293,7 +1296,7 @@ export default function ClipStudio() {
                 transition: "background-color .12s ease",
                 "&:hover": { bgcolor: "action.hover" },
               }}>
-              <Tooltip title={filmstripCollapsed ? "Click to expand the filmstrip back to full cards" : "Click to collapse the filmstrip — gives the preview area more room"}>
+              <Tooltip title={filmstripCollapsed ? "Clique para expandir a faixa de clipes" : "Clique para recolher a faixa de clipes"}>
                 <Button
                   size="small"
                   variant="outlined"
@@ -1340,14 +1343,14 @@ export default function ClipStudio() {
                       color: "text.secondary",
                     }}
                   >
-                    {sortBy === "virality" ? "Top Viral" : sortBy === "newest" ? "Newest" : "Longest"}
+                    {sortBy === "virality" ? "Top Viral" : sortBy === "newest" ? "Mais Recentes" : "Mais Longos"}
                   </Button>
                   <Menu anchorEl={sortAnchor} open={Boolean(sortAnchor)}
                     onClose={() => setSortAnchor(null)}>
                     {[
                       { key: "virality", label: "Top Viral", icon: <WhatshotIcon fontSize="small" /> },
-                      { key: "newest", label: "Newest First", icon: <AccessTimeIcon fontSize="small" /> },
-                      { key: "duration", label: "Longest First", icon: <AspectRatioIcon fontSize="small" /> },
+                      { key: "newest", label: "Mais Recentes", icon: <AccessTimeIcon fontSize="small" /> },
+                      { key: "duration", label: "Mais Longos", icon: <AspectRatioIcon fontSize="small" /> },
                     ].map(s => (
                       <MenuItem key={s.key} selected={sortBy === s.key}
                         onClick={() => { setSortBy(s.key); setSortAnchor(null) }}>
@@ -1374,7 +1377,7 @@ export default function ClipStudio() {
                     sx={{ p: 0.25, ml: 1 }}
                   />
                   <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.7rem", flexShrink: 0 }}>
-                    {checkedClips.size > 0 ? `${checkedClips.size} selected` : "Select all"}
+                    {checkedClips.size > 0 ? `${checkedClips.size} selecionados` : "Selecionar todos"}
                   </Typography>
                   {checkedClips.size > 0 && (
                     <>
@@ -1385,20 +1388,20 @@ export default function ClipStudio() {
                         onClick={(e) => { e.stopPropagation(); handleZipChecked() }}
                         sx={{ textTransform: "none", height: 28, fontSize: "0.75rem", fontWeight: 700, px: 1.5, borderRadius: 2, ml: 0.5 }}
                       >
-                        {zipping ? "Zipping..." : "Download ZIP"}
+                        {zipping ? "Compactando..." : "Baixar ZIP"}
                       </Button>
                       <Button
                         size="small" variant="outlined" color="error"
                         startIcon={deleting ? <CircularProgress size={14} color="inherit" /> : <DeleteIcon />}
                         disabled={deleting || zipping}
                         onClick={(e) => { e.stopPropagation(); openConfirm(
-                          `Delete ${checkedClips.size} clip${checkedClips.size !== 1 ? "s" : ""}?`,
+                          `Excluir ${checkedClips.size} ${checkedClips.size !== 1 ? "clipes" : "clipe"}?`,
                           "This will permanently remove the selected clips and their files from disk.",
                           handleDeleteChecked,
                         ) }}
                         sx={{ textTransform: "none", height: 28, fontSize: "0.75rem", fontWeight: 700, px: 1.5, borderRadius: 2 }}
                       >
-                        {deleting ? "Deleting..." : `Delete ${checkedClips.size}`}
+                        {deleting ? "Excluindo..." : `Excluir ${checkedClips.size}`}
                       </Button>
                     </>
                   )}
@@ -1447,16 +1450,16 @@ export default function ClipStudio() {
                   sx={{ py: 3, px: 4, width: "100%" }}>
                   <Typography variant="caption" sx={{ color: "text.secondary" }}>
                     {selectedSourceId === "all"
-                      ? (searchQuery ? `No clips match “${searchQuery}”` : "No clips yet")
+                      ? (searchQuery ? `Nenhum clipe corresponde a “${searchQuery}”` : "Nenhum clipe ainda")
                       : selectedSourceId
-                        ? (searchQuery ? `No clips from this video match “${searchQuery}”` : "No clips from this video yet")
-                        : "Pick a source video on the left to see its clips"}
+                        ? (searchQuery ? `Nenhum clipe deste vídeo corresponde a “${searchQuery}”` : "Nenhum clipe deste vídeo ainda")
+                        : "Escolha um vídeo fonte à esquerda para ver seus clipes"}
                   </Typography>
                   {!selectedSourceId && clips.length > 0 && (
                     <Button size="small" variant="text"
                       onClick={(e) => { e.stopPropagation(); selectAllClips() }}
                       sx={{ textTransform: "none", fontWeight: 700 }}>
-                      Show all {clips.length}
+                      Mostrar todos ({clips.length})
                     </Button>
                   )}
                 </Stack>

@@ -51,6 +51,7 @@ class UserSettings(Base, TimestampMixin):
 
     # ── Video generation ───────────────────────────────
     preferred_voice_id = Column(String(100), nullable=True)  # Provider-specific voice ID
+    stt_provider = Column(String(20), default="groq")        # groq|local (Groq Cloud Whisper vs Local Faster-Whisper)
     whisper_quality = Column(String(20), default="balanced")  # fast|balanced|accurate|best
 
     # ── TTS Provider ───────────────────────────────────

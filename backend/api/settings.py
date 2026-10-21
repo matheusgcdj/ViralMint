@@ -49,6 +49,7 @@ class SettingsResponse(BaseModel):
     preferred_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
     tts_provider: str = "edge_tts"
     preferred_tts_voice: Optional[str] = None
+    stt_provider: str = "groq"
     whisper_quality: str = "balanced"
     caption_style: str = "viral"
     caption_enabled: bool = True
@@ -84,6 +85,7 @@ class SettingsUpdate(BaseModel):
     preferred_voice_id: Optional[str] = None
     tts_provider: Optional[str] = None
     preferred_tts_voice: Optional[str] = None
+    stt_provider: Optional[str] = None
     whisper_quality: Optional[str] = None
     caption_style: Optional[str] = None
     caption_enabled: Optional[bool] = None
@@ -165,6 +167,7 @@ async def get_settings():
             google_tts_api_key_set=google_tts_set,
             elevenlabs_api_key_set=elevenlabs_set,
             youtube_cookies_set=youtube_cookies_set,
+            stt_provider="groq" if groq_set else "local",
             whisper_quality="balanced",
         )
 
@@ -189,6 +192,7 @@ async def get_settings():
         preferred_voice_id=s.preferred_voice_id or "21m00Tcm4TlvDq8ikWAM",
         tts_provider=s.tts_provider or "edge_tts",
         preferred_tts_voice=s.preferred_tts_voice,
+        stt_provider=s.stt_provider if (s and s.stt_provider) else ("groq" if groq_set else "local"),
         whisper_quality=s.whisper_quality or "balanced",
         caption_style=s.caption_style or "viral",
         caption_enabled=s.caption_enabled if s.caption_enabled is not None else True,
@@ -298,6 +302,8 @@ async def update_settings(update: SettingsUpdate):
             s.tts_provider = update.tts_provider
         if update.preferred_tts_voice is not None:
             s.preferred_tts_voice = update.preferred_tts_voice
+        if update.stt_provider is not None:
+            s.stt_provider = update.stt_provider
         if update.whisper_quality is not None:
             s.whisper_quality = update.whisper_quality
         if update.caption_style is not None:

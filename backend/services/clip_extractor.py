@@ -677,6 +677,7 @@ async def extract_viral_clips(
     max_clips = opts.max_clips
     caption_style = opts.caption_style
     whisper_quality = opts.whisper_quality
+    whisper_backend = getattr(opts, "whisper_backend", "auto") or "auto"
     force_retranscribe = opts.force_retranscribe
     min_duration = opts.min_duration
     max_duration = opts.max_duration
@@ -720,6 +721,7 @@ async def extract_viral_clips(
         segments = await _load_or_transcribe_segments(
             video, user_settings, whisper_quality=whisper_quality,
             force_retranscribe=force_retranscribe, job_id=job_id, user_id=user_id,
+            whisper_backend=whisper_backend,
         )
 
     # Cancellation poll — the user's cancel only flips the Job row; the
@@ -1210,7 +1212,7 @@ def _lock_has_waiters(lock: asyncio.Lock) -> bool:
     return bool(getattr(lock, "_waiters", None))
 
 
-async def _load_or_transcribe_segments(video, user_settings, whisper_quality: str = "balanced", force_retranscribe: bool = False, job_id: str = None, user_id: str = "local") -> list[dict]:
+async def _load_or_transcribe_segments(video, user_settings, whisper_quality: str = "balanced", force_retranscribe: bool = False, job_id: str = None, user_id: str = "local", whisper_backend: str = "auto") -> list[dict]:
     """Load segments from DB or run Whisper if needed."""
     # Try loading from the snapshot first (skip if the caller wants a fresh
     # transcript). A source that already has one never takes the lock at all.
@@ -1225,7 +1227,7 @@ async def _load_or_transcribe_segments(video, user_settings, whisper_quality: st
         try:
             return await _transcribe_locked(
                 video, user_settings, whisper_quality, force_retranscribe,
-                job_id, user_id)
+                job_id, user_id, whisper_backend)
         finally:
             # Don't accumulate one lock per source ever transcribed. Safe to
             # drop only while nobody is queued on it.
@@ -1234,7 +1236,7 @@ async def _load_or_transcribe_segments(video, user_settings, whisper_quality: st
 
 
 async def _transcribe_locked(video, user_settings, whisper_quality, force_retranscribe,
-                             job_id, user_id) -> list[dict]:
+                             job_id, user_id, whisper_backend: str = "auto") -> list[dict]:
     # THE re-check. We may have just waited out another job's transcription of
     # this exact source; `video` is too old to know that.
     if not force_retranscribe:
@@ -1267,11 +1269,6 @@ async def _transcribe_locked(video, user_settings, whisper_quality, force_retran
     from backend.services.whisper_service import whisper_service
 
     try:
-        await asyncio.to_thread(whisper_service.load, whisper_quality)
-        # Live transcription progress (7→30% of the job): whisper streams a
-        # fraction as the decode advances; bridge the worker-thread callback
-        # onto the loop. Without this a 40-minute audio sat at a frozen 7% for
-        # the entire transcription and read as a hung job.
         _tx_progress = None
         if job_id:
             loop = asyncio.get_running_loop()
@@ -1280,15 +1277,20 @@ async def _transcribe_locked(video, user_settings, whisper_quality, force_retran
                 asyncio.run_coroutine_threadsafe(
                     ws_manager.send_progress(
                         job_id, 7 + frac * 23,
-                        f"Transcribing {duration_min}min audio — {int(frac * 100)}%",
+                        f"Transcrevendo áudio de {duration_min}min — {int(frac * 100)}%",
                         user_id,
                     ),
                     loop,
                 )
         from backend.services.whisper_service import job_download_notice
         transcript_data = await whisper_service.transcribe(
-            audio_path, quality=whisper_quality, on_progress=_tx_progress,
-            on_download=job_download_notice(job_id, user_id) if job_id else None)
+            audio_path,
+            quality=whisper_quality,
+            backend=whisper_backend,
+            user_id=user_id,
+            on_progress=_tx_progress,
+            on_download=job_download_notice(job_id, user_id) if job_id else None,
+        )
     except Exception as e:
         # Whisper crashed (corrupt audio, OOM, model load failure, etc.) — re-raise
         # so the job fails LOUDLY instead of silently downgrading to duration-based

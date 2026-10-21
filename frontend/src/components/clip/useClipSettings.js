@@ -2,6 +2,7 @@
 // Copyright (c) 2025-2026 ViralMint Contributors
 import { useCallback, useEffect, useState } from "react"
 import { storageKey } from "../../utils/storage"
+import useAppStore from "../../store/appStore"
 
 /* ── The per-clip settings both Clipper surfaces share ─────────
    Captions, emoji density, silence trimming, vertical reframing and
@@ -12,46 +13,68 @@ import { storageKey } from "../../utils/storage"
    surface you happened to finish in decided the render.
 
    One hook, owned once by ClipStudio and handed to both, so the surfaces
-   cannot disagree. Persisted per session because these are habits, not
-   per-video decisions: a creator who wants Bold captions and vertical
-   reframing wants them for the next video too.
-
-   The VALUES are the API contract — `caption_style` ids come from
-   CAPTION_STYLES (tests/test_caption_styles_parity.py pins them against
-   the backend) and "none" means captions off, intercepted upstream of the
-   ASS builder. Don't invent a new sentinel here.
+   cannot disagree. Persisted per user habit via localStorage so preferences
+   (like Groq Cloud Whisper, caption styles, vertical crop) survive browser restarts.
 */
 
 export const CLIP_SETTINGS_DEFAULTS = {
-  // Most extractions are raw cuts the creator styles elsewhere, and
-  // captions-off also skips the burn re-encode entirely — the fast path is
-  // the default path.
   caption_style: "none",
   emoji_style: "moderate",
   remove_silence: false,
   force_vertical: false,
   whisper_quality: "balanced",
+  whisper_backend: "auto",
   force_retranscribe: false,
 }
 
 export default function useClipSettings() {
+  const globalSettings = useAppStore((s) => s.settings)
   const key = storageKey("clipper", "settings")
+
   const [settings, setSettings] = useState(() => {
     try {
-      const raw = sessionStorage.getItem(key)
+      const raw = localStorage.getItem(key) || sessionStorage.getItem(key)
       const saved = raw ? JSON.parse(raw) : null
-      // Merge over defaults, never replace: a stored blob from an older
-      // build is missing whatever was added since.
+      const base = { ...CLIP_SETTINGS_DEFAULTS }
+      if (globalSettings?.caption_style) {
+        base.caption_style = globalSettings.caption_style
+      }
+      if (globalSettings?.whisper_quality) {
+        base.whisper_quality = globalSettings.whisper_quality
+      }
+      if (globalSettings?.stt_provider) {
+        base.whisper_backend = globalSettings.stt_provider
+      }
       return saved && typeof saved === "object"
-        ? { ...CLIP_SETTINGS_DEFAULTS, ...saved }
-        : CLIP_SETTINGS_DEFAULTS
+        ? { ...base, ...saved }
+        : base
     } catch {
       return CLIP_SETTINGS_DEFAULTS
     }
   })
 
+  // Sincroniza quando as configurações globais do backend chegam pela primeira vez
   useEffect(() => {
-    try { sessionStorage.setItem(key, JSON.stringify(settings)) } catch { /* private mode */ }
+    if (!globalSettings) return
+    setSettings((prev) => {
+      let changed = false
+      const next = { ...prev }
+      if (!prev.whisper_backend && globalSettings.stt_provider) {
+        next.whisper_backend = globalSettings.stt_provider
+        changed = true
+      }
+      if (!prev.whisper_quality && globalSettings.whisper_quality) {
+        next.whisper_quality = globalSettings.whisper_quality
+        changed = true
+      }
+      return changed ? next : prev
+    })
+  }, [globalSettings])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(settings))
+    } catch { /* private mode */ }
   }, [key, settings])
 
   /** Patch one or more fields. */
@@ -71,21 +94,6 @@ export default function useClipSettings() {
 /**
  * The subset every extract request carries, in the shape
  * `ClipStudio.handleExtract` expects.
- *
- * `hasTranscript` is not decoration. handleExtract only forwards
- * `whisper_quality` when `force_retranscribe` is set — so on a source with no
- * cached transcript, where Whisper MUST run and the chosen model is the only
- * thing that decides its quality, a raw `{...settings}` sent nothing and the
- * backend fell back to "balanced". The bench's footer said "Whisper: best" and
- * meant "balanced". ExtractDialog had already grown its own private fix for
- * this; the bench had not, which is exactly the two-copies-of-one-decision
- * failure the shared settings object exists to prevent. Derive it once, here,
- * and let both surfaces call this.
- *
- * @param {object} settings  a CLIP_SETTINGS_DEFAULTS-shaped object
- * @param {{hasTranscript?: boolean}} [opts]  whether the source already has a
- *   cached Whisper transcript. Omitted → treated as absent, i.e. transcription
- *   is required, which is the safe direction: it sends the user's choice.
  */
 export function clipSettingsPayload(settings, { hasTranscript = false } = {}) {
   return {
@@ -94,6 +102,7 @@ export function clipSettingsPayload(settings, { hasTranscript = false } = {}) {
     remove_silence: settings.remove_silence,
     force_vertical: settings.force_vertical,
     whisper_quality: settings.whisper_quality,
+    whisper_backend: settings.whisper_backend || "auto",
     force_retranscribe: !hasTranscript || !!settings.force_retranscribe,
   }
 }

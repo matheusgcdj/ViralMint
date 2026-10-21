@@ -145,7 +145,7 @@ const Row = memo(function Row({
 
         <TimeField
           value={range.start}
-          ariaLabel={`Range ${index + 1} start`}
+          ariaLabel={`Início do corte ${index + 1}`}
           // Clamp here rather than letting `update` do it silently: typing an
           // end before the start should pin to the floor, not swap the bounds
           // under the user.
@@ -154,7 +154,7 @@ const Row = memo(function Row({
         <Typography sx={{ fontSize: "0.66rem", color: "text.disabled", flexShrink: 0 }}>→</Typography>
         <TimeField
           value={range.end}
-          ariaLabel={`Range ${index + 1} end`}
+          ariaLabel={`Fim do corte ${index + 1}`}
           // Upper bound is left to `update`, which clamps to the source
           // duration — the floor is the only part the row has to know.
           onCommit={(v) => onEdit(range.id, { end: Math.max(v, range.start + MIN_LEN_SEC) })}
@@ -168,7 +168,7 @@ const Row = memo(function Row({
           {formatDuration(len)}
         </Typography>
         <IconButton
-          size="small" aria-label={`Remove range ${index + 1}`}
+          size="small" aria-label={`Remover corte ${index + 1}`}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onRemove(range.id) }}
           sx={{ p: 0.15, ml: 0.25, color: "text.disabled", "&:hover": { color: "error.main" } }}
@@ -222,7 +222,7 @@ export default function RangeRail({
           fontSize: "0.6rem", fontWeight: 800, letterSpacing: 0.8,
           color: "text.secondary",
         }}>
-          RANGES
+          CORTES
         </Typography>
         <Typography sx={{
           fontSize: "0.6rem", fontWeight: 700,
@@ -232,26 +232,26 @@ export default function RangeRail({
         </Typography>
         <Box sx={{ flex: 1 }} />
         {aiSlot}
-        <Tooltip title={atCap ? `The bench holds ${MAX_RANGES} ranges` : "Add a range at the playhead (N)"}>
+        <Tooltip title={atCap ? `A mesa comporta até ${MAX_RANGES} cortes` : "Adicionar corte no cursor (N)"}>
           <span>
             <IconButton size="small" disabled={atCap} onClick={onAdd}
-              aria-label="Add a range at the playhead" sx={{ p: 0.2 }}>
+              aria-label="Adicionar corte no cursor" sx={{ p: 0.2 }}>
               <AddIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title="Paste times you already have — show notes, a chapter list, a message">
+        <Tooltip title="Colar marcações de tempo (notas, capítulos, lista)">
           <span>
             <IconButton size="small" disabled={atCap} onClick={onPaste}
-              aria-label="Paste timestamps" sx={{ p: 0.2 }}>
+              aria-label="Colar marcações de tempo" sx={{ p: 0.2 }}>
               <ContentPasteIcon sx={{ fontSize: 15 }} />
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title="Remove every pending range">
+        <Tooltip title="Limpar todos os cortes pendentes">
           <span>
             <IconButton size="small" disabled={!ranges.length} onClick={onClear}
-              aria-label="Clear all ranges" sx={{ p: 0.2 }}>
+              aria-label="Limpar todos os cortes" sx={{ p: 0.2 }}>
               <DeleteSweepIcon sx={{ fontSize: 15 }} />
             </IconButton>
           </span>
@@ -271,12 +271,12 @@ export default function RangeRail({
         {ranges.length === 0 ? (
           <Stack spacing={0.75} sx={{ p: 1 }}>
             <Typography sx={{ fontSize: "0.66rem", color: "text.secondary", lineHeight: 1.5 }}>
-              No ranges yet. Drag across the filmstrip, press <strong>N</strong>,
-              paste timestamps, or <strong>Ask AI</strong> to propose some.
+              Nenhum corte ainda. Arraste na faixa, pressione <strong>N</strong>,
+              cole marcações ou use <strong>Perguntar à IA</strong> para propor cortes.
             </Typography>
             <Button size="small" startIcon={<AddIcon sx={{ fontSize: 15 }} />} onClick={onAdd}
               sx={{ textTransform: "none", fontSize: "0.7rem", alignSelf: "flex-start" }}>
-              Add at playhead
+              Adicionar no cursor
             </Button>
           </Stack>
         ) : (
