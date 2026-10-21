@@ -61,7 +61,7 @@ export default function FacetBar({
           // more — scroll", where a hard cut read as a rendering bug.
           maskImage: { xs: "linear-gradient(90deg, #000 82%, transparent)", sm: "none" },
         }}>
-        <Box role="tablist" aria-label="What it is" sx={{
+        <Box role="tablist" aria-label="Tipo de mídia" sx={{
           display: "inline-flex", gap: 0.4, p: 0.4, borderRadius: "999px",
           bgcolor: isDark ? alpha("#fff", 0.04) : alpha("#000", 0.035),
         }}>
@@ -121,7 +121,7 @@ export default function FacetBar({
             <GridViewRoundedIcon sx={{ fontSize: 15 }} />
             <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Grade</Box>
           </ToggleButton>
-          <ToggleButton value="tree" aria-label="Group by source">
+          <ToggleButton value="tree" aria-label="Agrupar por fonte">
             <AccountTreeRoundedIcon sx={{ fontSize: 15 }} />
             <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Por fonte</Box>
           </ToggleButton>
@@ -204,7 +204,7 @@ export default function FacetBar({
 
         <Select
           size="small" value={producer} onChange={(e) => onProducerChange(e.target.value)}
-          aria-label="Filter by tool"
+          aria-label="Filtrar por ferramenta"
           sx={{ height: 28, fontSize: "0.76rem", "& .MuiSelect-select": { py: 0 }, minWidth: 132 }}
         >
           <MenuItem value="all" sx={{ fontSize: "0.8rem" }}>Todas as ferramentas</MenuItem>

@@ -560,7 +560,7 @@ export default function Library() {
             <Button size="small" variant="outlined" onClick={openActivity}
               sx={focusRing()}
               startIcon={<BoltRoundedIcon sx={{ fontSize: 17 }} />}>
-              Activity
+              Atividades
               {(runningCount > 0 || recentFailures.length > 0) && (
                 <Box component="span" sx={{
                   ml: 0.7, px: 0.6, borderRadius: "999px", fontSize: "0.68rem", fontWeight: 700,
