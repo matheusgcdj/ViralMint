@@ -64,6 +64,7 @@ async def init_db():
         video_metrics, viral_formula,
         connected_channel, dynamic_template, caption_style,
         video_project,
+        social_account, channel_profile, publish_queue,
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -111,6 +112,11 @@ async def init_db():
         await _add_column_if_missing(conn, "user_settings", "instagram_client_secret_encrypted", "TEXT", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "instagram_account_name", "VARCHAR(200)", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "upload_to_instagram", "BOOLEAN", existing=_cols)
+        # Multi-niche channels & Social accounts & Publish queue
+        await _add_column_if_missing(conn, "channel_profiles", "auto_publish", "BOOLEAN", existing=_cols)
+        await _add_column_if_missing(conn, "channel_profiles", "performance_metrics", "TEXT", existing=_cols)
+        await _add_column_if_missing(conn, "publish_queue", "priority", "FLOAT", existing=_cols)
+        await _add_column_if_missing(conn, "publish_queue", "retry_count", "INTEGER", existing=_cols)
 
     # Drift sentinel — compare every model's columns against the live DB
     # schema and log a loud warning for any column the model declares but
