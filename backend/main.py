@@ -244,6 +244,72 @@ async def lifespan(app: FastAPI):
         import logging
         logging.getLogger(__name__).warning(f"yt-dlp version check failed: {e}")
 
+    # Periodic YouTube cookies health check & alert
+    try:
+        from backend.core.task_runner import spawn_background
+
+        async def _watch_youtube_cookies_health():
+            import asyncio
+            import logging
+            from datetime import datetime
+            from backend.database import AsyncSessionLocal
+            from backend.models.user_settings import UserSettings
+            from backend.messaging.manager import messaging
+            from backend.messaging.base import NotificationEvent
+            from backend.services.ytdlp_service import check_youtube_cookies_validity
+            from sqlalchemy import select
+
+            log = logging.getLogger(__name__)
+            # Give server and messaging channels 30s to initialize before first probe
+            await asyncio.sleep(30)
+
+            while True:
+                try:
+                    async with AsyncSessionLocal() as db:
+                        res = await db.execute(
+                            select(UserSettings).where(UserSettings.user_id == "local")
+                        )
+                        s = res.scalar_one_or_none()
+
+                    has_cookies = bool(s and s.youtube_cookies_encrypted)
+                    set_at = s.youtube_cookies_set_at if s else None
+
+                    if has_cookies:
+                        age_days = (datetime.utcnow() - set_at).days if set_at else None
+                        val_result = await asyncio.to_thread(check_youtube_cookies_validity)
+
+                        if not val_result.get("ok"):
+                            log.warning("YouTube cookies periodic check: INVALID or BOT-BLOCKED (%s)", val_result.get("error"))
+                            await messaging.notify(
+                                NotificationEvent.JOB_FAILED,
+                                job_type="YouTube Cookies",
+                                error=(
+                                    "Os cookies de autenticação do YouTube expiraram ou falharam no teste anti-bot. "
+                                    "Atualize o arquivo cookies.txt na tela de Configurações para manter os downloads ativos."
+                                )
+                            )
+                        elif age_days is not None and age_days >= 25:
+                            log.warning("YouTube cookies periodic check: EXPIRING SOON (%d days old)", age_days)
+                            if age_days in (25, 28, 29):
+                                await messaging.notify(
+                                    NotificationEvent.JOB_FAILED,
+                                    job_type="YouTube Cookies",
+                                    error=f"Seus cookies do YouTube têm {age_days} dias e podem expirar em breve. Considere renovar o cookies.txt em Configurações."
+                                )
+                        else:
+                            log.info("YouTube cookies periodic check: HEALTHY (age: %s days)", age_days)
+
+                except Exception as exc:
+                    log.debug("YouTube cookies background health check error: %s", exc)
+
+                # Check every 12 hours
+                await asyncio.sleep(12 * 3600)
+
+        spawn_background(_watch_youtube_cookies_health())
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"YouTube cookies watcher failed to start: {e}")
+
     # Start messaging channels (Telegram, WhatsApp, Discord, Slack)
     try:
         from backend.messaging.manager import messaging

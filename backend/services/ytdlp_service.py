@@ -161,36 +161,25 @@ def _resolve_js_runtimes() -> dict:
     return {"deno": {}}
 
 
-def _yt_dlp_js_opts() -> dict:
+def _yt_dlp_js_opts(player_clients: list[str] | None = None) -> dict:
     """Enable a JS runtime + EJS challenge solver for YouTube extraction,
     plus the per-extractor tweaks that keep the flaky sites working.
 
     Runtime selection is machine-aware — see `_resolve_js_runtimes`.
 
-    - **youtube**: cycle player clients, leading with the three that yt-dlp's
-      PO Token Guide lists as NOT requiring a token (tv, web_embedded,
-      android_vr) — when one client gets bot-blocked, the next takes over.
-      `webpage_client` controls the identity for the initial page scrape,
-      distinct from the streaming-URL request. `formats: missing_pot` allows
-      degraded-quality formats over no download at all.
-    - **youtubetab**: `skip=authcheck` — with cookies present, public channel
-      extraction otherwise fails an unnecessary auth check.
-    - **tiktok**: `app_info=[""]` triggers the genuine-device-id flow (most
-      stable); app versions match TikTok's current mobile app.
-    - **twitter**: force the syndication API — the default graphql path 403s
-      guest-token requests for most tweets.
-    - **instagram/reddit**: bump extractor retries (known to flake).
+    - **youtube**: cycle player clients, leading with high-success datacenter
+      clients (ios, android, tv_embedded) before token-free and web clients.
     """
+    clients = player_clients or [
+        "ios", "android", "tv_embedded", "web_embedded",
+        "tv", "android_vr", "mweb", "web_safari", "web",
+    ]
     return {
         "js_runtimes": _resolve_js_runtimes(),
         "remote_components": {"ejs:github": {}},
         "extractor_args": {
             "youtube": {
-                "player_client": [
-                    "tv", "web_embedded", "android_vr",   # no-token (lead)
-                    "tv_simply", "ios", "mweb",            # token-gated fallbacks
-                    "web_safari", "web",                    # last resort
-                ],
+                "player_client": clients,
                 "webpage_client": ["web"],
                 "formats": ["missing_pot"],
             },
@@ -463,6 +452,69 @@ def clear_youtube_cookies():
         try:
             if p.exists():
                 p.unlink()
+        except Exception:
+            pass
+
+
+def check_youtube_cookies_validity(cookie_text: str | None = None) -> dict:
+    """Validate YouTube cookies against YouTube's anti-bot verification with a fast test.
+    Returns: {"ok": bool, "status": "valid" | "expired" | "not_configured" | "error", "error": str | None, "title": str | None}
+    """
+    import tempfile
+    import os
+
+    resolved_cookie = cookie_text
+    if not resolved_cookie or resolved_cookie == "__check_saved__":
+        from backend.core.service_keys import resolve_key_sync
+        try:
+            resolved_cookie = resolve_key_sync("youtube_cookies").strip()
+        except Exception:
+            resolved_cookie = ""
+
+    if not resolved_cookie:
+        cookie_file = settings.STORAGE_ROOT / "yt_cookies.txt"
+        if cookie_file.exists() and cookie_file.stat().st_size > 0:
+            try:
+                resolved_cookie = cookie_file.read_text(encoding="utf-8", errors="ignore").strip()
+            except Exception:
+                pass
+
+    if not resolved_cookie:
+        return {"ok": False, "status": "not_configured", "error": "Nenhum cookie configurado"}
+
+    tmp = tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8")
+    try:
+        tmp.write(resolved_cookie)
+        tmp.flush()
+        tmp.close()
+        import yt_dlp
+        test_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "cookiefile": tmp.name,
+            "extract_flat": True,
+            "skip_download": True,
+            "socket_timeout": 12,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["ios", "android", "tv_embedded", "web_embedded", "tv", "web"],
+                }
+            },
+            "http_headers": _yt_dlp_http_headers(),
+        }
+        with yt_dlp.YoutubeDL(test_opts) as ydl:
+            info = ydl.extract_info("https://www.youtube.com/watch?v=jNQXAC9IVRw", download=False)
+            if info and info.get("id"):
+                return {"ok": True, "status": "valid", "title": info.get("title", "Me at the zoo")}
+        return {"ok": False, "status": "expired", "error": "Não foi possível validar o cookie com o YouTube"}
+    except Exception as e:
+        err_msg = str(e)
+        status = "expired" if _is_bot_detection_error(err_msg) or "sign in" in err_msg.lower() or "429" in err_msg else "error"
+        return {"ok": False, "status": status, "error": f"Erro ao testar cookies no YouTube: {err_msg}"}
+    finally:
+        try:
+            if os.path.exists(tmp.name):
+                os.unlink(tmp.name)
         except Exception:
             pass
 
@@ -1189,7 +1241,7 @@ async def download_video(
                         _cleanup_partial_files(output_dir, file_stem)
                         continue
 
-                    # ── Bot detection: retry with fresh cookies ────
+                    # ── Bot detection: retry with fresh cookies and rotated player clients ────
                     if _is_bot_detection_error(str(e)) and attempt == 0:
                         cookie_file = _get_cookie_file()
                         if cookie_file and "cookiefile" not in video_opts:
@@ -1197,6 +1249,10 @@ async def download_video(
                             _cleanup_partial_files(output_dir, file_stem)
                             video_opts["cookiefile"] = str(cookie_file)
                             base_opts["cookiefile"] = str(cookie_file)
+                            video_opts["extractor_args"] = {
+                                **video_opts.get("extractor_args", {}),
+                                "youtube": {"player_client": ["ios", "android", "tv_embedded", "web_embedded", "tv", "web"]},
+                            }
                             import time as _time
                             _time.sleep(2)
                             continue  # Retry with cookies
@@ -1205,10 +1261,26 @@ async def download_video(
                             logger.warning(f"Bot detection triggered, retrying with {browser} cookies")
                             _cleanup_partial_files(output_dir, file_stem)
                             _apply_cookies(video_opts)
+                            video_opts["extractor_args"] = {
+                                **video_opts.get("extractor_args", {}),
+                                "youtube": {"player_client": ["ios", "android", "tv_embedded", "web_embedded", "tv", "web"]},
+                            }
                             import time as _time
                             _time.sleep(3)
                             continue  # Retry with cookies
                         else:
+                            # Try rotating player client before raising
+                            cur_clients = video_opts.get("extractor_args", {}).get("youtube", {}).get("player_client", [])
+                            if cur_clients != ["ios", "android", "tv_embedded"]:
+                                logger.warning("Bot detection triggered, retrying with dedicated ios/android client profile")
+                                _cleanup_partial_files(output_dir, file_stem)
+                                video_opts["extractor_args"] = {
+                                    **video_opts.get("extractor_args", {}),
+                                    "youtube": {"player_client": ["ios", "android", "tv_embedded"]},
+                                }
+                                import time as _time
+                                _time.sleep(2)
+                                continue
                             _cleanup_partial_files(output_dir, file_stem)
                             raise DownloadError(
                                 "O YouTube exige verificação anti-bot neste servidor. "

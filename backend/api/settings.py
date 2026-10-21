@@ -443,44 +443,10 @@ async def test_cookie(body: dict):
     elif platform == "youtube":
         cookie_text = cookie.strip()
         if not cookie_text or cookie_text == "__check_saved__":
-            from backend.core.service_keys import resolve_key_sync
-            cookie_text = resolve_key_sync("youtube_cookies").strip()
-            if not cookie_text:
-                disk_cookie = app_settings.STORAGE_ROOT / "yt_cookies.txt"
-                if disk_cookie.exists():
-                    cookie_text = disk_cookie.read_text(encoding="utf-8", errors="ignore").strip()
-        if not cookie_text:
-            return {"ok": False, "error": "Nenhum cookie fornecido ou configurado"}
-
-        import tempfile
-        tmp = tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8")
-        try:
-            tmp.write(cookie_text)
-            tmp.flush()
-            tmp.close()
-            import yt_dlp
-            test_opts = {
-                "quiet": True,
-                "no_warnings": True,
-                "cookiefile": tmp.name,
-                "extract_flat": True,
-                "skip_download": True,
-                "socket_timeout": 12,
-            }
-            with yt_dlp.YoutubeDL(test_opts) as ydl:
-                info = ydl.extract_info("https://www.youtube.com/watch?v=jNQXAC9IVRw", download=False)
-                if info and info.get("id"):
-                    return {"ok": True, "title": info.get("title", "Me at the zoo")}
-            return {"ok": False, "error": "Não foi possível validar o cookie com o YouTube"}
-        except Exception as e:
-            return {"ok": False, "error": f"Erro ao testar cookies no YouTube: {e}"}
-        finally:
-            try:
-                import os
-                if os.path.exists(tmp.name):
-                    os.unlink(tmp.name)
-            except Exception:
-                pass
+            cookie_text = None
+        from backend.services.ytdlp_service import check_youtube_cookies_validity
+        import asyncio
+        return await asyncio.to_thread(check_youtube_cookies_validity, cookie_text)
 
     return {"ok": False, "error": f"Unknown platform: {platform}"}
 
