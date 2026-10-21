@@ -1,0 +1,11 @@
+# Para build local direto a partir do código fonte:
+# docker compose -f docker-compose.build.yml up -d --build
+services:
+  viralmint:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: viralmint:local
+    extends:
+      file: docker-compose.yml
+      service: viralmint

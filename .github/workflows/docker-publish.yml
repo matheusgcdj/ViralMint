@@ -6,8 +6,10 @@ on:
       - main
     paths-ignore:
       - 'README.md'
+      - 'README.*.md'
       - 'docs/**'
       - '.gitignore'
+      - 'docker-compose*.yml'
   workflow_dispatch:
 
 env:

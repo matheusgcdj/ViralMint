@@ -1,9 +1,6 @@
 services:
   viralmint:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: viralmint:latest
+    image: ghcr.io/matheusgcdj/viralmint:latest
     container_name: viralmint
     restart: unless-stopped
     ports:
@@ -15,9 +12,12 @@ services:
       - VIRALMINT_NO_BROWSER=1
       - VIRALMINT_DATA_DIR=/app/storage
       - HYPERFRAMES_BROWSER_PATH=/usr/bin/chromium
+      - FRONTEND_URL=${FRONTEND_URL:-https://viralmint.eumatheus.com}
       # Chaves de criptografia e sessão (geradas automaticamente se vazias)
       - SECRET_KEY=${SECRET_KEY:-}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      # STT Groq Whisper Cloud (Transcrição Acelerada no Estúdio de Cortes)
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
       # Provedores de IA (BYOK - Preencha um ou configure na interface Web em Configurações)
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -25,6 +25,21 @@ services:
       - CUSTOM_AI_BASE_URL=${CUSTOM_AI_BASE_URL:-}
       - CUSTOM_AI_API_KEY=${CUSTOM_AI_API_KEY:-}
       - CUSTOM_AI_MODEL=${CUSTOM_AI_MODEL:-}
+      # Provedores de Voz (TTS Multi-Nicho)
+      - GOOGLE_TTS_API_KEY=${GOOGLE_TTS_API_KEY:-}
+      - GOOGLE_TTS_API_KEYS=${GOOGLE_TTS_API_KEYS:-}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
+      - ELEVENLABS_API_KEYS=${ELEVENLABS_API_KEYS:-}
+      # OAuth & Redes Sociais (PublishQueue)
+      - YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID:-}
+      - YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET:-}
+      - YOUTUBE_REDIRECT_URI=${YOUTUBE_REDIRECT_URI:-}
+      - TIKTOK_CLIENT_KEY=${TIKTOK_CLIENT_KEY:-}
+      - TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET:-}
+      - TIKTOK_REDIRECT_URI=${TIKTOK_REDIRECT_URI:-}
+      - INSTAGRAM_CLIENT_ID=${INSTAGRAM_CLIENT_ID:-}
+      - INSTAGRAM_CLIENT_SECRET=${INSTAGRAM_CLIENT_SECRET:-}
+      - INSTAGRAM_REDIRECT_URI=${INSTAGRAM_REDIRECT_URI:-}
       # Provedores de Mídia de Estoque (Pexels / Pixabay)
       - PEXELS_API_KEY=${PEXELS_API_KEY:-}
       - PIXABAY_API_KEY=${PIXABAY_API_KEY:-}
