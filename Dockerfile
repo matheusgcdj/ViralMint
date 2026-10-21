@@ -19,14 +19,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HOST=0.0.0.0 \
     PORT=16888 \
     VIRALMINT_NO_BROWSER=1 \
-    DEBIAN_FRONTEND=noninteractive
+    DEBIAN_FRONTEND=noninteractive \
+    HYPERFRAMES_BROWSER_PATH=/usr/bin/chromium
 
 # System dependencies:
 # - ffmpeg: audio & video processing, slicing, concatenation
 # - imagemagick: subtitle & caption drawing
 # - fonts: required for subtitle styling and rendering
 # - build tools & headers: for compiling native Python packages if needed
-# - chromium/chrome headless libraries: for HyperFrames/Puppeteer render engine
+# - chromium: headless browser for Motion Graphics (HyperFrames / Puppeteer)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     imagemagick \
@@ -38,20 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libffi-dev \
     libssl-dev \
-    libnss3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpango-1.0-0 \
-    libcairo2 \
+    chromium \
     && rm -rf /var/lib/apt/lists/*
 
 # Fix ImageMagick policy to allow font/text rendering for subtitles

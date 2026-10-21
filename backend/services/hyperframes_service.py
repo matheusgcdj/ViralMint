@@ -622,7 +622,7 @@ class HyperFramesService:
         HyperFrames fetching its headless Chrome, and FFmpeg. On a first install
         it is also the slowest step for exactly that reason.
         """
-        cls._install_step = "Verifying render (first run also fetches Chrome)…"
+        cls._install_step = "Verificando renderização de teste…"
         try:
             # Imported here to avoid a circular import at module load.
             from backend.services.motion_render_service import MotionRenderService
@@ -643,11 +643,11 @@ class HyperFramesService:
                 supersample=False,
             )
             if not out.exists() or out.stat().st_size < 1024:
-                cls._install_error = "Verify render produced no usable output — retry"
+                cls._install_error = "O teste de renderização não produziu um vídeo válido — tente novamente."
                 return
             out.unlink(missing_ok=True)
         except Exception as e:
-            cls._install_error = f"Verify render failed: {str(e)[:160]}"
+            cls._install_error = f"Falha no teste de renderização: {str(e)[:160]}"
             return
         cls._install_progress_pct = 95
 

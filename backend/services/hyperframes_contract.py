@@ -174,6 +174,19 @@ def base_env() -> dict:
         current_path = env.get("PATH", "")
         if node_dir not in current_path.split(os.pathsep):
             env["PATH"] = f"{node_dir}{os.pathsep}{current_path}" if current_path else node_dir
+
+    if "HYPERFRAMES_BROWSER_PATH" not in env or not env["HYPERFRAMES_BROWSER_PATH"]:
+        import shutil
+        for cand in ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"]:
+            p = Path(cand)
+            if p.exists():
+                env["HYPERFRAMES_BROWSER_PATH"] = str(p)
+                break
+            w = shutil.which(cand)
+            if w:
+                env["HYPERFRAMES_BROWSER_PATH"] = w
+                break
+
     return env
 
 
