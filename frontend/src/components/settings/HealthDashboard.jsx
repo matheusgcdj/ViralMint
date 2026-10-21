@@ -97,7 +97,7 @@ export default function HealthDashboard() {
           </Tooltip>
         </Stack>
         <Button size="small" variant="outlined" color="inherit" startIcon={<RefreshIcon sx={{ fontSize: 16 }} />} onClick={fetchHealth}>
-          Refresh
+          Atualizar
         </Button>
       </Stack>
 

@@ -187,7 +187,7 @@ export default function MotionGraphicsSection() {
           <>
             <Chip size="small" color="success" variant="outlined" icon={<CheckCircleIcon sx={{ fontSize: 14 }} />} label="Instalado" />
             <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              {status.disk_size_mb || status.approx_download_mb} MB on disk
+              {status.disk_size_mb || status.approx_download_mb} MB no disco
               {status.engine_cache_mb ? ` · +${status.engine_cache_mb} MB engine cache` : ""}
             </Typography>
           </>
@@ -219,7 +219,7 @@ export default function MotionGraphicsSection() {
             </Button>
             <Button size="small" variant="outlined" color="error" startIcon={<DeleteIcon sx={{ fontSize: 16 }} />}
               disabled={busy} onClick={() => setUninstallConfirm(true)}>
-              Remove
+              Remover
             </Button>
           </>
         )}

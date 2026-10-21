@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     libssl-dev \
     chromium \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Fix ImageMagick policy to allow font/text rendering for subtitles
