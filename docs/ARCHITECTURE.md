@@ -1,6 +1,6 @@
 # Arquitetura e Manual Operacional do ViralMint
 
-Este documento serve como a **referência técnica e arquitetural canônica** do ViralMint para desenvolvedores humanos e agentes de IA (Ekko Architect, Claude Strategist, Codex Engineer, DeepSeek Analyst, Qwen Media Specialist, Grok Creative, Kimi Content Analyst e CodeBuddy Publisher).
+Este documento serve como a **referência técnica, arquitetural e estratégica canônica** do ViralMint para desenvolvedores humanos e agentes de IA (Ekko Architect, Claude Strategist, Codex Engineer, DeepSeek Analyst, Qwen Media Specialist, Grok Creative, Kimi Content Analyst e CodeBuddy Publisher).
 
 ---
 
@@ -68,7 +68,7 @@ A resolução de qualquer chave externa segue a precedência:
 
 Serviços suportados via BYOK:
 * **LLMs**: OpenAI, Anthropic, Gemini, Groq, DeepSeek.
-* **TTS / STT**: ElevenLabs, Google Cloud TTS (suporte a pool multiline de credenciais), Groq Whisper, OpenAI TTS, VoiceStudio.
+* **TTS / STT**: ElevenLabs, Google Cloud TTS (suporte a pool multiline de credenciais com hot-swap), Groq Whisper, OpenAI TTS, VoiceStudio local.
 * **Mídias Stock**: Pexels, Pixabay.
 * **Redes Sociais**: YouTube Data API & OAuth, TikTok API & OAuth, Instagram Graph API & OAuth, Kwai.
 
@@ -86,13 +86,14 @@ Serviços suportados via BYOK:
 
 ### 3.2. Canais Temáticos Multi-Nicho (`/channel-profiles` & `/channels`)
 * **Objetivo**: Gestão centralizada de canais por nicho de conteúdo, definindo identidade, estilo visual e distribuição.
-* **Presets de Nicho (`NICHE_PRESETS`)**:
-  1. **Cortes de Podcast**: Foco em histórias de impacto, debates acalorados e lições de vida.
-  2. **Curiosidades**: Fatos surpreendentes, ciência estranha, "você sabia?".
-  3. **Finanças / Crypto**: Dicas financeiras, análises de mercado, investimentos rápidos.
-  4. **Terror / Mistério**: Contos sombrios, lendas urbanas, mistérios reais não resolvidos.
-  5. **Produtividade / Hacks**: Dicas práticas de rotina, organização e biohacking.
-  6. **Humor / Memes**: Situações cotidianas exageradas, sketches e dublagens cômicas.
+* **Catálogo de 6 Nichos (`NICHE_PRESETS` em `backend/core/niche_presets.py`)**:
+  1. `podcast_cuts` (**Cortes de Podcast**): Foco em revelações, polêmicas e lições de vida. Estilo de legenda `mrbeast`, TTS `voicestudio` (speed: 1.0, stability: 0.85).
+  2. `curiosities` (**Curiosidades & Fatos Fascinantes**): Fatos surpreendentes e ciência incomum. Estilo `karaoke`, TTS `voicestudio` (speed: 0.98, pitch: -1).
+  3. `finance_crypto` (**Finanças, Negócios & Cripto**): Conteúdo de autoridade e valor. Estilo `highlight`, TTS `elevenlabs` (speed: 1.02, stability: 0.90).
+  4. `horror_mystery` (**Terror, Mistério & Sobrenatural**): Atmosfera pesada e imersiva. Estilo `glitch`, TTS `voicestudio` (speed: 0.93, pitch: -2, reverb: True).
+  5. `productivity` (**Produtividade, Foco & Hábitos**): Dicas acionáveis e rotinas matinais. Estilo `minimal`, TTS `google` (speed: 1.05).
+  6. `humor_memes` (**Humor, Memes & Situações Cotidianas**): Pacing ultrarrápido (35s-45s máx). Estilo `bold_pop`, TTS `voicestudio` (speed: 1.15, pitch: +1).
+
 * **Wizard de Criação (3 Etapas)**:
   - **Etapa 1**: Escolha de nicho, nome do canal, persona, tom de voz e idioma.
   - **Etapa 2 (Pre-flight Gate)**: Seleção obrigatória de ao menos uma conta social conectada (`len(selected_accounts) >= 1`).
@@ -110,51 +111,61 @@ Serviços suportados via BYOK:
   - Associação seletiva de canais sociais a cada perfil temático.
 
 ### 3.4. PublishQueue & Agendamento Kanban (`/queue`)
-* **Objetivo**: Fila centralizada de publicação multi-plataforma com visualização Kanban.
-* **4 Lanes Especializadas**:
-  1. `tiktok`: Publicação direta via TikTok Content Posting API.
-  2. `youtube`: Publicação via YouTube Data API v3 (Upload de Shorts).
-  3. `instagram`: Publicação via Instagram Graph API (Reels Container & Publish).
-  4. `kwai`: Publicação via conector Kwai / Webhook autenticado.
-* **Escalonamento Anti-Canibalização (Staggering)**:
-  - Distribuição temporal automática para impedir competição entre algoritmos no mesmo instante:
-    - **TikTok**: Imediato ($T+0$)
-    - **YouTube Shorts**: $+120$ minutos ($T+2\text{h}$)
-    - **Instagram Reels**: $+240$ minutos ($T+4\text{h}$)
-    - **Kwai**: $+360$ minutos ($T+6\text{h}$)
-* **Modos de Operação**:
-  - Despacho manual imediato ("Postar Agora").
-  - Agendamento automático com horários de pico por nicho.
-  - Retentativas automáticas em falhas de API transitórias.
+* **Objetivo**: Fila centralizada de publicação multi-plataforma com visualização Kanban em 4 lanes: `tiktok`, `youtube`, `instagram`, `kwai`.
+* **Algoritmo de Prioridade (`calculate_publication_priority`)**:
+  $$\text{Priority} = (V_{\text{norm}} \times 0.4 + H_{\text{norm}} \times 0.3 + F_{\text{factor}} \times 0.3) \times 100$$
+  - $V_{\text{norm}}$: Nota de viralidade normalizada (0 a 1).
+  - $H_{\text{norm}}$: Nota do gancho/hook normalizada (0 a 1).
+  - $F_{\text{factor}}$: Fator de frescor com decaimento exponencial $e^{-0.03 \times \text{hours}}$ (ou fixo em $0.5$ para conteúdo *evergreen*).
+* **Escalonamento Anti-Canibalização por Nicho (`stagger_delays_minutes`)**:
+  - **Cortes de Podcast**: TikTok $0\text{m} \rightarrow$ Shorts $+120\text{m} \rightarrow$ Reels $+240\text{m} \rightarrow$ Kwai $+360\text{m}$
+  - **Curiosidades**: TikTok $0\text{m} \rightarrow$ Reels $+90\text{m} \rightarrow$ Shorts $+180\text{m} \rightarrow$ Kwai $+300\text{m}$
+  - **Finanças/Cripto**: Shorts $0\text{m} \rightarrow$ Reels $+120\text{m} \rightarrow$ TikTok $+240\text{m} \rightarrow$ Kwai $+360\text{m}$ (YouTube lidera pela relevância do nicho)
+  - **Terror/Mistério**: TikTok $0\text{m} \rightarrow$ Kwai $+60\text{m} \rightarrow$ Reels $+150\text{m} \rightarrow$ Shorts $+240\text{m}$
+  - **Produtividade**: Shorts $0\text{m} \rightarrow$ Reels $+90\text{m} \rightarrow$ TikTok $+180\text{m} \rightarrow$ Kwai $+300\text{m}$
+  - **Humor/Memes**: TikTok $0\text{m} \rightarrow$ Kwai $+45\text{m} \rightarrow$ Reels $+90\text{m} \rightarrow$ Shorts $+180\text{m}$
 
 ### 3.5. Smart Video Studio & Geração Automática (`/smart-video`)
-* **Objetivo**: Criação de vídeos do zero a partir de ideias, roteiros ou prompts.
-* **Fluxo do Pipeline**:
-  1. **Roteirização por IA**: Gera gancho inicial (0-3s), desenvolvimento dinâmico e chamada para ação (CTA).
-  2. **Voz e Narração**: Gera áudio neural via TTS selecionado.
-  3. **Alinhamento e Legendas**: Transcrição Whisper com timestamps palavra por palavra (`caption_timing.py`).
-  4. **Seleção de B-Roll**: Busca automática de vídeos stock no Pexels/Pixabay contextualmente alinhados ao texto.
-  5. **Composição e Renderização**: Montagem em formato vertical 9:16 com transições, música de fundo e efeitos sonoros (SFX).
+* **Objetivo**: Criação de vídeos do zero a partir de ideias, tópicos ou roteiros estruturados.
+* **Limites e Regras de Roteirização (`studio_doc.py`)**:
+  - `SCENE_MAX = 18`: Máximo de 18 cenas por vídeo.
+  - `LINE_MAX = 400`: Máximo de 400 caracteres por cena.
+  - `MIN_SCENE_SECONDS = 1.2s`: Duração mínima por cena.
+  - `HOOK_SECONDS = 2.5s`: Título visual do gancho fixado nos primeiros 2.5 segundos.
+  - `HOOK_TEXT_MAX = 80`: Máximo de caracteres do gancho na tela.
+* **Estrutura de Roteiro (Gancho $\rightarrow$ Desenvolvimento $\rightarrow$ CTA)**:
+  - **Gancho (0-3s)**: Sem apresentações formais ou saudações; ruptura de padrão imediata com curiosidade provocativa.
+  - **Desenvolvimento**: Mudanças visuais a cada 2-4 segundos; cortes de respiração e legendas dinâmicas.
+  - **CTA**: Conclusão focada em engajamento (salvamento no Instagram, comentários no TikTok, inscrição no Shorts).
+* **Estilos Visuais**: `cinematic`, `vlog`, `card` (citação), `educational`, `documentary`, `noir`, `neon`, `vintage`.
 
 ### 3.6. Voice Studio & TTS (`/voice-studio`)
 * **Catálogo de Vozes Neurais**:
-  - Vozes nativas brasileiras de alta fidelidade (Francisca, Antonio, Brenda, Donato, Elza, Fabio).
+  - Vozes nativas brasileiras: Francisca, Antonio, Brenda, Donato, Elza, Fabio.
   - Controle de tom (`pitch`), velocidade (`speed`) e volume.
-  - Pré-escuta instantânea de amostras.
-* **VoiceStudio Local (Porta 3900)**: Suporte a container/servidor local com fallback transparente para nuvem.
+  - Pré-escuta instantânea de áudio.
+* **VoiceStudio Local (Porta 3900)**: Servidor local com fallback transparente para nuvem.
 * **Pool de Chaves Google Cloud TTS**: Balanceamento e hot-swap automático de credenciais de serviço para alta escala.
 
-### 3.7. Clip Studio / Cortes de Podcast (`/clips`)
-* **Entrada**: URL do YouTube ou upload de vídeo longo.
-* **Processamento**:
-  - Download em alta qualidade via `yt-dlp`.
-  - Transcrição completa com Whisper.
-  - Análise semântica por LLM para localizar momentos virais de pico (humor, revelação, controvérsia).
-  - Recorte inteligente com auto-reframe para vertical 9:16 (foco no rosto do locutor ativo).
-  - Queima de legendas animadas em destaque (*karaoke captioning*).
+### 3.7. Clip Studio & Deduplicação de Tópicos (`/clips`)
+* **Processamento de Cortes**:
+  - Download via `yt-dlp` e transcrição integral com Whisper.
+  - Detecção de momentos virais e autocrop facial para 9:16.
+* **Filtro de Similaridade e Deduplicação (`clip_extractor.py`)**:
+  - `TOPIC_DEDUP_THRESHOLD = 0.55`: Similaridade de Jaccard superior a 55% em `título + gancho + justificativa` descarta clipes redundantes do mesmo vídeo.
+  - Lista de exclusão com mais de 80 stopwords para evitar falsos positivos de similaridade.
+  - Pipeline em dois passos: `_remove_overlapping_clips()` (tempo) $\rightarrow$ `_dedupe_clips_by_topic()` (semântica).
 
-### 3.8. Servidor MCP (`/mcp`)
-* Implementação do **Model Context Protocol** permitindo que agentes externos (Claude Desktop, Cursor, Agentes Ekko) controlem o ViralMint programaticamente.
+### 3.8. Análise de Ganchos e Retenção
+* **Hook Analysis Tool (`tool_runners.py`)**:
+  - Extrai os primeiros 10 segundos de áudio, transcreve com Whisper e analisa via prompt especializado.
+  - Retorna pontuação (1 a 10), veredito, problemas identificados e 3 sugestões de reescrita do gancho.
+* **Feedback Loop de Desempenho (`ChannelProfile.performance_metrics`)**:
+  - Rastreia `avg_retention_rate`, `best_hook_type`, `best_posting_hour` e métricas por plataforma (`performance_tracker.py`).
+  - Cadência de monitoramento: a cada 2 horas nas primeiras 24h, a cada 6 horas entre o 2º e 7º dia, e diário até 30 dias.
+
+### 3.9. Servidor MCP (`/mcp`)
+* Implementação do **Model Context Protocol** permitindo que agentes externos controlem o ViralMint programaticamente.
 * **Ferramentas Expostas**:
   - `viralmint_scout`: Execução de buscas e extração de vídeos virais.
   - `viralmint_create_video`: Disparo de pipelines de geração de vídeo.
@@ -169,12 +180,13 @@ Serviços suportados via BYOK:
 | :--- | :--- |
 | `user_settings` | Chaves de API BYOK criptografadas, configurações de LLM, STT e TTS. |
 | `social_accounts` | Contas conectadas (YouTube, TikTok, Instagram, Kwai) com tokens Fernet. |
-| `channel_profiles` | Perfis de canais temáticos (nicho, persona, estilo, contas associadas). |
-| `publish_queue` | Itens da esteira de postagem (status, plataforma, mídia, agendamento, retentativas). |
+| `channel_profiles` | Perfis de canais temáticos (nicho, persona, estilo, contas associadas, rotatividade de hooks). |
+| `publish_queue` | Itens da esteira de postagem (status, plataforma, mídia, agendamento, retentativas, prioridade). |
 | `scout_results` | Vídeos minerados com métricas, views, autor, tags e notas de outlier. |
 | `downloaded_videos` | Vídeos baixados no storage para processamento ou geração de cortes. |
 | `video_projects` | Projetos do Smart Video Studio com roteiro, áudios e configurações de render. |
-| `generated_videos` | Vídeos finalizados prontos para download ou despacho na fila. |
+| `generated_videos` | Vídeos finalizados com notas de gancho (`clip_hook_score`, `clip_hook_type`). |
+| `video_metrics` | Métricas históricas coletadas por vídeo (views, watch time, CTR, shares). |
 | `chat_sessions` | Histórico de conversas com agentes de IA no chat do app. |
 
 ---
@@ -189,7 +201,8 @@ Serviços suportados via BYOK:
 * `POST /api/settings/kwai-account` — Cadastra conta/canal do Kwai com webhook opcional.
 * `DELETE /api/settings/social-account/{account_id}` — Remove conta social específica.
 
-### Canais Temáticos
+### Canais Temáticos & Presets
+* `GET /api/channel-profiles/presets` — Retorna catálogo de nichos (`NICHE_PRESETS`) e configurações padrão.
 * `GET /api/channel-profiles` — Lista todos os canais temáticos criados.
 * `POST /api/channel-profiles` — Cria um novo canal temático vinculado a contas sociais.
 * `GET /api/channel-profiles/{profile_id}` — Detalhes e métricas de um canal temático.
@@ -216,6 +229,7 @@ Serviços suportados via BYOK:
 ## 6. Diretrizes para Agentes Colaboradores
 
 1. **Ao criar automações de canais**: Sempre certifique-se de que o usuário possui ao menos uma conta social conectada (`len(selected_accounts) >= 1`).
-2. **Ao agendar publicações**: Utilize a função de escalonamento padrão (TikTok $\rightarrow$ Shorts $+2$h $\rightarrow$ Reels $+4$h $\rightarrow$ Kwai $+6$h) para preservar o alcance orgânico.
+2. **Ao agendar publicações**: Utilize o escalonamento específico do nicho (`stagger_delays_minutes`) para preservar o alcance orgânico e evitar penalidades de conteúdo duplicado.
 3. **Ao minerar conteúdo**: Priorize buscas com `extract_flat: True` ou autenticadas via YouTube API para evitar penalidades de taxa ou desafios antibot.
 4. **Ao manipular credenciais**: Nunca exponha chaves Fernet ou tokens em texto plano; use os métodos de criptografia centralizados em `backend/core/crypto.py`.
+5. **Ao gerar roteiros**: Respeite os limites do Smart Video (`SCENE_MAX = 18`, `HOOK_SECONDS = 2.5s`) e aplique a estrutura Gancho $\rightarrow$ Desenvolvimento $\rightarrow$ CTA adaptada à plataforma de destino.
