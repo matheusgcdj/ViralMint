@@ -124,6 +124,7 @@ async def build_youtube_auth_url(client_id: str = None, client_secret: str = Non
             }
         },
         scopes=["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"],
+        autogenerate_code_verifier=False,
     )
     flow.redirect_uri = red_uri
 
@@ -159,9 +160,18 @@ async def exchange_youtube_code(code: str, client_id: str = None, client_secret:
                 }
             },
             scopes=["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"],
+            autogenerate_code_verifier=False,
         )
         flow.redirect_uri = red_uri
-        flow.fetch_token(code=code)
+        try:
+            flow.fetch_token(code=code)
+        except Exception as e:
+            err_msg = str(e)
+            if "invalid_grant" in err_msg.lower() or "missing code verifier" in err_msg.lower():
+                raise UploadAuthError(
+                    "Autorização expirada ou código inválido. Por favor, clique novamente em 'Conectar YouTube'."
+                ) from e
+            raise UploadAuthError(f"Falha ao validar autorização com o Google: {err_msg}") from e
 
         creds = flow.credentials
         creds_dict = {

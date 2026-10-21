@@ -34,6 +34,7 @@ DEFAULT_SEARCH_LIMIT = 15
 # Maps platform name → yt-dlp search prefix
 # Note: bilisearch requires cookies (412), so Bilibili falls back to ytsearch
 YTDLP_SEARCH_PLATFORMS = {
+    "youtube": "ytsearch",
     "soundcloud": "scsearch",
     "niconico": "nicosearch",
 }
@@ -329,8 +330,8 @@ class ScoutAgent:
         if platform == "youtube":
             youtube_key = get_youtube_api_key(user_settings)
             if not youtube_key:
-                logger.warning("YouTube API key not configured — skipping YouTube scout")
-                return []
+                logger.info("YouTube API key not configured — falling back to ytsearch/ytdlp")
+                return await self._scout_via_ytdlp_search("youtube", niche, user_id=user_id)
             from backend.services.youtube_scout import search_youtube
             return await search_youtube(niche, youtube_key, PLATFORM_LIMITS["youtube"])
 

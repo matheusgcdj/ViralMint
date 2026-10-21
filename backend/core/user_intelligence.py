@@ -525,7 +525,9 @@ Return a JSON array of 3 strings. No explanation."""
                 ),
             },
             "youtube_scout": {
-                "configured": bool(env.YOUTUBE_API_KEY),
+                "configured": bool(env.YOUTUBE_API_KEY) or bool(
+                    user_settings and user_settings.youtube_api_key_encrypted
+                ),
             },
             "tiktok_scout": {
                 "configured": bool(env.TIKHUB_API_KEY) or (
@@ -551,7 +553,10 @@ Return a JSON array of 3 strings. No explanation."""
             },
             "stock_footage": {
                 # Either provider is enough; the pipeline picks the configured one.
-                "configured": bool(env.PEXELS_API_KEY or env.PIXABAY_API_KEY),
+                "configured": bool(
+                    env.PEXELS_API_KEY or env.PIXABAY_API_KEY
+                    or (user_settings and (user_settings.pexels_api_key_encrypted or user_settings.pixabay_api_key_encrypted))
+                ),
             },
         }
 

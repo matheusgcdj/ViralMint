@@ -93,9 +93,9 @@ def _should_poll_now(video: GeneratedVideo) -> bool:
 
 async def fetch_youtube_metrics(youtube_video_id: str) -> dict | None:
     """Fetch video stats from YouTube Data API v3."""
-    from backend.config import settings as env
+    from backend.core.service_keys import resolve_key
 
-    api_key = env.YOUTUBE_API_KEY
+    api_key = await resolve_key("youtube_api_key")
     if not api_key:
         return None
 

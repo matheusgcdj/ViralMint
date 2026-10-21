@@ -125,8 +125,8 @@ async def _get_search_volume(keyword: str) -> dict:
 async def _get_competition(keyword: str, youtube_api_key: str = "") -> dict:
     """Estimate competition from YouTube search result count."""
     if not youtube_api_key:
-        from backend.config import settings as env
-        youtube_api_key = env.YOUTUBE_API_KEY
+        from backend.core.service_keys import resolve_key
+        youtube_api_key = await resolve_key("youtube_api_key")
 
     if not youtube_api_key:
         return {"competition_index": 50}

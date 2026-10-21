@@ -251,8 +251,8 @@ async def _check_youtube_signal(keyword: str) -> dict:
     """Check if keyword has recent high-view videos on YouTube (proxy for trending)."""
     import httpx
 
-    from backend.config import settings as env
-    api_key = env.YOUTUBE_API_KEY
+    from backend.core.service_keys import resolve_key
+    api_key = await resolve_key("youtube_api_key")
 
     if not api_key:
         return {"is_trending": False, "reason": "no_api_key"}

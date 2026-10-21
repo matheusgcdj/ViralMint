@@ -1039,10 +1039,14 @@ class PlannerAgent:
             "message": f"Downloading video from URL...",
         }, user_id)
 
-    # Platforms that need API credentials — keys come from .env (BYOK).
+    # Platforms that need API credentials — keys come from DB (BYOK) or .env.
     _CREDENTIAL_PLATFORMS = {
         "youtube": {
-            "check": lambda us: bool(settings.YOUTUBE_API_KEY),
+            "check": lambda us: (
+                bool(settings.YOUTUBE_API_KEY)
+                or bool(us and us.youtube_api_key_encrypted)
+                or True  # YouTube scouting always works: uses Data API when key is configured, ytsearch fallback otherwise
+            ),
         },
         "tiktok": {
             "check": lambda us: (
