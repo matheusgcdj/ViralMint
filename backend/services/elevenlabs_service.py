@@ -5,8 +5,7 @@
 Provides state-of-the-art voice generation with high emotional inflection,
 ideal for viral short-form videos and retention optimization.
 
-**Key pool support**: Multiple ElevenLabs accounts (e.g. 7 accounts with
-free/creator tier credits) can be pooled using ``ELEVENLABS_API_KEYS`` as a
+**Key pool support**: Multiple ElevenLabs accounts can be pooled using ``ELEVENLABS_API_KEYS`` as a
 comma-separated list. The service rotates through them using round-robin
 with automatic failover — when one key hits its quota or concurrency limit,
 the next key takes over transparently with a cooldown.
@@ -177,14 +176,14 @@ def _init_key_pool():
             if row and row[0]:
                 dec = decrypt(row[0])
                 if dec:
-                    keys = [k.strip() for k in dec.split(",") if k.strip()]
+                    keys = [k.strip() for k in dec.replace("\n", ",").split(",") if k.strip()]
     except Exception:
         pass
 
     if not keys:
         multi = getattr(settings, "ELEVENLABS_API_KEYS", "") or ""
         if multi:
-            keys = [k.strip() for k in multi.split(",") if k.strip()]
+            keys = [k.strip() for k in multi.replace("\n", ",").split(",") if k.strip()]
 
     if not keys:
         single = getattr(settings, "ELEVENLABS_API_KEY", "") or ""
@@ -204,9 +203,13 @@ def get_key_pool_status() -> dict:
 
 def reconfigure_key_pool(keys: list[str]):
     """Reconfigure the key pool at runtime."""
-    if len(keys) == 1 and "," in keys[0]:
-        keys = [k.strip() for k in keys[0].split(",") if k.strip()]
-    _key_pool.configure(keys)
+    cleaned: list[str] = []
+    for k in keys:
+        for sub in k.replace("\n", ",").split(","):
+            sub = sub.strip()
+            if sub:
+                cleaned.append(sub)
+    _key_pool.configure(cleaned)
 
 
 # ── REST API implementation ───────────────────────────────────────────────────
@@ -286,7 +289,7 @@ async def generate_voice(
 
     # Case 1: Explicit key(s) passed by caller
     if api_key:
-        explicit_keys = [k.strip() for k in api_key.split(",") if k.strip()]
+        explicit_keys = [k.strip() for k in api_key.replace("\n", ",").split(",") if k.strip()]
         if len(explicit_keys) > 1:
             last_err = None
             async with sem:

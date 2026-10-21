@@ -28,8 +28,8 @@ const TTS_PROVIDERS = [
   },
   {
     id: "google_tts",
-    label: "Google Cloud TTS",
-    hint: "Vozes neurais Google — suporta pool de chaves",
+    label: "Google TTS (Cloud & AI Studio)",
+    hint: "Vozes neurais Google Cloud e Google AI Studio — suporta pool de contas",
     needsKey: true,
     keyFlag: "google_tts_api_key_set",
     color: "#4285F4",
@@ -37,7 +37,7 @@ const TTS_PROVIDERS = [
   {
     id: "elevenlabs",
     label: "ElevenLabs",
-    hint: "Vozes neurais ultrarrealistas — suporta pool de 7 contas",
+    hint: "Vozes neurais ultrarrealistas — suporta pool multi-contas com rotação",
     needsKey: true,
     keyFlag: "elevenlabs_api_key_set",
     color: "#6366F1",
@@ -67,7 +67,7 @@ export default function TTSSection({ settings, updateSettings }) {
       <Typography variant="body2" color="text.secondary">
         Escolha o provedor padrão de narração por voz. Edge TTS funciona sem nenhuma chave de API.
         Para usar OpenAI TTS, configure sua chave na seção "Provedor de IA".
-        Para Google Cloud TTS e ElevenLabs (pool multi-contas), configure as chaves na seção "Chaves de API".
+        Para Google TTS (Cloud / AI Studio) e ElevenLabs (pool multi-contas), configure as chaves na seção "Chaves de API".
       </Typography>
 
       {/* Provider selector */}

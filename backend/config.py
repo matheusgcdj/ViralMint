@@ -94,9 +94,8 @@ class Settings(BaseSettings):
     # on WaveNet + 1M on Standard). Set this API key OR use a service account
     # via GOOGLE_APPLICATION_CREDENTIALS.
     GOOGLE_TTS_API_KEY: str = ""
-    # Pool of multiple Google accounts — comma-separated API keys.
-    # Example: 7 accounts × 1M chars/month = 7M chars/month free.
-    # When set, takes precedence over GOOGLE_TTS_API_KEY.
+    # Pool of multiple Google accounts (Google Cloud or Google AI Studio) — comma-separated API keys.
+    # When set, enables round-robin rotation and failover across accounts.
     GOOGLE_TTS_API_KEYS: str = ""
 
     # ── ElevenLabs TTS ────────────────────────────────

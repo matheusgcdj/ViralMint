@@ -25,7 +25,7 @@ class TTSProvider(str, Enum):
 PROVIDER_INFO = {
     TTSProvider.OPENAI_TTS: {"label": "OpenAI TTS",       "cost_1k_chars": 0.015, "quality": "standard", "needs_key": True},
     TTSProvider.EDGE_TTS:   {"label": "Edge TTS",         "cost_1k_chars": 0.0,   "quality": "basic",    "needs_key": False},
-    TTSProvider.GOOGLE_TTS: {"label": "Google Cloud TTS", "cost_1k_chars": 0.004, "quality": "premium",  "needs_key": True},
+    TTSProvider.GOOGLE_TTS: {"label": "Google TTS (Cloud & AI Studio)", "cost_1k_chars": 0.004, "quality": "premium",  "needs_key": True},
     TTSProvider.ELEVENLABS: {"label": "ElevenLabs",       "cost_1k_chars": 0.030, "quality": "ultra",    "needs_key": True},
 }
 

@@ -1,34 +1,33 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2025-2026 ViralMint Contributors
-"""Google Cloud Text-to-Speech — high-quality neural voices with a generous free tier.
+"""Google Text-to-Speech (Google Cloud TTS & Google AI Studio).
 
-Google TTS gives 1 million characters/month free on Standard voices and
-1 million characters/month free on WaveNet, plus Neural2 and Studio voices
-at very low cost. The pool of voices across languages is massive — ideal for
-multi-nicho content factories.
+Supports high-quality neural voice synthesis through:
+  1. Google Cloud Text-to-Speech API (Neural2, Studio, WaveNet, Standard)
+  2. Google AI Studio (Gemini 2.0 Flash native multimodal audio synthesis)
+  3. Google Cloud SDK (Service Account credentials via GOOGLE_APPLICATION_CREDENTIALS)
 
-**Key pool support**: When you have multiple Google Cloud accounts (e.g. 7
-accounts = 7M free characters/month), set ``GOOGLE_TTS_API_KEYS`` as a
-comma-separated list of API keys. The service rotates through them using
-round-robin with automatic failover — when one key hits its quota, the
-next key takes over transparently. A single ``GOOGLE_TTS_API_KEY`` still
-works for backwards compatibility.
+**Key pool support**: Multiple Google accounts can be pooled using
+``GOOGLE_TTS_API_KEYS`` (comma-separated or one per line). The service
+rotates through them using round-robin with automatic failover — when one key
+hits quota limits (429), it enters a cooldown and the next key takes over
+transparently. Single keys (``GOOGLE_TTS_API_KEY``) are also supported.
 
-Requires either:
-  * ``GOOGLE_TTS_API_KEY``  — a single API key (simplest).
-  * ``GOOGLE_TTS_API_KEYS`` — comma-separated pool (e.g. 7 accounts).
-  * ``GOOGLE_APPLICATION_CREDENTIALS`` — a service account JSON path for
-    the google-cloud-texttospeech SDK (more features, streaming, SSML).
-
-This module implements BOTH paths: REST API with plain key (zero dependency),
-and the Google Cloud SDK when installed AND credentials are present.
+**Automatic Engine Fallback**:
+If a key is from Google AI Studio (where Google Cloud Text-to-Speech API is
+not activated by default in GCP), the service automatically detects this and
+synthesizes speech using Google AI Studio Gemini audio generation.
 """
 import asyncio
+import base64
 import hashlib
 import json
 import logging
 import os
+import shutil
+import subprocess
 import time
+import weakref
 from pathlib import Path
 from typing import Optional
 
@@ -38,48 +37,49 @@ from backend.core.exceptions import VoiceGenerationError
 logger = logging.getLogger(__name__)
 
 # ── Voice catalog ─────────────────────────────────────────────────────────────
-# Curated set of high-quality voices for the picker. The full catalog has
-# 700+ entries — we surface the most natural ones per locale and let the
-# user type any voice name in the free-text field.
+# Curated set of high-quality voices for Google Cloud and Google AI Studio.
 RECOMMENDED_VOICES = {
-    # pt-BR — priority for ViralMint's Brazilian user base
-    "pt-BR-Neural2-A": {"name": "Ana (Neural2)", "gender": "female", "locale": "pt-BR"},
-    "pt-BR-Neural2-B": {"name": "Bruno (Neural2)", "gender": "male", "locale": "pt-BR"},
-    "pt-BR-Neural2-C": {"name": "Clara (Neural2)", "gender": "female", "locale": "pt-BR"},
-    "pt-BR-Standard-A": {"name": "Ana (Standard)", "gender": "female", "locale": "pt-BR"},
-    "pt-BR-Standard-B": {"name": "Bruno (Standard)", "gender": "male", "locale": "pt-BR"},
-    "pt-BR-Wavenet-A": {"name": "Ana (WaveNet)", "gender": "female", "locale": "pt-BR"},
-    "pt-BR-Wavenet-B": {"name": "Bruno (WaveNet)", "gender": "male", "locale": "pt-BR"},
-    # en-US
-    "en-US-Neural2-A": {"name": "Aria (Neural2)", "gender": "male", "locale": "en-US"},
-    "en-US-Neural2-C": {"name": "Chris (Neural2)", "gender": "male", "locale": "en-US"},
-    "en-US-Neural2-E": {"name": "Emily (Neural2)", "gender": "female", "locale": "en-US"},
-    "en-US-Neural2-F": {"name": "Fiona (Neural2)", "gender": "female", "locale": "en-US"},
-    "en-US-Neural2-J": {"name": "James (Neural2)", "gender": "male", "locale": "en-US"},
-    "en-US-Studio-O": {"name": "Oliver (Studio)", "gender": "male", "locale": "en-US"},
-    "en-US-Studio-Q": {"name": "Quinn (Studio)", "gender": "female", "locale": "en-US"},
+    # pt-BR — Google Cloud Neural2 & WaveNet
+    "pt-BR-Neural2-A": {"name": "Ana (Neural2 · Cloud)", "gender": "female", "locale": "pt-BR"},
+    "pt-BR-Neural2-B": {"name": "Bruno (Neural2 · Cloud)", "gender": "male", "locale": "pt-BR"},
+    "pt-BR-Neural2-C": {"name": "Clara (Neural2 · Cloud)", "gender": "female", "locale": "pt-BR"},
+    "pt-BR-Standard-A": {"name": "Ana (Standard · Cloud)", "gender": "female", "locale": "pt-BR"},
+    "pt-BR-Standard-B": {"name": "Bruno (Standard · Cloud)", "gender": "male", "locale": "pt-BR"},
+    "pt-BR-Wavenet-A": {"name": "Ana (WaveNet · Cloud)", "gender": "female", "locale": "pt-BR"},
+    "pt-BR-Wavenet-B": {"name": "Bruno (WaveNet · Cloud)", "gender": "male", "locale": "pt-BR"},
+    # Google AI Studio — Gemini Multilingual Voices (Puck, Charon, Kore, Fenrir, Aoede)
+    "gemini-Puck": {"name": "Puck (Gemini · AI Studio)", "gender": "neutral", "locale": "multilingual"},
+    "gemini-Charon": {"name": "Charon (Gemini · AI Studio)", "gender": "male", "locale": "multilingual"},
+    "gemini-Kore": {"name": "Kore (Gemini · AI Studio)", "gender": "female", "locale": "multilingual"},
+    "gemini-Fenrir": {"name": "Fenrir (Gemini · AI Studio)", "gender": "male", "locale": "multilingual"},
+    "gemini-Aoede": {"name": "Aoede (Gemini · AI Studio)", "gender": "female", "locale": "multilingual"},
+    # en-US — Google Cloud
+    "en-US-Neural2-A": {"name": "Aria (Neural2 · Cloud)", "gender": "male", "locale": "en-US"},
+    "en-US-Neural2-C": {"name": "Chris (Neural2 · Cloud)", "gender": "male", "locale": "en-US"},
+    "en-US-Neural2-E": {"name": "Emily (Neural2 · Cloud)", "gender": "female", "locale": "en-US"},
+    "en-US-Neural2-F": {"name": "Fiona (Neural2 · Cloud)", "gender": "female", "locale": "en-US"},
+    "en-US-Neural2-J": {"name": "James (Neural2 · Cloud)", "gender": "male", "locale": "en-US"},
+    "en-US-Studio-O": {"name": "Oliver (Studio · Cloud)", "gender": "male", "locale": "en-US"},
+    "en-US-Studio-Q": {"name": "Quinn (Studio · Cloud)", "gender": "female", "locale": "en-US"},
     # es-US / es-ES
-    "es-US-Neural2-A": {"name": "Ana (Neural2)", "gender": "female", "locale": "es-US"},
-    "es-US-Neural2-B": {"name": "Bruno (Neural2)", "gender": "male", "locale": "es-US"},
-    "es-US-Neural2-C": {"name": "Carlos (Neural2)", "gender": "male", "locale": "es-US"},
+    "es-US-Neural2-A": {"name": "Ana (Neural2 · Cloud)", "gender": "female", "locale": "es-US"},
+    "es-US-Neural2-B": {"name": "Bruno (Neural2 · Cloud)", "gender": "male", "locale": "es-US"},
+    "es-US-Neural2-C": {"name": "Carlos (Neural2 · Cloud)", "gender": "male", "locale": "es-US"},
     # fr-FR
-    "fr-FR-Neural2-A": {"name": "Alice (Neural2)", "gender": "female", "locale": "fr-FR"},
-    "fr-FR-Neural2-D": {"name": "David (Neural2)", "gender": "male", "locale": "fr-FR"},
+    "fr-FR-Neural2-A": {"name": "Alice (Neural2 · Cloud)", "gender": "female", "locale": "fr-FR"},
+    "fr-FR-Neural2-D": {"name": "David (Neural2 · Cloud)", "gender": "male", "locale": "fr-FR"},
     # ja-JP
-    "ja-JP-Neural2-B": {"name": "Hana (Neural2)", "gender": "female", "locale": "ja-JP"},
-    "ja-JP-Neural2-C": {"name": "Kenji (Neural2)", "gender": "male", "locale": "ja-JP"},
+    "ja-JP-Neural2-B": {"name": "Hana (Neural2 · Cloud)", "gender": "female", "locale": "ja-JP"},
+    "ja-JP-Neural2-C": {"name": "Kenji (Neural2 · Cloud)", "gender": "male", "locale": "ja-JP"},
     # ko-KR
-    "ko-KR-Neural2-A": {"name": "Jiyoung (Neural2)", "gender": "female", "locale": "ko-KR"},
-    "ko-KR-Neural2-C": {"name": "Minho (Neural2)", "gender": "male", "locale": "ko-KR"},
+    "ko-KR-Neural2-A": {"name": "Jiyoung (Neural2 · Cloud)", "gender": "female", "locale": "ko-KR"},
+    "ko-KR-Neural2-C": {"name": "Minho (Neural2 · Cloud)", "gender": "male", "locale": "ko-KR"},
 }
 
 DEFAULT_VOICE = "pt-BR-Neural2-B"
 
-# Max concurrent Google TTS requests (network I/O, not CPU)
+# Max concurrent requests
 _MAX_CONCURRENT = 3
-
-# ── Semaphore pool (per-loop, same pattern as edge_tts_service) ───────────────
-import weakref
 _semaphore_map: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
 
 
@@ -92,32 +92,32 @@ def _get_semaphore() -> asyncio.Semaphore:
     return sem
 
 
+# ── Internal Exceptions ───────────────────────────────────────────────────────
+
+class _QuotaExhaustedError(Exception):
+    """Raised when an API key hits quota or rate limit — triggers pool failover."""
+    pass
+
+
+class _ServiceDisabledError(Exception):
+    """Raised when an API endpoint is not enabled for a key — triggers engine switch."""
+    pass
+
+
 # ── API Key Pool (round-robin with failover) ──────────────────────────────────
-# Supports multiple Google Cloud accounts to combine free tier quotas.
-# Example: 7 accounts × 1M chars/month = 7M chars/month free.
 
 class _KeyPool:
-    """Thread-safe round-robin key pool with automatic failover.
+    """Thread-safe round-robin key pool with automatic failover."""
 
-    When a key returns 429 (quota exceeded) or 403 (disabled), it's marked
-    as exhausted for a cooldown period. The next call picks the next healthy
-    key. When ALL keys are exhausted, the pool waits for the earliest
-    cooldown to expire.
-    """
-
-    # How long a key stays "exhausted" before retrying (seconds).
-    _QUOTA_COOLDOWN = 3600  # 1 hour — Google resets quota hourly
+    _QUOTA_COOLDOWN = 3600  # 1 hour cooldown when quota is exhausted
 
     def __init__(self):
         self._keys: list[str] = []
         self._index = 0
         self._lock = asyncio.Lock()
-        # Maps key -> monotonic timestamp when it was marked exhausted
         self._exhausted: dict[str, float] = {}
 
     def configure(self, keys: list[str]):
-        """Set the key pool. Called once at module init or when settings change."""
-        # Deduplicate while preserving order
         seen: set[str] = set()
         unique: list[str] = []
         for k in keys:
@@ -126,7 +126,6 @@ class _KeyPool:
                 unique.append(k)
                 seen.add(k)
         self._keys = unique
-        # Prune exhausted entries for removed keys
         self._exhausted = {k: t for k, t in self._exhausted.items() if k in seen}
         logger.info("Google TTS key pool configured: %d key(s)", len(unique))
 
@@ -148,11 +147,6 @@ class _KeyPool:
         return False
 
     async def acquire(self) -> str:
-        """Return the next healthy API key (round-robin).
-
-        Raises VoiceGenerationError if the pool is empty or all keys are
-        exhausted and none will recover soon.
-        """
         if not self._keys:
             raise VoiceGenerationError(
                 "Google TTS not configured. Set GOOGLE_TTS_API_KEY or "
@@ -161,14 +155,12 @@ class _KeyPool:
 
         async with self._lock:
             n = len(self._keys)
-            # Try each key once from the current index
             for _ in range(n):
                 key = self._keys[self._index % n]
                 self._index = (self._index + 1) % n
                 if self._is_healthy(key):
                     return key
 
-            # All keys exhausted — find the one that recovers soonest
             soonest_key = min(
                 self._exhausted,
                 key=lambda k: self._exhausted[k],
@@ -183,7 +175,6 @@ class _KeyPool:
             raise VoiceGenerationError("Google TTS key pool is empty")
 
     def mark_exhausted(self, key: str):
-        """Mark a key as temporarily unusable (quota hit or disabled)."""
         self._exhausted[key] = time.monotonic()
         healthy = sum(1 for k in self._keys if self._is_healthy(k))
         logger.warning(
@@ -192,7 +183,6 @@ class _KeyPool:
         )
 
     def pool_status(self) -> dict:
-        """Return pool health info for the health dashboard."""
         now = time.monotonic()
         healthy = 0
         exhausted = 0
@@ -209,35 +199,31 @@ class _KeyPool:
         }
 
 
-# Module-level singleton
 _key_pool = _KeyPool()
 
 
 def _init_key_pool():
-    """Initialize the key pool from DB or settings. Supports both single and multi-key."""
     keys: list[str] = []
-
-    # Check DB first for per-user configured key(s)
     try:
         from backend.core.crypto import decrypt
         from backend.database import engine
         from sqlalchemy import text
         with engine.sync_engine.connect() as sync_conn:
-            row = sync_conn.execute(text("SELECT google_tts_api_keys_encrypted FROM user_settings WHERE user_id = 'local' LIMIT 1")).fetchone()
+            row = sync_conn.execute(
+                text("SELECT google_tts_api_keys_encrypted FROM user_settings WHERE user_id = 'local' LIMIT 1")
+            ).fetchone()
             if row and row[0]:
                 dec = decrypt(row[0])
                 if dec:
-                    keys = [k.strip() for k in dec.split(",") if k.strip()]
+                    keys = [k.strip() for k in dec.replace("\n", ",").split(",") if k.strip()]
     except Exception:
         pass
 
     if not keys:
-        # Multi-key takes precedence (comma-separated)
         multi = getattr(settings, "GOOGLE_TTS_API_KEYS", "") or ""
         if multi:
-            keys = [k.strip() for k in multi.split(",") if k.strip()]
+            keys = [k.strip() for k in multi.replace("\n", ",").split(",") if k.strip()]
 
-    # Fall back to single key
     if not keys:
         single = getattr(settings, "GOOGLE_TTS_API_KEY", "") or ""
         if single.strip():
@@ -246,36 +232,61 @@ def _init_key_pool():
     _key_pool.configure(keys)
 
 
-# Run on import so the pool is ready
 _init_key_pool()
 
 
 def get_key_pool_status() -> dict:
-    """Public accessor for the health dashboard."""
     return _key_pool.pool_status()
 
 
 def reconfigure_key_pool(keys: list[str]):
-    """Reconfigure the key pool at runtime (e.g. from Settings UI).
-
-    Also accepts a single comma-separated string.
-    """
-    if len(keys) == 1 and "," in keys[0]:
-        keys = [k.strip() for k in keys[0].split(",") if k.strip()]
-    _key_pool.configure(keys)
-
-
-# ── REST API path (simple API key, no SDK dependency) ─────────────────────────
-
-_TTS_REST_URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
+    cleaned: list[str] = []
+    for k in keys:
+        for sub in k.replace("\n", ",").split(","):
+            sub = sub.strip()
+            if sub:
+                cleaned.append(sub)
+    _key_pool.configure(cleaned)
 
 
-class _QuotaExhaustedError(Exception):
-    """Raised when a single key hits its quota — triggers pool failover."""
-    pass
+# ── Audio conversion helper ───────────────────────────────────────────────────
+
+def _pcm_or_wav_to_mp3(audio_bytes: bytes, mime_type: str, output_path: Path):
+    """Ensure audio bytes are written as standard MP3."""
+    if "mp3" in mime_type:
+        output_path.write_bytes(audio_bytes)
+        return
+
+    ffmpeg_bin = shutil.which("ffmpeg") or "ffmpeg"
+    if "pcm" in mime_type:
+        rate = "24000"
+        if "rate=" in mime_type:
+            try:
+                rate = mime_type.split("rate=")[1].split(";")[0].strip()
+            except Exception:
+                rate = "24000"
+        cmd = [
+            ffmpeg_bin, "-y", "-f", "s16le", "-ar", rate, "-ac", "1",
+            "-i", "pipe:0", "-codec:a", "libmp3lame", "-qscale:a", "2", str(output_path),
+        ]
+    else:
+        cmd = [
+            ffmpeg_bin, "-y", "-i", "pipe:0", "-codec:a", "libmp3lame", "-qscale:a", "2", str(output_path),
+        ]
+
+    proc = subprocess.run(cmd, input=audio_bytes, capture_output=True)
+    if proc.returncode != 0:
+        raise VoiceGenerationError(
+            f"FFmpeg conversion to MP3 failed: {proc.stderr.decode(errors='ignore')[:250]}"
+        )
 
 
-async def _synthesize_rest(
+# ── REST API Path: Google Cloud Text-to-Speech ────────────────────────────────
+
+_CLOUD_TTS_REST_URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
+
+
+async def _synthesize_cloud_rest(
     text: str,
     voice_id: str,
     api_key: str,
@@ -283,17 +294,11 @@ async def _synthesize_rest(
     speaking_rate: float = 1.0,
     pitch: float = 0.0,
 ) -> Path:
-    """Synthesize speech via Google TTS REST API (no SDK needed).
-
-    Raises ``_QuotaExhaustedError`` on 429/403 so the caller can fail over
-    to the next key in the pool.
-    """
+    """Synthesize speech via Google Cloud Text-to-Speech REST API."""
     import aiohttp
-    import base64
 
-    # Parse locale from voice name (e.g. "pt-BR-Neural2-B" -> "pt-BR")
     parts = voice_id.split("-")
-    language_code = "-".join(parts[:2]) if len(parts) >= 3 else "en-US"
+    language_code = "-".join(parts[:2]) if len(parts) >= 3 else "pt-BR"
 
     payload = {
         "input": {"text": text},
@@ -308,42 +313,188 @@ async def _synthesize_rest(
         },
     }
 
-    url = f"{_TTS_REST_URL}?key={api_key}"
+    url = f"{_CLOUD_TTS_REST_URL}?key={api_key}"
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=60)) as resp:
+            body = await resp.text()
             if resp.status in (429, 403):
-                body = await resp.text()
-                # Check if it's truly a quota/disabled error (not an auth error
-                # on a wrong key, which would be "API key not valid")
                 lower = body.lower()
-                if "quota" in lower or "rate" in lower or "disabled" in lower or resp.status == 429:
+                if resp.status == 429 or "quota" in lower or "resource_exhausted" in lower or "rate" in lower:
                     raise _QuotaExhaustedError(
                         f"Key ...{api_key[-6:]}: HTTP {resp.status}: {body[:200]}"
                     )
-                raise VoiceGenerationError(
-                    f"Google TTS API error ({resp.status}): {body[:300]}"
-                )
+                if (
+                    "has not been used in project" in lower
+                    or "service_disabled" in lower
+                    or "disabled" in lower
+                    or "blocked" in lower
+                    or "access_not_configured" in lower
+                ):
+                    raise _ServiceDisabledError(
+                        f"Google Cloud TTS API not enabled on key ...{api_key[-6:]}: {body[:200]}"
+                    )
+                raise VoiceGenerationError(f"Google Cloud TTS API error ({resp.status}): {body[:300]}")
             if resp.status != 200:
-                body = await resp.text()
-                raise VoiceGenerationError(
-                    f"Google TTS API error ({resp.status}): {body[:300]}"
-                )
-            data = await resp.json()
+                raise VoiceGenerationError(f"Google Cloud TTS API error ({resp.status}): {body[:300]}")
+            data = json.loads(body)
 
     audio_b64 = data.get("audioContent", "")
     if not audio_b64:
-        raise VoiceGenerationError("Google TTS returned empty audio content")
+        raise VoiceGenerationError("Google Cloud TTS returned empty audio content")
 
     audio_bytes = base64.b64decode(audio_b64)
-
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(audio_bytes)
 
     if output_path.stat().st_size == 0:
-        raise VoiceGenerationError("Google TTS wrote an empty file")
+        raise VoiceGenerationError("Google Cloud TTS wrote an empty file")
 
     return output_path
+
+
+# ── REST API Path: Google AI Studio (Gemini 2.0 Flash Audio) ──────────────────
+
+_AI_STUDIO_REST_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+
+
+async def _synthesize_gemini_ai_studio(
+    text: str,
+    voice_name: str,
+    api_key: str,
+    output_path: Path,
+) -> Path:
+    """Synthesize speech using Google AI Studio (Gemini 2.0 Flash native audio output)."""
+    import aiohttp
+
+    clean_voice = voice_name.replace("gemini-", "").capitalize()
+    if clean_voice not in ("Puck", "Charon", "Kore", "Fenrir", "Aoede"):
+        lower = voice_name.lower()
+        if any(f in lower for f in ("female", "-a", "-c", "-e", "-f", "ana", "clara", "emily", "kore", "aoede")):
+            clean_voice = "Kore"
+        else:
+            clean_voice = "Charon"
+
+    url = f"{_AI_STUDIO_REST_URL}?key={api_key}"
+    prompt = (
+        "Por favor, leia em voz alta o seguinte texto exatamente como escrito, "
+        "com pronúncia clara, tom natural e excelente dicção. "
+        "Fale APENAS as palavras do texto, sem nenhuma introdução, prefixo ou comentário adicional:\n\n"
+        f"{text}"
+    )
+
+    payload = {
+        "contents": [{
+            "role": "user",
+            "parts": [{"text": prompt}],
+        }],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {
+                        "voiceName": clean_voice,
+                    }
+                }
+            },
+        },
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=60)) as resp:
+            body = await resp.text()
+            if resp.status in (429, 403):
+                lower = body.lower()
+                if resp.status == 429 or "quota" in lower or "resource_exhausted" in lower or "rate" in lower:
+                    raise _QuotaExhaustedError(
+                        f"Key ...{api_key[-6:]}: HTTP {resp.status}: {body[:200]}"
+                    )
+                if (
+                    "disabled" in lower
+                    or "not been used in project" in lower
+                    or "blocked" in lower
+                    or "service_disabled" in lower
+                    or "access_not_configured" in lower
+                ):
+                    raise _ServiceDisabledError(
+                        f"Google AI Studio not enabled on key ...{api_key[-6:]}: {body[:200]}"
+                    )
+                raise VoiceGenerationError(f"Google AI Studio API error ({resp.status}): {body[:300]}")
+            if resp.status != 200:
+                raise VoiceGenerationError(f"Google AI Studio API error ({resp.status}): {body[:300]}")
+            data = json.loads(body)
+
+    candidates = data.get("candidates", [])
+    if not candidates:
+        raise VoiceGenerationError("Google AI Studio returned no candidates in response")
+
+    parts = candidates[0].get("content", {}).get("parts", [])
+    audio_part = next((p for p in parts if "inlineData" in p), None)
+    if not audio_part:
+        raise VoiceGenerationError("Google AI Studio did not return audio inlineData")
+
+    inline_data = audio_part["inlineData"]
+    mime_type = inline_data.get("mimeType", "audio/wav")
+    audio_b64 = inline_data.get("data", "")
+    if not audio_b64:
+        raise VoiceGenerationError("Google AI Studio audio content is empty")
+
+    audio_bytes = base64.b64decode(audio_b64)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    _pcm_or_wav_to_mp3(audio_bytes, mime_type, output_path)
+
+    if output_path.stat().st_size == 0:
+        raise VoiceGenerationError("Google AI Studio generated an empty audio file")
+
+    return output_path
+
+
+# ── Unified Synthesizer with Engine Switching ─────────────────────────────────
+
+async def _synthesize_with_key(
+    text: str,
+    voice_id: str,
+    api_key: str,
+    output_path: Path,
+    speaking_rate: float = 1.0,
+    pitch: float = 0.0,
+) -> Path:
+    """Synthesize speech using either Google Cloud TTS or Google AI Studio.
+
+    Automatically handles both types of keys:
+    1. If a Gemini voice is requested (or voice starts with 'gemini-'):
+       Calls Google AI Studio. If AI Studio is disabled, falls back to Cloud TTS.
+    2. If a Google Cloud voice is requested:
+       Calls Google Cloud TTS. If Cloud TTS is disabled (e.g. key from AI Studio
+       without Cloud Text-to-Speech enabled in GCP), falls back to Google AI Studio.
+    """
+    is_gemini_voice = (
+        voice_id.startswith("gemini-")
+        or voice_id.lower() in ("puck", "charon", "kore", "fenrir", "aoede")
+    )
+
+    if is_gemini_voice:
+        try:
+            return await _synthesize_gemini_ai_studio(text, voice_id, api_key, output_path)
+        except _ServiceDisabledError as e:
+            logger.info(
+                "Google AI Studio not enabled for key ...%s (%s), trying Google Cloud TTS fallback",
+                api_key[-6:], e,
+            )
+            return await _synthesize_cloud_rest(
+                text, DEFAULT_VOICE, api_key, output_path, speaking_rate, pitch
+            )
+    else:
+        try:
+            return await _synthesize_cloud_rest(
+                text, voice_id, api_key, output_path, speaking_rate, pitch
+            )
+        except _ServiceDisabledError as e:
+            logger.info(
+                "Google Cloud TTS not enabled for key ...%s (%s), automatically switching to Google AI Studio Gemini TTS",
+                api_key[-6:], e,
+            )
+            return await _synthesize_gemini_ai_studio(text, voice_id, api_key, output_path)
 
 
 # ── SDK path (service account credentials) ────────────────────────────────────
@@ -363,7 +514,7 @@ async def _synthesize_sdk(
         client = texttospeech.TextToSpeechClient()
 
         parts = voice_id.split("-")
-        language_code = "-".join(parts[:2]) if len(parts) >= 3 else "en-US"
+        language_code = "-".join(parts[:2]) if len(parts) >= 3 else "pt-BR"
 
         synthesis_input = texttospeech.SynthesisInput(text=text)
         voice = texttospeech.VoiceSelectionParams(
@@ -394,16 +545,17 @@ async def generate_voice(
     voice_id: str = DEFAULT_VOICE,
     api_key: str = "",
     output_path: Optional[Path] = None,
+    speaking_rate: float = 1.0,
+    pitch: float = 0.0,
 ) -> Path:
-    """Generate speech using Google Cloud TTS. Returns audio file path.
+    """Generate speech using Google Cloud TTS or Google AI Studio.
 
     Key selection strategy:
-    1. If ``api_key`` is a comma-separated list → treat as an ad-hoc pool.
-    2. If ``api_key`` is a single key → use it directly (no rotation).
-    3. If ``api_key`` is empty → use the module-level key pool (configured
-       from ``GOOGLE_TTS_API_KEYS`` / ``GOOGLE_TTS_API_KEY`` in .env).
-    4. If no keys at all + ``GOOGLE_APPLICATION_CREDENTIALS`` → SDK path.
-    5. Nothing → raise VoiceGenerationError.
+    1. If ``api_key`` is comma/newline separated -> treat as ad-hoc pool.
+    2. If ``api_key`` is a single key -> use it directly.
+    3. If ``api_key`` is empty -> use key pool (DB settings or .env).
+    4. If no keys at all + ``GOOGLE_APPLICATION_CREDENTIALS`` -> SDK path.
+    5. Nothing -> raise VoiceGenerationError.
     """
     if output_path is None:
         h = hashlib.sha256(f"google_tts|{voice_id}|{text}".encode()).hexdigest()[:16]
@@ -414,14 +566,15 @@ async def generate_voice(
 
     # Case 1-2: Explicit key(s) passed by caller
     if api_key:
-        explicit_keys = [k.strip() for k in api_key.split(",") if k.strip()]
+        explicit_keys = [k.strip() for k in api_key.replace("\n", ",").split(",") if k.strip()]
         if len(explicit_keys) > 1:
-            # Ad-hoc pool — try each key in order
             last_err = None
             async with sem:
                 for k in explicit_keys:
                     try:
-                        result = await _synthesize_rest(text, voice_id, k, output_path)
+                        result = await _synthesize_with_key(
+                            text, voice_id, k, output_path, speaking_rate, pitch
+                        )
                         logger.info(
                             "Google TTS generated: %s (%dKB, voice=%s, key=...%s)",
                             result, result.stat().st_size // 1024, voice_id, k[-6:],
@@ -434,17 +587,18 @@ async def generate_voice(
             raise VoiceGenerationError(
                 f"All {len(explicit_keys)} Google TTS key(s) exhausted: {last_err}"
             )
-        else:
-            # Single explicit key
+        elif len(explicit_keys) == 1:
             async with sem:
-                result = await _synthesize_rest(text, voice_id, explicit_keys[0], output_path)
+                result = await _synthesize_with_key(
+                    text, voice_id, explicit_keys[0], output_path, speaking_rate, pitch
+                )
             logger.info(
                 "Google TTS generated: %s (%dKB, voice=%s)",
                 result, result.stat().st_size // 1024, voice_id,
             )
             return result
 
-    # Case 3: Module-level key pool (GOOGLE_TTS_API_KEYS / GOOGLE_TTS_API_KEY)
+    # Case 3: Module-level key pool
     if _key_pool.has_keys:
         max_attempts = _key_pool.size
         last_err = None
@@ -452,7 +606,9 @@ async def generate_voice(
             key = await _key_pool.acquire()
             try:
                 async with sem:
-                    result = await _synthesize_rest(text, voice_id, key, output_path)
+                    result = await _synthesize_with_key(
+                        text, voice_id, key, output_path, speaking_rate, pitch
+                    )
                 logger.info(
                     "Google TTS generated: %s (%dKB, voice=%s, pool key %d/%d)",
                     result, result.stat().st_size // 1024, voice_id,
@@ -470,7 +626,7 @@ async def generate_voice(
     # Case 4: Google Cloud SDK (service account)
     if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
         async with sem:
-            result = await _synthesize_sdk(text, voice_id, output_path)
+            result = await _synthesize_sdk(text, voice_id, output_path, speaking_rate, pitch)
         logger.info(
             "Google TTS generated (SDK): %s (%dKB, voice=%s)",
             result, result.stat().st_size // 1024, voice_id,
@@ -480,28 +636,21 @@ async def generate_voice(
     # Case 5: Nothing configured
     raise VoiceGenerationError(
         "Google TTS not configured. Set GOOGLE_TTS_API_KEY (single) or "
-        "GOOGLE_TTS_API_KEYS (comma-separated pool of multiple accounts) "
-        "in .env or Settings, or set GOOGLE_APPLICATION_CREDENTIALS for "
-        "the Cloud SDK."
+        "GOOGLE_TTS_API_KEYS (pool of accounts) in .env or Settings, "
+        "or set GOOGLE_APPLICATION_CREDENTIALS for the Cloud SDK."
     )
 
 
 async def get_voice_list(api_key: str = "") -> list[dict]:
-    """Return available Google TTS voices.
-
-    Uses the REST API to fetch the full catalog when an API key is available;
-    otherwise returns the curated RECOMMENDED_VOICES list.
-    """
-    # Resolve a key for the API call: explicit > pool > none
+    """Return available Google TTS and Google AI Studio voices."""
     effective_key = api_key
     if not effective_key and _key_pool.has_keys:
         try:
             effective_key = await _key_pool.acquire()
         except VoiceGenerationError:
-            pass  # All exhausted; fall through to curated list
+            pass
 
     if effective_key:
-        # If it's a comma-separated list, use the first one
         if "," in effective_key:
             effective_key = effective_key.split(",")[0].strip()
         try:
@@ -509,7 +658,6 @@ async def get_voice_list(api_key: str = "") -> list[dict]:
         except Exception:
             logger.debug("Failed to fetch Google TTS voices from API, using curated list")
 
-    # Curated fallback — always available, no network needed
     voices = []
     for voice_id, info in RECOMMENDED_VOICES.items():
         voices.append({
@@ -522,7 +670,7 @@ async def get_voice_list(api_key: str = "") -> list[dict]:
 
 
 async def _fetch_voices_from_api(api_key: str) -> list[dict]:
-    """Fetch the full voice catalog from Google's TTS API."""
+    """Fetch voices from Google Cloud Text-to-Speech API and append AI Studio voices."""
     import aiohttp
 
     url = f"https://texttospeech.googleapis.com/v1/voices?key={api_key}"
@@ -535,9 +683,19 @@ async def _fetch_voices_from_api(api_key: str) -> list[dict]:
 
     raw_voices = data.get("voices", [])
 
-    # Prioritise recommended voices (star emoji), then sort by locale
     recommended_ids = set(RECOMMENDED_VOICES.keys())
     results = []
+
+    # First add AI Studio voices
+    for vid, info in RECOMMENDED_VOICES.items():
+        if vid.startswith("gemini-"):
+            results.append({
+                "voice_id": vid,
+                "name": f"⭐ {info['name']}",
+                "category": info["gender"],
+                "locale": info["locale"],
+            })
+
     for v in raw_voices:
         vid = v.get("name", "")
         codes = v.get("languageCodes", [])
@@ -553,8 +711,7 @@ async def _fetch_voices_from_api(api_key: str) -> list[dict]:
             "_recommended": is_recommended,
         })
 
-    # Recommended first, then alphabetical
-    results.sort(key=lambda x: (not x["_recommended"], x["locale"], x["voice_id"]))
+    results.sort(key=lambda x: (not x.get("_recommended", False), x.get("locale", ""), x.get("voice_id", "")))
     for r in results:
         r.pop("_recommended", None)
 

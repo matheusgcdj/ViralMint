@@ -243,19 +243,21 @@ async def update_settings(update: SettingsUpdate):
         if update.groq_api_key is not None:
             s.groq_api_key_encrypted = encrypt(update.groq_api_key) if update.groq_api_key else None
         if update.google_tts_api_keys is not None:
-            s.google_tts_api_keys_encrypted = encrypt(update.google_tts_api_keys) if update.google_tts_api_keys else None
+            clean_g = ",".join([k.strip() for k in update.google_tts_api_keys.replace("\n", ",").split(",") if k.strip()]) if update.google_tts_api_keys else ""
+            s.google_tts_api_keys_encrypted = encrypt(clean_g) if clean_g else None
             try:
                 from backend.services.google_tts_service import reconfigure_key_pool
-                keys_list = [k.strip() for k in update.google_tts_api_keys.split(",") if k.strip()] if update.google_tts_api_keys else []
+                keys_list = clean_g.split(",") if clean_g else []
                 if keys_list:
                     reconfigure_key_pool(keys_list)
             except Exception as e:
                 logger.warning("Could not reconfigure Google TTS key pool at runtime: %s", e)
         if update.elevenlabs_api_keys is not None:
-            s.elevenlabs_api_keys_encrypted = encrypt(update.elevenlabs_api_keys) if update.elevenlabs_api_keys else None
+            clean_e = ",".join([k.strip() for k in update.elevenlabs_api_keys.replace("\n", ",").split(",") if k.strip()]) if update.elevenlabs_api_keys else ""
+            s.elevenlabs_api_keys_encrypted = encrypt(clean_e) if clean_e else None
             try:
                 from backend.services.elevenlabs_service import reconfigure_key_pool
-                keys_list = [k.strip() for k in update.elevenlabs_api_keys.split(",") if k.strip()] if update.elevenlabs_api_keys else []
+                keys_list = clean_e.split(",") if clean_e else []
                 if keys_list:
                     reconfigure_key_pool(keys_list)
             except Exception as e:

@@ -57,7 +57,7 @@ _DEFAULTS = {
     "tts_providers": {
         "edge_tts":   {"label": "Edge TTS — Free",               "cost_1k": 0.0,   "requires_key": False},
         "openai_tts": {"label": "OpenAI TTS — Standard",         "cost_1k": 0.015, "requires_key": True},
-        "google_tts": {"label": "Google Cloud TTS — Premium",    "cost_1k": 0.004, "requires_key": True},
+        "google_tts": {"label": "Google TTS (Cloud & AI Studio)",    "cost_1k": 0.004, "requires_key": True},
     },
     # Mirrors caption_service.CAPTION_STYLES (minus `brainrot`, which is a
     # pipeline look rather than a picker option) plus the "none" sentinel.

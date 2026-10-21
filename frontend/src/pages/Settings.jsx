@@ -139,7 +139,7 @@ export default function Settings() {
         <Section
           icon={<RecordVoiceOverIcon sx={{ fontSize: 20 }} />}
           title="Voz e Narração (TTS)"
-          description="Provedor de narração padrão (Edge TTS gratuito, Google Cloud TTS com pool, ElevenLabs com pool de 7 contas ou OpenAI TTS)"
+          description="Provedor de narração padrão (Edge TTS gratuito, Google TTS [Cloud e AI Studio] com pool, ElevenLabs com pool ou OpenAI TTS)"
           accentColor="#4285F4"
         >
           <TTSSection settings={settings} updateSettings={updateSettings} />
