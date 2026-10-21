@@ -4,12 +4,13 @@ export const STATUS_COLOR = {
   draft: "default", ready: "success", uploading: "warning", uploaded: "info", failed: "error",
 }
 
-export const JOB_TYPE_LABEL = { scout: "Scout", download: "Download", generate: "Generate", upload: "Upload", analyze: "Analyze" }
+export const JOB_TYPE_LABEL = { scout: "Scout", download: "Download", generate: "Geração", upload: "Publicação", analyze: "Análise" }
 export const JOB_STATUS_COLOR = { running: "info", pending: "default", success: "success", failed: "error", cancelled: "warning" }
 
 export const WHISPER_QUALITIES = [
-  { value: "fast", label: "Fast (base)", desc: "~30s per 5min video" },
-  { value: "balanced", label: "Balanced (small)", desc: "~90s per 5min video" },
-  { value: "accurate", label: "Accurate (medium)", desc: "~3min per 5min video" },
-  { value: "best", label: "Best (large-v3)", desc: "~8min per 5min video" },
+  { value: "groq_auto", label: "⚡ Groq Whisper Cloud", desc: "~5s via LPU na nuvem (Recomendado)" },
+  { value: "fast", label: "Rápido (base)", desc: "~30s por 5min de vídeo" },
+  { value: "balanced", label: "Equilibrado (small)", desc: "~90s por 5min de vídeo" },
+  { value: "accurate", label: "Preciso (medium)", desc: "~3min por 5min de vídeo" },
+  { value: "best", label: "Melhor (large-v3)", desc: "~8min por 5min de vídeo" },
 ]

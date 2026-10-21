@@ -68,6 +68,7 @@ export default function DownloadedDetail({ video, onUseAsInspiration, onClose, o
   const [aiActionLoading, setAiActionLoading] = useState(null)
   const [aiActionResult, setAiActionResult] = useState(null)
   const showSnackbar = useAppStore((s) => s.showSnackbar)
+  const settings = useAppStore((s) => s.settings)
   const pollRef = useRef(null)
 
   // Cleanup polling on unmount
@@ -181,19 +182,23 @@ export default function DownloadedDetail({ video, onUseAsInspiration, onClose, o
                 onClick={async () => {
                   try {
                     await http.post(`/api/downloaded/${video.id}/generate`, {
-                      aspect_ratio: "9:16", tts_provider: "edge_tts",
-                      caption_enabled: true, caption_style: "viral", music_enabled: true, music_genre: "lofi",
+                      aspect_ratio: "9:16",
+                      tts_provider: settings?.tts_provider || undefined,
+                      caption_enabled: true,
+                      caption_style: settings?.caption_style || "viral",
+                      music_enabled: true,
+                      music_genre: "lofi",
                     })
-                    showSnackbar("Quick video generation started!", "success")
+                    showSnackbar("Geração de Vídeo Inteligente iniciada! Acompanhe na aba Gerados.", "success")
                   } catch (e) { showSnackbar(e.response?.data?.detail || e.message, "error") }
                 }}
                 sx={{ fontWeight: 700 }}>
-                Quick Smart Video
+                Vídeo Inteligente Rápido
               </Button>
               <Button variant="outlined" size="small"
                 startIcon={<ContentCutIcon />}
                 component={NavLink} to="/clips">
-                Clip Studio
+                Estúdio de Cortes
               </Button>
             </>
           )}

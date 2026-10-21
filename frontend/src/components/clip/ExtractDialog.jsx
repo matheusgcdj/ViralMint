@@ -85,7 +85,7 @@ function RowSwitch({ checked }) {
 
 export default function ExtractDialog({ open, onClose, video, onExtract, settings, onSettings }) {
   const globalSettings = useAppStore((s) => s.settings)
-  const groqConfigured = !!globalSettings?.groq_api_key_set
+  const groqConfigured = !!globalSettings?.groq_api_key_set || globalSettings?.stt_provider === "groq" || settings?.whisper_backend === "groq"
   const hasSegments = !!video?.has_transcript_segments
 
   const [ai, setAi] = useState({
@@ -404,7 +404,7 @@ export default function ExtractDialog({ open, onClose, video, onExtract, setting
                       }}
                       disabled={!transcribeEnabled}
                     >
-                      {groqConfigured && (
+                      {(groqConfigured || globalSettings?.stt_provider === "groq" || settings?.whisper_backend === "groq") && (
                         <MenuItem value="groq_auto">
                           <Stack direction="row" justifyContent="space-between" sx={{ width: "100%" }}>
                             <Typography variant="body2" sx={{ fontWeight: 700, color: "primary.main" }}>

@@ -49,6 +49,13 @@ const bottomItems = [
 
 export default function Layout() {
   useWebSocket()  // Global WS connection — active on all pages
+
+  // Sincroniza configurações globais na montagem da raiz do app
+  useEffect(() => {
+    http.get("/api/settings").then((res) => {
+      if (res.data) useAppStore.getState().setSettings(res.data)
+    }).catch((err) => console.debug("Falha ao carregar configurações globais:", err))
+  }, [])
   const location = useLocation()
   const navigate = useNavigate()
   const theme = useTheme()
@@ -349,16 +356,16 @@ export default function Layout() {
             removeJob(jobId)
             // Cancellation is cooperative: the row flips at once, but a
             // transfer or ffmpeg pass already in flight finishes on its own.
-            // A bare "Job cancelled" reads as a completed stop and invites a
+            // A bare "Tarefa cancelada" reads as a completed stop and invites a
             // duplicate, so when the server reports best_effort, say so.
             showSnackbar(
               data?.best_effort
-                ? "Cancelling — the step already running will finish on its own"
-                : "Job cancelled",
+                ? "Cancelando — a etapa em andamento terminará por conta própria"
+                : "Tarefa cancelada",
               "info",
             )
           } catch (e) {
-            showSnackbar(e.response?.data?.detail || "Could not cancel that job", "error")
+            showSnackbar(e.response?.data?.detail || "Não foi possível cancelar a tarefa", "error")
           } finally {
             fetchJobs()
           }
@@ -376,7 +383,7 @@ export default function Layout() {
                 // outcome (or its error) to this row. Deleting now would throw
                 // that away, so leave the row; it can be removed once it stops.
                 showSnackbar(
-                  "Cancelling — the step already running will finish on its own. Remove it once it stops.",
+                  "Cancelando — a etapa em andamento terminará por conta própria. Remova-a após a parada.",
                   "info",
                 )
               } else {
@@ -384,16 +391,16 @@ export default function Layout() {
                 // A 409 means it backs a Library file; say so rather than swallow it.
                 try {
                   await http.delete(`/api/jobs/${job.id}`)
-                  showSnackbar("Job cancelled and removed", "info")
+                  showSnackbar("Tarefa cancelada e removida", "info")
                 } catch (e2) {
-                  showSnackbar(e2.response?.data?.detail || "Job cancelled, but could not remove it", "warning")
+                  showSnackbar(e2.response?.data?.detail || "Tarefa cancelada, mas não foi possível removê-la", "warning")
                 }
               }
             } else {
-              showSnackbar("Job removed", "info")
+              showSnackbar("Tarefa removida com sucesso", "info")
             }
           } catch (e) {
-            showSnackbar(e.response?.data?.detail || "Could not remove that job", "error")
+            showSnackbar(e.response?.data?.detail || "Não foi possível remover a tarefa", "error")
           } finally {
             fetchJobs()
           }
@@ -415,7 +422,7 @@ export default function Layout() {
               "info",
             )
           } catch (e) {
-            showSnackbar(e.response?.data?.detail || "Could not clear those jobs", "error")
+            showSnackbar(e.response?.data?.detail || "Não foi possível limpar as tarefas selecionadas", "error")
           } finally {
             fetchJobs()
           }

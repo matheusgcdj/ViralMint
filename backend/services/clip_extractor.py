@@ -717,7 +717,7 @@ async def extract_viral_clips(
         segments = []
     else:
         if job_id:
-            await ws_manager.send_progress(job_id, 5, "Loading transcript...", user_id)
+            await ws_manager.send_progress(job_id, 5, "Carregando transcrição...", user_id)
         segments = await _load_or_transcribe_segments(
             video, user_settings, whisper_quality=whisper_quality,
             force_retranscribe=force_retranscribe, job_id=job_id, user_id=user_id,
@@ -814,7 +814,7 @@ async def extract_viral_clips(
 
             # Step 2: AI selects best clip windows (15-30%)
             if job_id:
-                await ws_manager.send_progress(job_id, 15, "AI analyzing transcript for viral moments...", user_id)
+                await ws_manager.send_progress(job_id, 15, "IA analisando transcrição para detectar momentos virais...", user_id)
 
             # Use chunk-based extraction for large requests
             if effective_max > 8 and duration > 300:
@@ -948,7 +948,7 @@ async def extract_viral_clips(
             # usable speech). The user gets a deliverable instead of an error.
             logger.info(f"No transcript for {video.id[:8]} — using duration-based clip splitting")
             if job_id:
-                await ws_manager.send_progress(job_id, 15, "No speech detected — splitting by duration...", user_id)
+                await ws_manager.send_progress(job_id, 15, "Nenhuma fala detectada — dividindo por duração...", user_id)
 
             clip_windows = _generate_duration_based_clips(
                 duration, max_clips,
@@ -974,7 +974,7 @@ async def extract_viral_clips(
 
     # Step 3: Process all clips in PARALLEL (30-95%)
     if job_id:
-        await ws_manager.send_progress(job_id, 30, f"Processing {len(clip_windows)} clips (extracting, captioning, thumbnails)...", user_id)
+        await ws_manager.send_progress(job_id, 30, f"Processando {len(clip_windows)} clipes (corte, legendas, miniaturas)...", user_id)
 
     results = await _process_clips_parallel(
         video=video,
@@ -1262,7 +1262,7 @@ async def _transcribe_locked(video, user_settings, whisper_quality, force_retran
     if job_id:
         await ws_manager.send_progress(
             job_id, 7,
-            f"Transcribing {duration_min}min audio (this may take a few minutes)...",
+            f"Transcrevendo áudio de {duration_min}min...",
             user_id,
         )
 
@@ -1381,7 +1381,7 @@ async def _select_clip_windows_with_retries(
         f"({relax_min}-{relax_max}s)..."
     )
     if job_id:
-        await ws_manager.send_progress(job_id, 20, "Retrying with relaxed duration constraints...", user_id)
+        await ws_manager.send_progress(job_id, 20, "Tentando novamente com restrições flexíveis de duração...", user_id)
     clip_windows = await _select_clip_windows(
         segments, title, duration, max_clips, user_settings,
         min_duration=relax_min, max_duration=relax_max,
@@ -1407,7 +1407,7 @@ async def _select_clip_windows_with_retries(
         f"({perm_min}-{perm_max}s, {reduced_clips} clips)..."
     )
     if job_id:
-        await ws_manager.send_progress(job_id, 25, "Last attempt with relaxed constraints...", user_id)
+        await ws_manager.send_progress(job_id, 25, "Última tentativa com restrições ampliadas...", user_id)
     clip_windows = await _select_clip_windows(
         segments, title, duration, reduced_clips, user_settings,
         min_duration=perm_min, max_duration=perm_max,
@@ -2072,7 +2072,7 @@ async def _process_clips_parallel(
 
     # Phase 1: Extract all clips in parallel
     if job_id:
-        await ws_manager.send_progress(job_id, 35, f"Cutting {total} clips from source video...", user_id)
+        await ws_manager.send_progress(job_id, 35, f"Cortando {total} clipes do vídeo fonte...", user_id)
 
     async def _extract_one(i, window):
         clip_path = settings.GENERATED_DIR / f"clip_{video.id[:8]}_{uuid4().hex[:6]}.mp4"
@@ -2090,7 +2090,7 @@ async def _process_clips_parallel(
     # segments replace the normal per-clip segment filtering for captioning.
     if remove_silence:
         if job_id:
-            await ws_manager.send_progress(job_id, 45, f"Removing silence & filler words from {total} clips...", user_id)
+            await ws_manager.send_progress(job_id, 45, f"Removendo silêncio e hesitações de {total} clipes...", user_id)
         cleaned_paths = []
         cleaned_segments_list = []
         for i, (clip_path, window) in enumerate(zip(clip_paths, clip_windows)):
@@ -2120,8 +2120,8 @@ async def _process_clips_parallel(
         from backend.services.caption_service import captions_disabled
         await ws_manager.send_progress(
             job_id, 55,
-            f"Skipping captions for {total} clips..." if captions_disabled(caption_style)
-            else f"Adding captions to {total} clips...",
+            f"Legendas desativadas para {total} clipes..." if captions_disabled(caption_style)
+            else f"Adicionando legendas a {total} clipes...",
             user_id,
         )
 
@@ -2147,7 +2147,7 @@ async def _process_clips_parallel(
 
     # Phase 3: Thumbnails + metadata in parallel
     if job_id:
-        await ws_manager.send_progress(job_id, 75, f"Generating thumbnails and metadata...", user_id)
+        await ws_manager.send_progress(job_id, 75, "Gerando miniaturas e metadados...", user_id)
 
     # Measure each finished clip ONCE. The request is not the file: extraction
     # only reframes a LANDSCAPE source, so a square / 4:5 source keeps its own
@@ -2272,7 +2272,7 @@ async def _process_clips_parallel(
 
     # Phase 4: Assemble final results + cleanup
     if job_id:
-        await ws_manager.send_progress(job_id, 90, "Finalizing clips...", user_id)
+        await ws_manager.send_progress(job_id, 90, "Finalizando clipes...", user_id)
 
     final_results = []
     for idx, r in enumerate(results):

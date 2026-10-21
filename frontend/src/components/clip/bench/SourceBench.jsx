@@ -58,19 +58,19 @@ import useAppStore from "../../../store/appStore"
    review and no cap.
 */
 
-const CAPTION_OPTIONS = [{ value: "none", label: "Off" }, ...CAPTION_STYLES]
+const CAPTION_OPTIONS = [{ value: "none", label: "Desativado" }, ...CAPTION_STYLES]
 const EMOJI_OPTIONS = [
-  { v: "none", label: "Off" }, { v: "minimal", label: "Minimal" },
-  { v: "moderate", label: "Moderate" }, { v: "heavy", label: "Heavy" },
+  { v: "none", label: "Desativado" }, { v: "minimal", label: "Mínimo" },
+  { v: "moderate", label: "Moderado" }, { v: "heavy", label: "Intenso" },
 ]
 const WHISPER_QUALITIES = [
-  { v: "fast", label: "Fast (base)" },
-  { v: "balanced", label: "Balanced (small)" },
-  { v: "accurate", label: "Accurate (medium)" },
-  { v: "best", label: "Best (large-v3)" },
+  { v: "fast", label: "Rápido (base)" },
+  { v: "balanced", label: "Equilibrado (small)" },
+  { v: "accurate", label: "Preciso (medium)" },
+  { v: "best", label: "Melhor (large-v3)" },
 ]
 const PLATFORMS = [
-  { v: "", label: "Any platform" },
+  { v: "", label: "Qualquer plataforma" },
   { v: "tiktok", label: "TikTok" },
   { v: "youtube_shorts", label: "YouTube Shorts" },
   { v: "reels", label: "Instagram Reels" },
@@ -78,21 +78,21 @@ const PLATFORMS = [
   { v: "twitter", label: "Twitter / X" },
 ]
 const GENRES = [
-  { v: "", label: "Auto-detect genre" },
-  { v: "podcast", label: "Podcast" }, { v: "interview", label: "Interview" },
-  { v: "qa", label: "Q&A / AMA" }, { v: "vlog", label: "Vlog" },
-  { v: "tutorial", label: "Tutorial" }, { v: "gaming", label: "Gaming" },
-  { v: "reaction", label: "Reaction" }, { v: "lecture", label: "Lecture" },
+  { v: "", label: "Detecção automática de gênero" },
+  { v: "podcast", label: "Podcast" }, { v: "interview", label: "Entrevista" },
+  { v: "qa", label: "Perguntas & Respostas" }, { v: "vlog", label: "Vlog" },
+  { v: "tutorial", label: "Tutorial" }, { v: "gaming", label: "Jogos / Gaming" },
+  { v: "reaction", label: "Reação" }, { v: "lecture", label: "Palestra / Educativo" },
 ]
 
 const SHORTCUTS = [
-  ["Space", "Play / pause"],
-  ["I / O", "Set the selected clip's IN / OUT to the playhead"],
-  ["← →", "Nudge the playhead one frame (⇧ for one second)"],
-  ["J / L", "Jump 10s back / forward"],
-  ["N", "New range at the playhead"],
-  ["⌫", "Delete the selected range"],
-  ["Alt-drag", "Ignore speech snapping"],
+  ["Espaço", "Reproduzir / pausar"],
+  ["I / O", "Definir ENTRADA / SAÍDA do corte no cursor"],
+  ["← →", "Avançar/recuar 1 quadro (⇧ para 1 segundo)"],
+  ["J / L", "Pular 10s para trás / para frente"],
+  ["N", "Novo corte no cursor"],
+  ["⌫", "Excluir o corte selecionado"],
+  ["Alt-arrastar", "Ignorar alinhamento magnético às frases"],
 ]
 
 // A disabled contained button must LOOK disabled. The theme paints
@@ -310,7 +310,7 @@ export default function SourceBench({
 
   const addAtPlayhead = useCallback(() => {
     if (R.atCap) {
-      showSnackbar(`The bench holds ${MAX_RANGES} ranges — cut or remove some first`, "warning")
+      showSnackbar(`A mesa comporta até ${MAX_RANGES} cortes — execute os cortes ou remova alguns primeiro`, "warning")
       return
     }
     if (!R.addAt(clock.get())) {
@@ -507,7 +507,7 @@ export default function SourceBench({
   const askAi = (
     <>
       <Tooltip title={atCap
-        ? `The bench holds ${MAX_RANGES} ranges — cut or remove some first`
+        ? `A mesa comporta até ${MAX_RANGES} cortes — execute os cortes ou remova alguns primeiro`
         : "Let the AI read the transcript and propose the strongest moments"}>
         <span>
           <Button
@@ -622,7 +622,7 @@ export default function SourceBench({
       <Stack direction="row" alignItems="center" spacing={1} sx={{ flexShrink: 0 }}>
         <ContentCutIcon sx={{ fontSize: 17, color: "primary.main" }} />
         <Typography variant="subtitle2" sx={{ fontWeight: 700, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {source.title || "Untitled"}
+          {source.title || "Sem título"}
         </Typography>
         <Typography variant="caption" sx={{ color: "text.secondary", flexShrink: 0 }}>
           {formatTime(duration)}
@@ -635,7 +635,7 @@ export default function SourceBench({
           : "Este vídeo não possui transcrição para alinhamento magnético"}>
           <span>
             <IconButton size="small" disabled={!segments.length}
-              aria-label={snapEnabled ? "Snapping to sentences is on" : "Snapping to sentences is off"}
+              aria-label={snapEnabled ? "Alinhamento magnético ativado" : "Alinhamento magnético desativado"}
               aria-pressed={snapEnabled && segments.length > 0}
               onClick={() => setSnapEnabled((v) => !v)}
               sx={{ color: snapEnabled && segments.length ? "success.main" : "text.disabled" }}>
@@ -790,12 +790,12 @@ export default function SourceBench({
           onRangeChange={R.update}
           onRangeCommit={R.settle}
           onRangeAdd={(a, b) => {
-            if (atCap) { showSnackbar(`The bench holds ${MAX_RANGES} ranges — cut or remove some first`, "warning"); return }
+            if (atCap) { showSnackbar(`A mesa comporta até ${MAX_RANGES} cortes — execute os cortes ou remova alguns primeiro`, "warning"); return }
             if (R.add(a, b) == null) {
               // add() refused: the span was clamped away by a pending cut,
               // or is shorter than the 1s floor. Say so — a drag that lands
               // nothing with no word reads as a broken timeline.
-              showSnackbar("No room there — that stretch is under a pending cut or shorter than 1s", "info")
+              showSnackbar("Sem espaço nesse ponto — o trecho coincide com outro corte ou é menor que 1s", "info")
             }
           }}
           onRangeRemove={R.remove}
@@ -844,48 +844,71 @@ export default function SourceBench({
         </Tooltip>
         {/* Transcription used to be reachable only through the dialog,
             which meant one setting forced you onto the other surface. */}
-        <Tooltip describeChild title={source.has_transcript_segments
-          ? "This video already has a transcript — Whisper is skipped unless you ask for a fresh one"
-          : "No transcript yet: Whisper runs before captions, silence trimming and Ask AI"}>
-          <Chip
-            size="small" variant="outlined"
-            aria-haspopup="dialog" aria-expanded={txAnchor ? "true" : undefined}
-            aria-label={`Transcription settings — ${source.has_transcript_segments && !settings.force_retranscribe
-              ? "transcript cached"
-              : `Whisper ${settings.whisper_quality}`}`}
-            icon={<RecordVoiceOverIcon sx={{ fontSize: 14 }} />}
-            label={source.has_transcript_segments && !settings.force_retranscribe
-              ? "Transcript cached"
-              : `Whisper: ${settings.whisper_quality}`}
-            onClick={(e) => setTxAnchor(e.currentTarget)}
-          />
-        </Tooltip>
-        <Popover
-          open={Boolean(txAnchor)} anchorEl={txAnchor} onClose={() => setTxAnchor(null)}
-          anchorOrigin={{ vertical: "top", horizontal: "left" }}
-          transformOrigin={{ vertical: "bottom", horizontal: "left" }}
-        >
-          <Stack spacing={1.25} sx={{ p: 2, width: 300 }}>
-            <TextField
-              select size="small" fullWidth label="Qualidade do Whisper"
-              value={settings.whisper_quality}
-              onChange={(e) => onSettings({ whisper_quality: e.target.value })}
-            >
-              {WHISPER_QUALITIES.map((q) => (
-                <MenuItem key={q.v} value={q.v}>{q.label}</MenuItem>
-              ))}
-            </TextField>
-            <FormControlLabel
-              control={<Checkbox size="small"
-                checked={!source.has_transcript_segments || settings.force_retranscribe}
-                disabled={!source.has_transcript_segments}
-                onChange={(e) => onSettings({ force_retranscribe: e.target.checked })} />}
-              label={<Typography variant="caption">
-                Re-transcribe this video{source.has_transcript_segments ? "" : " (required — none cached)"}
-              </Typography>}
-            />
-          </Stack>
-        </Popover>
+        {/* Transcrição STT (Groq Cloud ou Local) */}
+        {(() => {
+          const isGroq = settings.whisper_backend === "groq" || settings.whisper_backend === "auto";
+          const txLabel = source.has_transcript_segments && !settings.force_retranscribe
+            ? "Transcrição em cache"
+            : isGroq
+              ? "⚡ Groq Whisper (~5s)"
+              : `Local: ${settings.whisper_quality || "balanced"}`;
+          return (
+            <>
+              <Tooltip describeChild title={source.has_transcript_segments && !settings.force_retranscribe
+                ? "Este vídeo já possui transcrição em cache — Whisper será ignorado a menos que você marque para transcrever novamente"
+                : "O Whisper transcreve o áudio antes de aplicar legendas, corte de silêncio e sugestões da IA"}>
+                <Chip
+                  size="small" variant="outlined"
+                  aria-haspopup="dialog" aria-expanded={txAnchor ? "true" : undefined}
+                  aria-label={`Configurações de transcrição — ${txLabel}`}
+                  icon={<RecordVoiceOverIcon sx={{ fontSize: 14 }} />}
+                  label={txLabel}
+                  onClick={(e) => setTxAnchor(e.currentTarget)}
+                />
+              </Tooltip>
+              <Popover
+                open={Boolean(txAnchor)} anchorEl={txAnchor} onClose={() => setTxAnchor(null)}
+                anchorOrigin={{ vertical: "top", horizontal: "left" }}
+                transformOrigin={{ vertical: "bottom", horizontal: "left" }}
+              >
+                <Stack spacing={1.25} sx={{ p: 2, width: 320 }}>
+                  <TextField
+                    select size="small" fullWidth label="Motor & Qualidade de Transcrição"
+                    value={isGroq ? "groq_auto" : (settings.whisper_quality || "balanced")}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === "groq_auto") {
+                        onSettings({ whisper_backend: "groq", whisper_quality: "fast" })
+                      } else {
+                        onSettings({ whisper_backend: "local", whisper_quality: val })
+                      }
+                    }}
+                  >
+                    <MenuItem value="groq_auto">
+                      <Stack direction="row" justifyContent="space-between" sx={{ width: "100%" }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: "primary.main" }}>
+                          ⚡ Groq Cloud Whisper (~5s)
+                        </Typography>
+                      </Stack>
+                    </MenuItem>
+                    {WHISPER_QUALITIES.map((q) => (
+                      <MenuItem key={q.v} value={q.v}>Local: {q.label}</MenuItem>
+                    ))}
+                  </TextField>
+                  <FormControlLabel
+                    control={<Checkbox size="small"
+                      checked={!source.has_transcript_segments || settings.force_retranscribe}
+                      disabled={!source.has_transcript_segments}
+                      onChange={(e) => onSettings({ force_retranscribe: e.target.checked })} />}
+                    label={<Typography variant="caption">
+                      Transcrever este vídeo novamente{source.has_transcript_segments ? "" : " (necessário — sem cache)"}
+                    </Typography>}
+                  />
+                </Stack>
+              </Popover>
+            </>
+          );
+        })()}
 
         <Box sx={{ flex: 1 }} />
 
@@ -909,8 +932,8 @@ export default function SourceBench({
           const added = R.addMany(items)
           showSnackbar(
             added === items.length
-              ? `Added ${added} range${added !== 1 ? "s" : ""}`
-              : `Added ${added} of ${items.length} — the rest overlap ranges already on the bench, or pass the ${MAX_RANGES}-range cap`,
+              ? `${added} ${added !== 1 ? "cortes adicionados" : "corte adicionado"}`
+              : `${added} de ${items.length} cortes adicionados — os restantes coincidem com faixas existentes ou excedem o limite de ${MAX_RANGES}`,
             added === items.length ? "success" : "warning",
           )
           setPasteOpen(false)

@@ -590,42 +590,30 @@ class AnalyzerAgent:
                 await update_job_status(job_id, "failed", error_message="No audio/video file found")
                 return
 
-            # Check if model needs downloading first
-            from backend.services.whisper_service import whisper_service, WHISPER_QUALITY_MAP, WHISPER_MODEL_SIZES
-            model_name = WHISPER_QUALITY_MAP.get(whisper_quality, "small")
-            if not whisper_service.is_model_cached(whisper_quality):
-                size = WHISPER_MODEL_SIZES.get(model_name, "")
-                step = f"Downloading Whisper {model_name} model ({size}) — first time only, please wait..."
-                await update_job_status(job_id, "running", progress_pct=5, current_step=step)
-                await ws_manager.send_progress(job_id, 5, step, user_id)
-            else:
-                await ws_manager.send_progress(job_id, 10, "Transcribing with Whisper...", user_id)
-                await update_job_status(job_id, "running", progress_pct=10, current_step="Transcribing with Whisper...")
+            from backend.services.whisper_service import whisper_service, job_download_notice
+            await ws_manager.send_progress(job_id, 10, "Transcrevendo áudio...", user_id)
+            await update_job_status(job_id, "running", progress_pct=10, current_step="Transcrevendo áudio...")
 
-            # Load model in thread (may download ~3GB on first use — must not block event loop)
-            await asyncio.to_thread(whisper_service.load, whisper_quality)
-            await ws_manager.send_progress(job_id, 15, "Transcribing audio...", user_id)
-            await update_job_status(job_id, "running", progress_pct=15, current_step="Transcribing audio...")
-            # Live transcription progress (15→38% of the job) — whisper streams
-            # a fraction per decoded segment; bridge the worker-thread callback
-            # onto the loop. DB write included so the /api/jobs poll path sees
-            # movement too, not just live WS clients.
+            # Live transcription progress (10→38% of the job)
             _loop = asyncio.get_running_loop()
 
             def _tx_progress(frac):
-                pct = 15 + frac * 23
-                step = f"Transcribing audio — {int(frac * 100)}%"
+                pct = 10 + frac * 28
+                step = f"Transcrevendo áudio — {int(frac * 100)}%"
                 asyncio.run_coroutine_threadsafe(
                     ws_manager.send_progress(job_id, pct, step, user_id), _loop)
                 asyncio.run_coroutine_threadsafe(
                     update_job_status(job_id, "running", progress_pct=pct, current_step=step), _loop)
 
-            from backend.services.whisper_service import job_download_notice
             transcript_data = await whisper_service.transcribe(
-                audio_path, quality=whisper_quality, on_progress=_tx_progress,
+                audio_path,
+                quality=whisper_quality,
+                backend="auto",
+                user_id=user_id,
+                on_progress=_tx_progress,
                 on_download=job_download_notice(job_id, user_id))
 
-            await ws_manager.send_progress(job_id, 40, "Correcting transcript...", user_id)
+            await ws_manager.send_progress(job_id, 40, "Ajustando transcrição...", user_id)
 
             # AI post-correction (chunked; never loses content)
             raw_text = transcript_data.get("text", "")
@@ -634,7 +622,7 @@ class AnalyzerAgent:
                 if corrected and corrected != raw_text:
                     transcript_data["text"] = corrected
 
-            await ws_manager.send_progress(job_id, 70, "Extracting insights...", user_id)
+            await ws_manager.send_progress(job_id, 70, "Extraindo insights e momentos-chave...", user_id)
 
             # AI insight extraction
             insights_json = None

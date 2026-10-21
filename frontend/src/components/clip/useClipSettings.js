@@ -7,10 +7,7 @@ import useAppStore from "../../store/appStore"
 /* ── The per-clip settings both Clipper surfaces share ─────────
    Captions, emoji density, silence trimming, vertical reframing and
    transcription apply per CLIP, identically whether the range came off the
-   bench's timeline or the Auto-cut dialog's AI picker. They were
-   duplicated across the two — same four controls, two states — so choosing
-   a caption style in one place did nothing in the other, and whichever
-   surface you happened to finish in decided the render.
+   bench's timeline or the Auto-cut dialog's AI picker.
 
    One hook, owned once by ClipStudio and handed to both, so the surfaces
    cannot disagree. Persisted per user habit via localStorage so preferences
@@ -22,8 +19,8 @@ export const CLIP_SETTINGS_DEFAULTS = {
   emoji_style: "moderate",
   remove_silence: false,
   force_vertical: false,
-  whisper_quality: "balanced",
-  whisper_backend: "auto",
+  whisper_quality: "fast",
+  whisper_backend: "groq",
   force_retranscribe: false,
 }
 
@@ -45,9 +42,12 @@ export default function useClipSettings() {
       if (globalSettings?.stt_provider) {
         base.whisper_backend = globalSettings.stt_provider
       }
-      return saved && typeof saved === "object"
-        ? { ...base, ...saved }
-        : base
+      const merged = saved && typeof saved === "object" ? { ...base, ...saved } : base
+      // Se não há preferência local explícita ou estava 'auto', alinha com stt_provider global
+      if (globalSettings?.stt_provider && (!saved?.whisper_backend || saved?.whisper_backend === "auto")) {
+        merged.whisper_backend = globalSettings.stt_provider
+      }
+      return merged
     } catch {
       return CLIP_SETTINGS_DEFAULTS
     }
@@ -59,8 +59,9 @@ export default function useClipSettings() {
     setSettings((prev) => {
       let changed = false
       const next = { ...prev }
-      if (!prev.whisper_backend && globalSettings.stt_provider) {
-        next.whisper_backend = globalSettings.stt_provider
+      const targetBackend = globalSettings.stt_provider || "groq"
+      if (prev.whisper_backend === "auto" || (!prev.whisper_backend && targetBackend)) {
+        next.whisper_backend = targetBackend
         changed = true
       }
       if (!prev.whisper_quality && globalSettings.whisper_quality) {
@@ -101,8 +102,8 @@ export function clipSettingsPayload(settings, { hasTranscript = false } = {}) {
     emoji_style: settings.emoji_style,
     remove_silence: settings.remove_silence,
     force_vertical: settings.force_vertical,
-    whisper_quality: settings.whisper_quality,
-    whisper_backend: settings.whisper_backend || "auto",
+    whisper_quality: settings.whisper_quality || "fast",
+    whisper_backend: settings.whisper_backend || "groq",
     force_retranscribe: !hasTranscript || !!settings.force_retranscribe,
   }
 }

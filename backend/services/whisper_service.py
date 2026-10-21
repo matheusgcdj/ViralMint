@@ -125,8 +125,8 @@ def job_download_notice(job_id: str, user_id: str = "local", pct: float = 5.0):
         from backend.agents.job_helper import update_job_status
         from backend.core.ws_manager import ws_manager
         step = (
-            f"Downloading the speech-recognition model ({model_name}, {size}) — "
-            "one-time setup, this can take a few minutes…"
+            f"Baixando modelo de reconhecimento de voz ({model_name}, {size}) — "
+            "configuração única, pode levar alguns minutos…"
         )
         try:
             await update_job_status(job_id, "running", progress_pct=pct, current_step=step)
@@ -153,8 +153,8 @@ def _toast_download_notice(user_id: str = "local"):
                 constraint="whisper_model_download",
                 severity="warning",
                 message=(
-                    f"Preparing speech recognition — downloading the {model_name} "
-                    f"model ({size}). One-time setup; this step may take a few minutes."
+                    f"Preparando reconhecimento de voz — baixando o modelo {model_name} "
+                    f"({size}). Configuração única que pode levar alguns minutos."
                 ),
                 user_id=user_id,
             )
