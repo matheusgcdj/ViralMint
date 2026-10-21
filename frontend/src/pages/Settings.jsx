@@ -71,7 +71,7 @@ function Section({ icon, title, description, children, accentColor }) {
 
 export default function Settings() {
   const { settings, loading, error, fetchSettings, updateSettings } = useSettings()
-  const showToast = useAppStore((s) => s.showToast)
+  const showToast = useAppStore((s) => s.showToast || s.showSnackbar)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -80,27 +80,27 @@ export default function Settings() {
 
     if (params.get("youtube_connected") === "true") {
       const channel = params.get("channel")
-      showToast(`YouTube conectado com sucesso!${channel ? ` Canal: ${channel}` : ""}`, "success")
+      showToast?.(`YouTube conectado com sucesso!${channel ? ` Canal: ${channel}` : ""}`, "success")
       handled = true
     } else if (params.get("youtube_error")) {
-      showToast(`Erro ao conectar YouTube: ${params.get("youtube_error")}`, "error")
+      showToast?.(`Erro ao conectar YouTube: ${params.get("youtube_error")}`, "error")
       handled = true
     }
 
     if (params.get("tiktok_connected") === "true") {
-      showToast("TikTok conectado com sucesso!", "success")
+      showToast?.("TikTok conectado com sucesso!", "success")
       handled = true
     } else if (params.get("tiktok_error")) {
-      showToast(`Erro ao conectar TikTok: ${params.get("tiktok_error")}`, "error")
+      showToast?.(`Erro ao conectar TikTok: ${params.get("tiktok_error")}`, "error")
       handled = true
     }
 
     if (params.get("instagram_connected") === "true") {
       const account = params.get("account")
-      showToast(`Instagram Reels conectado com sucesso!${account ? ` Conta: @${account}` : ""}`, "success")
+      showToast?.(`Instagram Reels conectado com sucesso!${account ? ` Conta: @${account}` : ""}`, "success")
       handled = true
     } else if (params.get("instagram_error")) {
-      showToast(`Erro ao conectar Instagram: ${params.get("instagram_error")}`, "error")
+      showToast?.(`Erro ao conectar Instagram: ${params.get("instagram_error")}`, "error")
       handled = true
     }
 

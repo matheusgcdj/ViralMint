@@ -39,7 +39,7 @@ const NICHE_ICONS = {
 export default function ChannelProfiles() {
   const theme = useTheme()
   const navigate = useNavigate()
-  const showToast = useAppStore((s) => s.showToast)
+  const showToast = useAppStore((s) => s.showToast || s.showSnackbar)
 
   const [profiles, setProfiles] = useState([])
   const [presets, setPresets] = useState({})

@@ -459,8 +459,28 @@ async def youtube_callback(request: Request, code: str = Query(...), state: Opti
                 s = UserSettings(user_id="local")
                 db.add(s)
             import json
-            s.youtube_credentials_json_encrypted = encrypt(json.dumps(creds_json))
+            enc_creds = encrypt(json.dumps(creds_json))
+            s.youtube_credentials_json_encrypted = enc_creds
             s.youtube_channel_title = channel_title
+
+            from backend.models.social_account import SocialAccount
+            sa_res = await db.execute(
+                select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == "youtube")
+            )
+            sa = sa_res.scalar_one_or_none()
+            if not sa:
+                sa = SocialAccount(
+                    user_id="local",
+                    platform="youtube",
+                    account_name=channel_title or "Canal YouTube Conectado",
+                    credentials_encrypted=enc_creds,
+                    metadata_json={"source": "oauth_callback"},
+                )
+                db.add(sa)
+            else:
+                sa.account_name = channel_title or sa.account_name
+                sa.credentials_encrypted = enc_creds
+
             await db.commit()
 
         import urllib.parse
@@ -482,7 +502,16 @@ async def youtube_disconnect():
         if s:
             s.youtube_credentials_json_encrypted = None
             s.youtube_channel_title = None
-            await db.commit()
+
+        from backend.models.social_account import SocialAccount
+        sa_res = await db.execute(
+            select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == "youtube")
+        )
+        sa = sa_res.scalar_one_or_none()
+        if sa:
+            await db.delete(sa)
+
+        await db.commit()
     return {"ok": True, "message": "Conta do YouTube desconectada com sucesso"}
 
 
@@ -527,6 +556,24 @@ async def tiktok_upload_callback(request: Request, code: str = Query(...), state
             if result.get("expires_in"):
                 from datetime import timedelta
                 s.tiktok_upload_token_expiry = datetime.utcnow() + timedelta(seconds=result["expires_in"])
+
+            from backend.models.social_account import SocialAccount
+            sa_res = await db.execute(
+                select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == "tiktok")
+            )
+            sa = sa_res.scalar_one_or_none()
+            if not sa:
+                sa = SocialAccount(
+                    user_id="local",
+                    platform="tiktok",
+                    account_name="Conta TikTok Conectada",
+                    credentials_encrypted=s.tiktok_upload_token_encrypted,
+                    metadata_json={"source": "oauth_callback"},
+                )
+                db.add(sa)
+            else:
+                sa.credentials_encrypted = s.tiktok_upload_token_encrypted
+
             await db.commit()
 
         return RedirectResponse("/settings?tiktok_connected=true")
@@ -595,6 +642,28 @@ async def instagram_callback(request: Request, code: str = Query(...), state: Op
             s.instagram_access_token_encrypted = encrypt(access_token)
             s.instagram_user_id = ig_user_id or None
             s.instagram_account_name = account_name or None
+
+            from backend.models.social_account import SocialAccount
+            sa_res = await db.execute(
+                select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == "instagram")
+            )
+            sa = sa_res.scalar_one_or_none()
+            if not sa:
+                sa = SocialAccount(
+                    user_id="local",
+                    platform="instagram",
+                    account_id=ig_user_id or None,
+                    account_name=account_name or "Conta Instagram Reels",
+                    credentials_encrypted=s.instagram_access_token_encrypted,
+                    metadata_json={"source": "oauth_callback"},
+                )
+                db.add(sa)
+            else:
+                sa.account_name = account_name or sa.account_name
+                sa.credentials_encrypted = s.instagram_access_token_encrypted
+                if ig_user_id:
+                    sa.account_id = ig_user_id
+
             await db.commit()
 
         import urllib.parse

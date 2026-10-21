@@ -126,6 +126,7 @@ const useAppStore = create((set, get) => ({
   // Global snackbar (action: optional { label, href } for a clickable link)
   snackbar: { open: false, message: "", severity: "info", action: null },
   showSnackbar: (message, severity = "info", action = null) => set({ snackbar: { open: true, message, severity, action } }),
+  showToast: (message, severity = "info", action = null) => set({ snackbar: { open: true, message, severity, action } }),
   closeSnackbar: () => set((s) => ({ snackbar: { ...s.snackbar, open: false } })),
 }))
 

@@ -37,7 +37,7 @@ const PLATFORM_COLORS = {
 export default function PublishQueue() {
   const theme = useTheme()
   const navigate = useNavigate()
-  const showToast = useAppStore((s) => s.showToast)
+  const showToast = useAppStore((s) => s.showToast || s.showSnackbar)
 
   const [queueItems, setQueueItems] = useState([])
   const [channels, setChannels] = useState([])

@@ -85,6 +85,12 @@ async def _auto_sync_social_accounts_from_settings(db, user_id: str = "local"):
                 metadata_json={"source": "user_settings_migration"},
             )
             db.add(account)
+        else:
+            existing.account_name = settings.youtube_channel_title or existing.account_name
+            if settings.youtube_credentials_json_encrypted:
+                existing.credentials_encrypted = settings.youtube_credentials_json_encrypted
+            if settings.my_youtube_channel_id:
+                existing.account_id = settings.my_youtube_channel_id
 
     # 2. TikTok
     if settings.tiktok_upload_token_encrypted or settings.tiktok_cookie_encrypted:
@@ -99,6 +105,10 @@ async def _auto_sync_social_accounts_from_settings(db, user_id: str = "local"):
                 metadata_json={"source": "user_settings_migration"},
             )
             db.add(account)
+        else:
+            new_cred = settings.tiktok_upload_token_encrypted or settings.tiktok_cookie_encrypted
+            if new_cred:
+                existing.credentials_encrypted = new_cred
 
     # 3. Instagram Reels
     if settings.instagram_access_token_encrypted or settings.instagram_account_name:
@@ -114,6 +124,12 @@ async def _auto_sync_social_accounts_from_settings(db, user_id: str = "local"):
                 metadata_json={"source": "user_settings_migration"},
             )
             db.add(account)
+        else:
+            existing.account_name = settings.instagram_account_name or existing.account_name
+            if settings.instagram_access_token_encrypted:
+                existing.credentials_encrypted = settings.instagram_access_token_encrypted
+            if settings.instagram_user_id:
+                existing.account_id = settings.instagram_user_id
 
     await db.commit()
 

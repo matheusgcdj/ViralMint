@@ -76,7 +76,7 @@ function CopyableUri({ uri, label }) {
 
 export default function SocialConnectionsSection({ settings, updateSettings, fetchSettings }) {
   const theme = useTheme()
-  const showToast = useAppStore((s) => s.showToast)
+  const showToast = useAppStore((s) => s.showToast || s.showSnackbar)
 
   // Accordion expanded states
   const [expandedPlatform, setExpandedPlatform] = useState(null)

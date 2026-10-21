@@ -23,7 +23,7 @@ import useAppStore from "../store/appStore"
 
 export default function VoiceStudio() {
   const theme = useTheme()
-  const showToast = useAppStore((s) => s.showToast)
+  const showToast = useAppStore((s) => s.showToast || s.showSnackbar)
 
   const [voices, setVoices] = useState([])
   const [loadingVoices, setLoadingVoices] = useState(true)
