@@ -14,6 +14,9 @@ const Scout = lazy(() => import("./pages/Scout"))
 const SmartVideoHome = lazy(() => import("./pages/SmartVideoHome"))
 const SmartVideoStudio = lazy(() => import("./pages/SmartVideoStudio"))
 const Channels = lazy(() => import("./pages/Channels"))
+const ChannelProfiles = lazy(() => import("./pages/ChannelProfiles"))
+const PublishQueue = lazy(() => import("./pages/PublishQueue"))
+const VoiceStudio = lazy(() => import("./pages/VoiceStudio"))
 const ClipStudio = lazy(() => import("./pages/ClipStudio"))
 const MotionGraphics = lazy(() => import("./pages/MotionGraphics"))
 const Tools = lazy(() => import("./pages/Tools"))
@@ -138,7 +141,11 @@ export default function App() {
               <Route path="tools/translate" element={<ToolTranslate />} />
               <Route path="tools/metadata" element={<ToolMetadata />} />
               <Route path="tools/auto-chapters" element={<ToolAutoChapters />} />
-              <Route path="channels" element={<Channels />} />
+              <Route path="channel-profiles" element={<ChannelProfiles />} />
+              <Route path="channels" element={<ChannelProfiles />} />
+              <Route path="channels/legacy" element={<Channels />} />
+              <Route path="queue" element={<PublishQueue />} />
+              <Route path="voice-studio" element={<VoiceStudio />} />
               {/* Messaging moved into Settings; keep old bookmarks working. */}
               <Route path="messaging" element={<Navigate to="/settings#messaging" replace />} />
               <Route path="settings" element={<Settings />} />

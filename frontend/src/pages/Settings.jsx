@@ -13,6 +13,7 @@ import GraphicEqIcon from "@mui/icons-material/GraphicEqOutlined"
 import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOverOutlined"
 import HealthDashboard from "../components/settings/HealthDashboard"
 import MotionGraphicsSection from "../components/settings/MotionGraphicsSection"
+import VoiceStudioSection from "../components/settings/VoiceStudioSection"
 import AIProviderSection from "../components/settings/AIProviderSection"
 import ServiceKeysSection from "../components/settings/ServiceKeysSection"
 import STTSection from "../components/settings/STTSection"
@@ -213,10 +214,11 @@ export default function Settings() {
         <Section
           icon={<MovieFilterIcon sx={{ fontSize: 20 }} />}
           title="Módulos Adicionais"
-          description="Módulos opcionais que podem ser instalados sob demanda no seu diretório de dados"
+          description="Módulos de alto desempenho que podem ser instalados sob demanda no seu diretório de dados"
           accentColor="#7c3aed"
         >
           <MotionGraphicsSection />
+          <VoiceStudioSection />
         </Section>
 
         {/* System Health */}

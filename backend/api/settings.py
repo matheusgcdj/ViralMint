@@ -918,3 +918,43 @@ async def motion_graphics_test():
             "ok": False, "latency_ms": latency_ms, "output_size_kb": None,
             "error": type(e).__name__, "detail": str(e)[:200],
         }
+
+
+# ── Voice Studio (Porta 3900) — on-demand Neural Speech & Voice Cloning ────────
+
+@router.get("/settings/voice-studio/status")
+async def voice_studio_status():
+    """Voice Studio install and daemon running state for the Settings card."""
+    from backend.services.voicestudio_service import VoiceStudioService
+    state = VoiceStudioService.get_install_state()
+    state["running"] = await VoiceStudioService.ping_service()
+    return state
+
+
+@router.post("/settings/voice-studio/install")
+async def voice_studio_install():
+    """Trigger background installation of Voice Studio neural models."""
+    from backend.services.voicestudio_service import VoiceStudioService
+    return await VoiceStudioService.install_plugin()
+
+
+@router.post("/settings/voice-studio/uninstall")
+async def voice_studio_uninstall():
+    """Remove local Voice Studio models and caches."""
+    from backend.services.voicestudio_service import VoiceStudioService
+    return await VoiceStudioService.uninstall_plugin()
+
+
+@router.post("/settings/voice-studio/test")
+async def voice_studio_test(voice_id: str = "vs-pt-br-camila"):
+    """Generate a test speech take and return latency and status."""
+    from backend.services.voicestudio_service import VoiceStudioService
+    return await VoiceStudioService.test_voice(voice_id=voice_id)
+
+
+@router.get("/settings/voice-studio/voices")
+async def voice_studio_voices():
+    """List available voices in Voice Studio."""
+    from backend.services.voicestudio_service import VoiceStudioService
+    voices = await VoiceStudioService.get_voice_list()
+    return {"ok": True, "voices": voices}

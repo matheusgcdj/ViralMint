@@ -144,6 +144,10 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_API_KEYS: str = ""
 
+    # ── Voice Studio (Port 3900) ──────────────────────
+    VOICE_STUDIO_URL: str = "http://localhost:3900"
+    VOICE_STUDIO_API_KEY: str = ""
+
     # ── YouTube Anti-Bot Session Cookies ─────────────
     # Netscape cookies.txt content or path to bypass YouTube "sign-in to confirm you're not a bot"
     YOUTUBE_COOKIES: str = ""

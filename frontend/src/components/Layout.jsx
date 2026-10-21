@@ -24,21 +24,24 @@ import BuildIcon from "@mui/icons-material/BuildOutlined"
 import SettingsIcon from "@mui/icons-material/SettingsOutlined"
 import TravelExploreIcon from "@mui/icons-material/TravelExploreOutlined"
 import HubIcon from "@mui/icons-material/HubOutlined"
+import ScheduleSendIcon from "@mui/icons-material/ScheduleSend"
+import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOver"
 
 const DRAWER_WIDTH = 240
 const COLLAPSED_WIDTH = 64
 
 const navItems = [
-  { to: "/",          icon: <ChatIcon />,             label: "Chat" },
-  { to: "/scout",     icon: <TravelExploreIcon />,    label: "Scout" },
-  { to: "/channels",  icon: <SensorsIcon />,          label: "Meus Canais" },
-  { to: "/clips",     icon: <ContentCutIcon />,       label: "Estúdio de Cortes" },
-  { to: "/videos",    icon: <VideoLibraryIcon />,     label: "Biblioteca" },
-  { to: "/stock",     icon: <PhotoLibraryIcon />,     label: "Smart Video" },
-  { to: "/motion",    icon: <MovieFilterIcon />,      label: "Motion Graphics" },
-  { to: "/tools",     icon: <BuildIcon />,            label: "Ferramentas" },
-  // Messaging lives in Settings → Messaging (/messaging redirects there).
-  { to: "/mcp",       icon: <HubIcon />,              label: "MCP" },
+  { to: "/",                  icon: <ChatIcon />,             label: "Chat" },
+  { to: "/channel-profiles",  icon: <SensorsIcon />,          label: "Canais Temáticos" },
+  { to: "/queue",             icon: <ScheduleSendIcon />,     label: "Fila de Postagem" },
+  { to: "/voice-studio",      icon: <RecordVoiceOverIcon />,  label: "Voice Studio" },
+  { to: "/clips",             icon: <ContentCutIcon />,       label: "Estúdio de Cortes" },
+  { to: "/videos",            icon: <VideoLibraryIcon />,     label: "Biblioteca" },
+  { to: "/stock",             icon: <PhotoLibraryIcon />,     label: "Smart Video" },
+  { to: "/motion",            icon: <MovieFilterIcon />,      label: "Motion Graphics" },
+  { to: "/scout",             icon: <TravelExploreIcon />,    label: "Scout" },
+  { to: "/tools",             icon: <BuildIcon />,            label: "Ferramentas" },
+  { to: "/mcp",               icon: <HubIcon />,              label: "MCP" },
   ...pluginNavItems.filter(i => (i.position || "top") === "top"),
 ]
 
