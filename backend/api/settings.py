@@ -46,6 +46,7 @@ class SettingsResponse(BaseModel):
     preferred_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
     tts_provider: str = "edge_tts"
     preferred_tts_voice: Optional[str] = None
+    whisper_quality: str = "balanced"
     caption_style: str = "viral"
     caption_enabled: bool = True
     music_enabled: bool = True
@@ -69,11 +70,16 @@ class SettingsUpdate(BaseModel):
     # Service API keys (BYOK) — plaintext on input, encrypted before storage.
     # Send empty string to clear a stored key.
     youtube_api_key: Optional[str] = None
+    pexels_api_key: Optional[str] = None
+    pixabay_api_key: Optional[str] = None
+    groq_api_key: Optional[str] = None
+    google_tts_api_keys: Optional[str] = None  # single key or comma-separated pool
 
     # Preferences
     preferred_voice_id: Optional[str] = None
     tts_provider: Optional[str] = None
     preferred_tts_voice: Optional[str] = None
+    whisper_quality: Optional[str] = None
     caption_style: Optional[str] = None
     caption_enabled: Optional[bool] = None
     music_enabled: Optional[bool] = None
@@ -122,10 +128,16 @@ async def get_settings():
     if not youtube_set and app_settings.YOUTUBE_API_KEY:
         youtube_set = True
 
-    pexels_set = bool(app_settings.PEXELS_API_KEY)
-    pixabay_set = bool(app_settings.PIXABAY_API_KEY)
-    groq_set = bool(app_settings.GROQ_API_KEY)
-    google_tts_set = bool(app_settings.GOOGLE_TTS_API_KEY or app_settings.GOOGLE_TTS_API_KEYS)
+    # Pexels — DB-stored key takes precedence, then .env fallback
+    pexels_set = bool(s and s.pexels_api_key_encrypted) or bool(app_settings.PEXELS_API_KEY)
+    # Pixabay — DB-stored key takes precedence, then .env fallback
+    pixabay_set = bool(s and s.pixabay_api_key_encrypted) or bool(app_settings.PIXABAY_API_KEY)
+    # Groq Whisper STT — DB-stored key takes precedence, then .env fallback
+    groq_set = bool(s and s.groq_api_key_encrypted) or bool(app_settings.GROQ_API_KEY)
+    # Google Cloud TTS — DB-stored key(s) take precedence, then .env fallback
+    google_tts_set = bool(s and s.google_tts_api_keys_encrypted) or bool(
+        app_settings.GOOGLE_TTS_API_KEY or app_settings.GOOGLE_TTS_API_KEYS
+    )
 
     if not s:
         return SettingsResponse(
@@ -138,6 +150,7 @@ async def get_settings():
             pixabay_api_key_set=pixabay_set,
             groq_api_key_set=groq_set,
             google_tts_api_key_set=google_tts_set,
+            whisper_quality="balanced",
         )
 
     return SettingsResponse(
@@ -158,6 +171,7 @@ async def get_settings():
         preferred_voice_id=s.preferred_voice_id or "21m00Tcm4TlvDq8ikWAM",
         tts_provider=s.tts_provider or "edge_tts",
         preferred_tts_voice=s.preferred_tts_voice,
+        whisper_quality=s.whisper_quality or "balanced",
         caption_style=s.caption_style or "viral",
         caption_enabled=s.caption_enabled if s.caption_enabled is not None else True,
         music_enabled=s.music_enabled if s.music_enabled is not None else True,
@@ -214,6 +228,21 @@ async def update_settings(update: SettingsUpdate):
         # Service API keys (BYOK) — empty string clears, populated value encrypts
         if update.youtube_api_key is not None:
             s.youtube_api_key_encrypted = encrypt(update.youtube_api_key) if update.youtube_api_key else None
+        if update.pexels_api_key is not None:
+            s.pexels_api_key_encrypted = encrypt(update.pexels_api_key) if update.pexels_api_key else None
+        if update.pixabay_api_key is not None:
+            s.pixabay_api_key_encrypted = encrypt(update.pixabay_api_key) if update.pixabay_api_key else None
+        if update.groq_api_key is not None:
+            s.groq_api_key_encrypted = encrypt(update.groq_api_key) if update.groq_api_key else None
+        if update.google_tts_api_keys is not None:
+            s.google_tts_api_keys_encrypted = encrypt(update.google_tts_api_keys) if update.google_tts_api_keys else None
+            try:
+                from backend.services.google_tts_service import reconfigure_key_pool
+                keys_list = [k.strip() for k in update.google_tts_api_keys.split(",") if k.strip()] if update.google_tts_api_keys else []
+                if keys_list:
+                    reconfigure_key_pool(keys_list)
+            except Exception as e:
+                logger.warning("Could not reconfigure Google TTS key pool at runtime: %s", e)
 
         # Preference fields
         if update.preferred_voice_id is not None:
@@ -222,6 +251,8 @@ async def update_settings(update: SettingsUpdate):
             s.tts_provider = update.tts_provider
         if update.preferred_tts_voice is not None:
             s.preferred_tts_voice = update.preferred_tts_voice
+        if update.whisper_quality is not None:
+            s.whisper_quality = update.whisper_quality
         if update.caption_style is not None:
             s.caption_style = update.caption_style
         if update.caption_enabled is not None:

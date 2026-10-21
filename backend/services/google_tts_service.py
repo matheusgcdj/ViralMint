@@ -214,13 +214,28 @@ _key_pool = _KeyPool()
 
 
 def _init_key_pool():
-    """Initialize the key pool from settings. Supports both single and multi-key."""
+    """Initialize the key pool from DB or settings. Supports both single and multi-key."""
     keys: list[str] = []
 
-    # Multi-key takes precedence (comma-separated)
-    multi = getattr(settings, "GOOGLE_TTS_API_KEYS", "") or ""
-    if multi:
-        keys = [k.strip() for k in multi.split(",") if k.strip()]
+    # Check DB first for per-user configured key(s)
+    try:
+        from backend.core.crypto import decrypt
+        from backend.database import engine
+        from sqlalchemy import text
+        with engine.sync_engine.connect() as sync_conn:
+            row = sync_conn.execute(text("SELECT google_tts_api_keys_encrypted FROM user_settings WHERE user_id = 'local' LIMIT 1")).fetchone()
+            if row and row[0]:
+                dec = decrypt(row[0])
+                if dec:
+                    keys = [k.strip() for k in dec.split(",") if k.strip()]
+    except Exception:
+        pass
+
+    if not keys:
+        # Multi-key takes precedence (comma-separated)
+        multi = getattr(settings, "GOOGLE_TTS_API_KEYS", "") or ""
+        if multi:
+            keys = [k.strip() for k in multi.split(",") if k.strip()]
 
     # Fall back to single key
     if not keys:

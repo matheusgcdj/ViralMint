@@ -7,10 +7,14 @@ import KeyIcon from "@mui/icons-material/VpnKeyOutlined"
 import SmartToyIcon from "@mui/icons-material/SmartToyOutlined"
 import MovieFilterIcon from "@mui/icons-material/MovieFilterOutlined"
 import PhoneIphoneIcon from "@mui/icons-material/PhoneIphoneOutlined"
+import GraphicEqIcon from "@mui/icons-material/GraphicEqOutlined"
+import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOverOutlined"
 import HealthDashboard from "../components/settings/HealthDashboard"
 import MotionGraphicsSection from "../components/settings/MotionGraphicsSection"
 import AIProviderSection from "../components/settings/AIProviderSection"
 import ServiceKeysSection from "../components/settings/ServiceKeysSection"
+import STTSection from "../components/settings/STTSection"
+import TTSSection from "../components/settings/TTSSection"
 import MessagingSection from "../components/settings/MessagingSection"
 import useSettings from "../hooks/useSettings"
 
@@ -111,6 +115,26 @@ export default function Settings() {
           <AIProviderSection settings={settings} updateSettings={updateSettings} />
         </Section>
 
+        {/* Voice and Narration (TTS) */}
+        <Section
+          icon={<RecordVoiceOverIcon sx={{ fontSize: 20 }} />}
+          title="Voz e Narração (TTS)"
+          description="Provedor de narração padrão (Edge TTS gratuito, Google Cloud TTS com pool de contas ou OpenAI TTS) e catálogo de vozes"
+          accentColor="#4285F4"
+        >
+          <TTSSection settings={settings} updateSettings={updateSettings} />
+        </Section>
+
+        {/* Speech-to-Text / Captions (STT) */}
+        <Section
+          icon={<GraphicEqIcon sx={{ fontSize: 20 }} />}
+          title="Transcrição e Legendas (STT)"
+          description="Motor de transcrição de áudio: Groq Whisper Cloud ultra-rápido ou Faster-Whisper local no servidor"
+          accentColor="#F55036"
+        >
+          <STTSection settings={settings} updateSettings={updateSettings} />
+        </Section>
+
         {/* Service API Keys (BYOK) */}
         <Section
           icon={<KeyIcon sx={{ fontSize: 20 }} />}
@@ -119,6 +143,26 @@ export default function Settings() {
           accentColor="#2563eb"
         >
           <ServiceKeysSection settings={settings} updateSettings={updateSettings} />
+        </Section>
+
+        {/* STT — Transcription engine (Groq Cloud / local Whisper) */}
+        <Section
+          icon={<GraphicEqIcon sx={{ fontSize: 20 }} />}
+          title="Transcrição (STT)"
+          description="Motor de transcrição de áudio para legendas — Groq Cloud (ultrarrápido) ou Whisper local"
+          accentColor="#F55036"
+        >
+          <STTSection settings={settings} updateSettings={updateSettings} />
+        </Section>
+
+        {/* TTS — Voice narration engine */}
+        <Section
+          icon={<RecordVoiceOverIcon sx={{ fontSize: 20 }} />}
+          title="Narração (TTS)"
+          description="Escolha o provedor de voz padrão para narração dos vídeos — Edge TTS, OpenAI ou Google Cloud"
+          accentColor="#4285F4"
+        >
+          <TTSSection settings={settings} updateSettings={updateSettings} />
         </Section>
 
         {/* Messaging — Telegram / WhatsApp / Discord / Slack. Was the /messaging

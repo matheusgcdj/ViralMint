@@ -328,6 +328,22 @@ PROVIDER_CLASSES = {
 
 
 def _api_key(provider: StockProvider) -> str:
+    # 1. Check DB for user settings override (thread-safe synchronous query with short timeout)
+    try:
+        from backend.models.user_settings import UserSettings
+        from backend.core.crypto import decrypt
+        from backend.database import engine
+        from sqlalchemy import text
+        with engine.sync_engine.connect() as sync_conn:
+            col = "pexels_api_key_encrypted" if provider == StockProvider.PEXELS else "pixabay_api_key_encrypted"
+            row = sync_conn.execute(text(f"SELECT {col} FROM user_settings WHERE user_id = 'local' LIMIT 1")).fetchone()
+            if row and row[0]:
+                dec = decrypt(row[0])
+                if dec:
+                    return dec.strip()
+    except Exception:
+        pass
+    # 2. Fall back to environment variable (.env)
     return (getattr(settings, KEY_SETTINGS[provider], "") or "").strip()
 
 

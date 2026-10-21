@@ -76,7 +76,7 @@ async def tts_preview(body: _PreviewBody):
     voice_id = re.sub(r"[^A-Za-z0-9_-]", "", (body.voice_id or "").strip())
     if not voice_id:
         raise HTTPException(400, "voice_id is required")
-    if provider not in ("edge_tts", "openai_tts"):
+    if provider not in ("edge_tts", "openai_tts", "google_tts"):
         raise HTTPException(400, f"Unknown provider: {provider}")
 
     sample_text = random.choice(_SAMPLES)
@@ -91,14 +91,19 @@ async def tts_preview(body: _PreviewBody):
             await edge_tts_service.generate_voice(
                 sample_text, voice_id=voice_id, output_path=output_path,
             )
+        elif provider == "google_tts":
+            from backend.services import google_tts_service
+            from backend.services.tts_service import tts_api_key
+            api_key = tts_api_key("google_tts")
+            await google_tts_service.generate_voice(
+                sample_text, voice_id=voice_id, api_key=api_key, output_path=output_path,
+            )
         else:
             from backend.services import openai_tts_service
-            # Same key the Smart Video pipeline reads for this provider
-            # (generator._generate_voice) — one answer to "where does the
-            # OpenAI TTS key come from", not two.
-            api_key = settings.OPENAI_API_KEY
+            from backend.services.tts_service import tts_api_key
+            api_key = tts_api_key("openai_tts") or settings.OPENAI_API_KEY
             if not api_key:
-                raise HTTPException(400, "Add your OpenAI API key in Settings to preview this voice")
+                raise HTTPException(400, "Configure sua chave de API para pré-visualizar esta voz")
             await openai_tts_service.generate_voice(
                 sample_text, voice_id=voice_id, api_key=api_key, output_path=output_path,
             )

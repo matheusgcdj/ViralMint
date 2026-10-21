@@ -145,9 +145,37 @@ def tts_api_key(provider) -> str:
     """
     p = normalise_tts_provider(provider)
     if p == TTSProvider.OPENAI_TTS.value:
+        # Check DB for per-user AI/OpenAI key first
+        try:
+            from backend.models.user_settings import UserSettings
+            from backend.core.crypto import decrypt
+            from backend.database import engine
+            from sqlalchemy import text
+            with engine.sync_engine.connect() as sync_conn:
+                row = sync_conn.execute(text("SELECT ai_api_key_encrypted FROM user_settings WHERE user_id = 'local' LIMIT 1")).fetchone()
+                if row and row[0]:
+                    dec = decrypt(row[0])
+                    if dec:
+                        return dec.strip()
+        except Exception:
+            pass
         return settings.OPENAI_API_KEY or ""
     if p == TTSProvider.GOOGLE_TTS.value:
-        # Multi-key pool takes precedence over single key
+        # Check DB for per-user Google TTS keys first
+        try:
+            from backend.models.user_settings import UserSettings
+            from backend.core.crypto import decrypt
+            from backend.database import engine
+            from sqlalchemy import text
+            with engine.sync_engine.connect() as sync_conn:
+                row = sync_conn.execute(text("SELECT google_tts_api_keys_encrypted FROM user_settings WHERE user_id = 'local' LIMIT 1")).fetchone()
+                if row and row[0]:
+                    dec = decrypt(row[0])
+                    if dec and dec.strip():
+                        return dec.strip()
+        except Exception:
+            pass
+        # Multi-key pool takes precedence over single key from .env
         multi = getattr(settings, "GOOGLE_TTS_API_KEYS", "") or ""
         if multi.strip():
             return multi.strip()

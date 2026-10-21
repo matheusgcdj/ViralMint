@@ -405,6 +405,21 @@ class WhisperService:
         if backend == "groq":
             from backend.config import settings as app_settings
             groq_key = getattr(app_settings, "GROQ_API_KEY", "") or ""
+            # Check DB for per-user configured key
+            try:
+                from backend.database import AsyncSessionLocal
+                from backend.models.user_settings import UserSettings
+                from backend.core.crypto import decrypt
+                from sqlalchemy import select
+                async with AsyncSessionLocal() as db_session:
+                    res = await db_session.execute(
+                        select(UserSettings).where(UserSettings.user_id == user_id)
+                    )
+                    s_row = res.scalar_one_or_none()
+                    if s_row and s_row.groq_api_key_encrypted:
+                        groq_key = decrypt(s_row.groq_api_key_encrypted)
+            except Exception as e:
+                logger.debug("Could not read Groq key from DB: %s", e)
             if groq_key:
                 try:
                     from backend.services.groq_whisper_service import (

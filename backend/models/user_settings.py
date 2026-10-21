@@ -19,6 +19,10 @@ class UserSettings(Base, TimestampMixin):
 
     # ── Service API keys (BYOK — override .env per-user) ──
     youtube_api_key_encrypted = Column(Text, nullable=True)         # YouTube Data API v3 key
+    pexels_api_key_encrypted = Column(Text, nullable=True)          # Pexels API key
+    pixabay_api_key_encrypted = Column(Text, nullable=True)         # Pixabay API key
+    groq_api_key_encrypted = Column(Text, nullable=True)            # Groq Cloud Whisper STT key
+    google_tts_api_keys_encrypted = Column(Text, nullable=True)      # Google Cloud TTS key(s) (single or comma-separated pool)
 
     # ── Scout credentials (user-specific cookies) ──────
     douyin_cookie_encrypted = Column(Text, nullable=True)

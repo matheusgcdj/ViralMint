@@ -10,6 +10,7 @@ import http from "../../api/http"
 // left out rather than failing the whole list.
 const PROVIDERS = [
   { id: "edge_tts", hint: "Edge TTS" },
+  { id: "google_tts", hint: "Google Cloud TTS · pool" },
   { id: "openai_tts", hint: "OpenAI TTS · your API key" },
 ]
 

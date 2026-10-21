@@ -10,6 +10,10 @@ import EditIcon from "@mui/icons-material/EditOutlined"
 import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined"
 import CheckCircleIcon from "@mui/icons-material/CheckCircleOutline"
 import YouTubeIcon from "@mui/icons-material/YouTube"
+import ImageSearchIcon from "@mui/icons-material/ImageSearchOutlined"
+import PhotoLibraryIcon from "@mui/icons-material/PhotoLibraryOutlined"
+import GraphicEqIcon from "@mui/icons-material/GraphicEqOutlined"
+import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOverOutlined"
 import useAppStore from "../../store/appStore"
 
 /**
@@ -28,9 +32,51 @@ const SERVICES = [
     docsHref: "https://console.cloud.google.com/apis/credentials",
     docsHint: "Obtenha uma chave gratuita no Google Cloud Console → Credenciais → Criar chave de API (10.000 unidades/dia grátis)",
   },
-  // To add more services later, append:
-  // { id: "pexels", label: "Pexels API", description: "Stock footage", ...,
-  //   settingsKey: "pexels_api_key", setFlag: "pexels_api_key_set", ... }
+  {
+    id: "pexels",
+    label: "Pexels API",
+    description: "Imagens e vídeos de stock gratuitos e em alta qualidade para composições",
+    icon: <ImageSearchIcon sx={{ color: "#05A081", fontSize: 28 }} />,
+    settingsKey: "pexels_api_key",
+    setFlag: "pexels_api_key_set",
+    placeholder: "ey...",
+    docsHref: "https://www.pexels.com/api/new/",
+    docsHint: "Crie uma conta gratuita no Pexels e gere sua chave de API (200 requisições/hora grátis)",
+  },
+  {
+    id: "pixabay",
+    label: "Pixabay API",
+    description: "Banco de imagens, vídeos e ilustrações livres de royalties",
+    icon: <PhotoLibraryIcon sx={{ color: "#2EC66D", fontSize: 28 }} />,
+    settingsKey: "pixabay_api_key",
+    setFlag: "pixabay_api_key_set",
+    placeholder: "12345678-abcdef...",
+    docsHref: "https://pixabay.com/api/docs/",
+    docsHint: "Crie uma conta gratuita no Pixabay → API docs → copie sua chave (100 req/min grátis)",
+  },
+  {
+    id: "groq",
+    label: "Groq Whisper (STT)",
+    description: "Transcrição ultrarrápida em nuvem — Whisper Large v3 via hardware dedicado da Groq",
+    icon: <GraphicEqIcon sx={{ color: "#F55036", fontSize: 28 }} />,
+    settingsKey: "groq_api_key",
+    setFlag: "groq_api_key_set",
+    placeholder: "gsk_...",
+    docsHref: "https://console.groq.com/keys",
+    docsHint: "Crie uma conta na Groq → API Keys → gere uma chave (tier gratuito generoso para Whisper)",
+  },
+  {
+    id: "google_tts",
+    label: "Google Cloud TTS",
+    description: "Vozes neurais de alta fidelidade — suporta múltiplas chaves para rotação de cota",
+    icon: <RecordVoiceOverIcon sx={{ color: "#4285F4", fontSize: 28 }} />,
+    settingsKey: "google_tts_api_keys",
+    setFlag: "google_tts_api_key_set",
+    placeholder: "AIzaSyA...,AIzaSyB...",
+    docsHref: "https://console.cloud.google.com/apis/credentials",
+    docsHint: "Google Cloud Console → APIs → Text-to-Speech → Credenciais. Separe múltiplas chaves por vírgula para somar cotas gratuitas",
+    multiline: true,
+  },
 ]
 
 function ServiceKeyRow({ service, settings, updateSettings }) {
@@ -127,7 +173,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
             onClick={() => { setEditing(true); setApiKey("") }}
             disabled={saving}
           >
-            Update
+            Alterar
           </Button>
           <Button
             variant="outlined"
@@ -137,7 +183,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
             onClick={() => setConfirmRemove(true)}
             disabled={saving}
           >
-            Remove
+            Remover
           </Button>
         </Stack>
       ) : (
@@ -146,6 +192,9 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
             type={showKey ? "text" : "password"}
             size="small"
             fullWidth
+            multiline={!!service.multiline}
+            minRows={service.multiline ? 2 : undefined}
+            maxRows={service.multiline ? 4 : undefined}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder={service.placeholder}
@@ -153,7 +202,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
               <>
                 {service.docsHint}{" "}
                 <Link href={service.docsHref} target="_blank" rel="noreferrer">
-                  open docs
+                  abrir documentação
                 </Link>
               </>
             }
@@ -186,7 +235,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
                 onClick={() => { setEditing(false); setApiKey("") }}
                 disabled={saving}
               >
-                Cancel
+                Cancelar
               </Button>
             )}
           </Stack>
@@ -203,7 +252,7 @@ function ServiceKeyRow({ service, settings, updateSettings }) {
         <DialogActions>
           <Button onClick={() => setConfirmRemove(false)}>Cancelar</Button>
           <Button color="error" variant="contained" onClick={handleRemove}>
-            Remove key
+            Remover chave
           </Button>
         </DialogActions>
       </Dialog>
