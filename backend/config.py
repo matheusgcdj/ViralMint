@@ -290,30 +290,78 @@ def _ensure_secrets(s: Settings) -> Settings:
         "change-me-in-production-use-secrets-token-hex-32",
         "generate-with-python-secrets-token-hex-32",
     }
-    if not s.SECRET_KEY or s.SECRET_KEY in secret_placeholders:
-        key = secrets.token_hex(32)
-        s.__dict__["SECRET_KEY"] = key  # override in memory
-        lines_to_append.append(f"SECRET_KEY={key}")
-        logger.warning("SECRET_KEY was not set or held a placeholder — generated and saved to .env")
-
     encryption_placeholders = {"generate-with-fernet-generate-key"}
 
     def _is_valid_fernet(value: str) -> bool:
+        if not value or not isinstance(value, str) or len(value.strip()) < 32:
+            return False
         try:
-            Fernet(value.encode() if isinstance(value, str) else value)
+            Fernet(value.strip().encode())
             return True
         except Exception:
             return False
 
-    if (
-        not s.ENCRYPTION_KEY
-        or s.ENCRYPTION_KEY in encryption_placeholders
-        or not _is_valid_fernet(s.ENCRYPTION_KEY)
-    ):
-        key = Fernet.generate_key().decode()
-        s.__dict__["ENCRYPTION_KEY"] = key
-        lines_to_append.append(f"ENCRYPTION_KEY={key}")
-        logger.warning("ENCRYPTION_KEY was missing/invalid — generated and saved to .env")
+    # 1. SECRET_KEY persistence (preserve across container restarts even if env var is empty)
+    stored_secret = None
+    secret_file = DATA_DIR / ".secret_key"
+    if secret_file.exists():
+        cand = secret_file.read_text(encoding="utf-8", errors="ignore").strip()
+        if cand and cand not in secret_placeholders and len(cand) >= 32:
+            stored_secret = cand
+    if not stored_secret and env_path.exists():
+        for line in env_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line_str = line.strip()
+            if line_str.startswith("SECRET_KEY="):
+                cand = line_str.split("=", 1)[1].strip()
+                if cand not in secret_placeholders and len(cand) >= 32:
+                    stored_secret = cand
+                    break
+
+    if s.SECRET_KEY and s.SECRET_KEY not in secret_placeholders and len(s.SECRET_KEY.strip()) >= 32:
+        effective_secret = s.SECRET_KEY.strip()
+    elif stored_secret:
+        effective_secret = stored_secret
+    else:
+        effective_secret = secrets.token_hex(32)
+        lines_to_append.append(f"SECRET_KEY={effective_secret}")
+        logger.warning("SECRET_KEY was not set — generated and persisted")
+
+    s.__dict__["SECRET_KEY"] = effective_secret
+    try:
+        secret_file.write_text(effective_secret, encoding="utf-8")
+    except Exception:
+        pass
+
+    # 2. ENCRYPTION_KEY persistence (preserve across container restarts even if Coolify/env passes "")
+    stored_enc = None
+    enc_file = DATA_DIR / ".encryption_key"
+    if enc_file.exists():
+        cand = enc_file.read_text(encoding="utf-8", errors="ignore").strip()
+        if _is_valid_fernet(cand):
+            stored_enc = cand
+    if not stored_enc and env_path.exists():
+        for line in env_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line_str = line.strip()
+            if line_str.startswith("ENCRYPTION_KEY="):
+                cand = line_str.split("=", 1)[1].strip()
+                if cand not in encryption_placeholders and _is_valid_fernet(cand):
+                    stored_enc = cand
+                    break
+
+    if s.ENCRYPTION_KEY and s.ENCRYPTION_KEY not in encryption_placeholders and _is_valid_fernet(s.ENCRYPTION_KEY):
+        effective_enc = s.ENCRYPTION_KEY.strip()
+    elif stored_enc:
+        effective_enc = stored_enc
+    else:
+        effective_enc = Fernet.generate_key().decode()
+        lines_to_append.append(f"ENCRYPTION_KEY={effective_enc}")
+        logger.warning("ENCRYPTION_KEY was missing/invalid — generated and persisted")
+
+    s.__dict__["ENCRYPTION_KEY"] = effective_enc
+    try:
+        enc_file.write_text(effective_enc, encoding="utf-8")
+    except Exception:
+        pass
 
     if lines_to_append:
         # Persist to .env so keys survive restarts. We have to REWRITE existing

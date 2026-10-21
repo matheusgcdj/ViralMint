@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 # Maps a logical service name → (DB column, .env fallback attribute(s))
 _SERVICE_MAP = {
     "youtube":                ("youtube_api_key_encrypted",          ["YOUTUBE_API_KEY"]),
+    "youtube_api_key":        ("youtube_api_key_encrypted",          ["YOUTUBE_API_KEY"]),
     "youtube_client_id":      ("youtube_client_id_encrypted",          ["YOUTUBE_CLIENT_ID"]),
     "youtube_client_secret":  ("youtube_client_secret_encrypted",      ["YOUTUBE_CLIENT_SECRET"]),
     "tiktok_client_key":      ("tiktok_client_key_encrypted",          ["TIKTOK_CLIENT_KEY"]),
