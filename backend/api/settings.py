@@ -38,6 +38,9 @@ class SettingsResponse(BaseModel):
     youtube_cookies_set: bool = False
     youtube_cookies_set_at: Optional[datetime] = None
 
+    # Connected multi-accounts list
+    connected_accounts: list[dict] = Field(default_factory=list)
+
     # OAuth / Social status
     douyin_cookie_set: bool = False
     tiktok_cookie_set: bool = False
@@ -132,6 +135,7 @@ class SettingsUpdate(BaseModel):
 @router.get("/settings", response_model=SettingsResponse)
 async def get_settings():
     """Return user settings with secrets masked."""
+    from backend.models.social_account import SocialAccount
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(UserSettings).where(UserSettings.user_id == "local")
@@ -140,6 +144,22 @@ async def get_settings():
         if not s:
             result = await db.execute(select(UserSettings).order_by(UserSettings.id.asc()).limit(1))
             s = result.scalar_one_or_none()
+
+        acc_res = await db.execute(
+            select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.is_active == True).order_by(SocialAccount.created_at.desc())
+        )
+        active_social_accounts = [
+            {
+                "id": a.id,
+                "platform": a.platform,
+                "account_id": a.account_id,
+                "account_name": a.account_name,
+                "avatar_url": a.avatar_url,
+                "is_active": a.is_active,
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+            }
+            for a in acc_res.scalars().all()
+        ]
 
     # Determine effective provider and key status
     effective_provider = (s.ai_provider if s else None) or "openai"
@@ -191,13 +211,17 @@ async def get_settings():
     yt_cid = (decrypt_safe(s.youtube_client_id_encrypted) if (s and s.youtube_client_id_encrypted) else "") or app_settings.YOUTUBE_CLIENT_ID or ""
     youtube_client_id_set = bool(yt_cid)
     youtube_client_secret_set = bool(s and s.youtube_client_secret_encrypted) or bool(app_settings.YOUTUBE_CLIENT_SECRET)
-    youtube_connected = bool(s and s.youtube_credentials_json_encrypted)
+    has_yt_acc = any(a["platform"] == "youtube" for a in active_social_accounts)
+    has_tt_acc = any(a["platform"] == "tiktok" for a in active_social_accounts)
+    has_ig_acc = any(a["platform"] == "instagram" for a in active_social_accounts)
+
+    youtube_connected = has_yt_acc or bool(s and s.youtube_credentials_json_encrypted)
 
     # TikTok OAuth & Cookies
     tt_ckey = (decrypt_safe(s.tiktok_client_key_encrypted) if (s and s.tiktok_client_key_encrypted) else "") or app_settings.TIKTOK_CLIENT_KEY or ""
     tiktok_client_key_set = bool(tt_ckey)
     tiktok_client_secret_set = bool(s and s.tiktok_client_secret_encrypted) or bool(app_settings.TIKTOK_CLIENT_SECRET)
-    tiktok_upload_connected = bool(s and s.tiktok_upload_token_encrypted)
+    tiktok_upload_connected = has_tt_acc or bool(s and s.tiktok_upload_token_encrypted)
     tiktok_cookie_set = bool(s and s.tiktok_cookie_encrypted)
 
     # Instagram Reels
@@ -209,7 +233,7 @@ async def get_settings():
         app_settings.INSTAGRAM_CLIENT_SECRET or app_settings.FACEBOOK_APP_SECRET
     )
     instagram_access_token_set = bool(s and s.instagram_access_token_encrypted) or bool(app_settings.INSTAGRAM_ACCESS_TOKEN)
-    instagram_connected = bool(s and (s.instagram_access_token_encrypted or s.instagram_user_id))
+    instagram_connected = has_ig_acc or bool(s and (s.instagram_access_token_encrypted or s.instagram_user_id))
     instagram_user_id = s.instagram_user_id if s else None
     instagram_account_name = s.instagram_account_name if s else None
     upload_to_instagram = bool(s.upload_to_instagram) if (s and s.upload_to_instagram is not None) else False
@@ -244,6 +268,7 @@ async def get_settings():
             upload_to_instagram=upload_to_instagram,
             stt_provider="groq" if groq_set else "local",
             whisper_quality="balanced",
+            connected_accounts=active_social_accounts,
         )
 
     return SettingsResponse(
@@ -291,6 +316,7 @@ async def get_settings():
         upload_to_tiktok=s.upload_to_tiktok or False,
         upload_to_instagram=upload_to_instagram,
         tiktok_default_privacy=s.tiktok_default_privacy or "PUBLIC_TO_EVERYONE",
+        connected_accounts=active_social_accounts,
     )
 
 
@@ -520,6 +546,8 @@ async def youtube_callback(request: Request, code: str = Query(...), state: Opti
         result = await exchange_youtube_code(code, redirect_uri=effective_redirect)
         creds_json = result["credentials"]
         channel_title = result.get("channel_title", "")
+        channel_id = result.get("channel_id", "")
+        avatar_url = result.get("avatar_url", "")
 
         async with AsyncSessionLocal() as db:
             res = await db.execute(
@@ -533,24 +561,37 @@ async def youtube_callback(request: Request, code: str = Query(...), state: Opti
             enc_creds = encrypt(json.dumps(creds_json))
             s.youtube_credentials_json_encrypted = enc_creds
             s.youtube_channel_title = channel_title
+            if channel_id:
+                s.my_youtube_channel_id = channel_id
 
             from backend.models.social_account import SocialAccount
-            sa_res = await db.execute(
-                select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == "youtube")
-            )
+            # Multi-account matching: match existing account by account_id or channel_title
+            sa_q = select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == "youtube")
+            if channel_id:
+                sa_q = sa_q.where(SocialAccount.account_id == channel_id)
+            else:
+                sa_q = sa_q.where(SocialAccount.account_name == channel_title)
+
+            sa_res = await db.execute(sa_q)
             sa = sa_res.scalar_one_or_none()
             if not sa:
                 sa = SocialAccount(
                     user_id="local",
                     platform="youtube",
+                    account_id=channel_id or None,
                     account_name=channel_title or "Canal YouTube Conectado",
+                    avatar_url=avatar_url or None,
                     credentials_encrypted=enc_creds,
                     metadata_json={"source": "oauth_callback"},
+                    is_active=True,
                 )
                 db.add(sa)
             else:
                 sa.account_name = channel_title or sa.account_name
+                if avatar_url:
+                    sa.avatar_url = avatar_url
                 sa.credentials_encrypted = enc_creds
+                sa.is_active = True
 
             await db.commit()
 
@@ -563,27 +604,119 @@ async def youtube_callback(request: Request, code: str = Query(...), state: Opti
 
 
 @router.post("/settings/youtube-disconnect")
-async def youtube_disconnect():
-    """Disconnect YouTube account."""
+async def youtube_disconnect(account_id: Optional[str] = Query(None)):
+    """Disconnect a specific YouTube account or all if account_id not specified."""
     async with AsyncSessionLocal() as db:
-        res = await db.execute(
-            select(UserSettings).where(UserSettings.user_id == "local")
-        )
-        s = res.scalar_one_or_none()
-        if s:
-            s.youtube_credentials_json_encrypted = None
-            s.youtube_channel_title = None
-
         from backend.models.social_account import SocialAccount
-        sa_res = await db.execute(
-            select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == "youtube")
-        )
-        sa = sa_res.scalar_one_or_none()
-        if sa:
-            await db.delete(sa)
-
+        if account_id:
+            sa_res = await db.execute(
+                select(SocialAccount).where(SocialAccount.id == account_id, SocialAccount.user_id == "local")
+            )
+            sa = sa_res.scalar_one_or_none()
+            if sa:
+                await db.delete(sa)
+            rem = (await db.execute(
+                select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == "youtube")
+            )).scalars().all()
+            if not rem:
+                res = await db.execute(select(UserSettings).where(UserSettings.user_id == "local"))
+                s = res.scalar_one_or_none()
+                if s:
+                    s.youtube_credentials_json_encrypted = None
+                    s.youtube_channel_title = None
+                    s.my_youtube_channel_id = None
+        else:
+            res = await db.execute(select(UserSettings).where(UserSettings.user_id == "local"))
+            s = res.scalar_one_or_none()
+            if s:
+                s.youtube_credentials_json_encrypted = None
+                s.youtube_channel_title = None
+                s.my_youtube_channel_id = None
+            sa_res = await db.execute(
+                select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == "youtube")
+            )
+            for sa in sa_res.scalars().all():
+                await db.delete(sa)
         await db.commit()
     return {"ok": True, "message": "Conta do YouTube desconectada com sucesso"}
+
+@router.delete("/settings/social-account/{account_id}")
+async def delete_social_account_endpoint(account_id: str):
+    """Delete a specific connected social account by ID."""
+    async with AsyncSessionLocal() as db:
+        from backend.models.social_account import SocialAccount
+        sa_res = await db.execute(
+            select(SocialAccount).where(SocialAccount.id == account_id, SocialAccount.user_id == "local")
+        )
+        sa = sa_res.scalar_one_or_none()
+        if not sa:
+            raise HTTPException(status_code=404, detail="Conta não encontrada")
+        platform = sa.platform
+        await db.delete(sa)
+
+        # If no more accounts for this platform, reset UserSettings flag
+        rem = (await db.execute(
+            select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == platform)
+        )).scalars().all()
+        if not rem:
+            res = await db.execute(select(UserSettings).where(UserSettings.user_id == "local"))
+            s = res.scalar_one_or_none()
+            if s:
+                if platform == "youtube":
+                    s.youtube_credentials_json_encrypted = None
+                    s.youtube_channel_title = None
+                    s.my_youtube_channel_id = None
+                elif platform == "tiktok":
+                    s.tiktok_upload_token_encrypted = None
+                elif platform == "instagram":
+                    s.instagram_access_token_encrypted = None
+                    s.instagram_account_name = None
+                    s.instagram_user_id = None
+
+        await db.commit()
+    return {"ok": True, "message": "Conta desconectada com sucesso"}
+
+class KwaiAccountCreate(BaseModel):
+    account_name: str
+    account_id: Optional[str] = None
+    avatar_url: Optional[str] = None
+    webhook_url: Optional[str] = None
+    auth_token: Optional[str] = None
+
+@router.post("/settings/kwai-account")
+async def add_kwai_account(body: KwaiAccountCreate):
+    """Register or link a Kwai channel/profile."""
+    async with AsyncSessionLocal() as db:
+        from backend.models.social_account import SocialAccount
+        import json
+        cred_encrypted = None
+        if body.auth_token or body.webhook_url:
+            cred_data = {"auth_token": body.auth_token or "", "webhook_url": body.webhook_url or ""}
+            cred_encrypted = encrypt(json.dumps(cred_data))
+
+        sa = SocialAccount(
+            user_id="local",
+            platform="kwai",
+            account_id=body.account_id or body.account_name,
+            account_name=body.account_name,
+            avatar_url=body.avatar_url,
+            credentials_encrypted=cred_encrypted,
+            metadata_json={"webhook_url": body.webhook_url} if body.webhook_url else {},
+            is_active=True,
+        )
+        db.add(sa)
+        await db.commit()
+        await db.refresh(sa)
+        return {
+            "ok": True,
+            "account": {
+                "id": sa.id,
+                "platform": sa.platform,
+                "account_id": sa.account_id,
+                "account_name": sa.account_name,
+                "avatar_url": sa.avatar_url,
+            }
+        }
 
 
 # ── TikTok OAuth, Cookie & Disconnect ─────────────────────────────────────────
@@ -772,6 +905,32 @@ async def instagram_direct_connect(body: dict):
         s.instagram_access_token_encrypted = encrypt(access_token)
         s.instagram_user_id = resolved_id or None
         s.instagram_account_name = account_name or None
+
+        from backend.models.social_account import SocialAccount
+        sa_q = select(SocialAccount).where(SocialAccount.user_id == "local", SocialAccount.platform == "instagram")
+        if resolved_id:
+            sa_q = sa_q.where(SocialAccount.account_id == resolved_id)
+        else:
+            sa_q = sa_q.where(SocialAccount.account_name == account_name)
+
+        sa_res = await db.execute(sa_q)
+        sa = sa_res.scalar_one_or_none()
+        if not sa:
+            sa = SocialAccount(
+                user_id="local",
+                platform="instagram",
+                account_id=resolved_id or None,
+                account_name=account_name or "Conta Instagram Reels",
+                credentials_encrypted=s.instagram_access_token_encrypted,
+                metadata_json={"source": "direct_token"},
+                is_active=True,
+            )
+            db.add(sa)
+        else:
+            sa.account_name = account_name or sa.account_name
+            sa.credentials_encrypted = s.instagram_access_token_encrypted
+            sa.is_active = True
+
         await db.commit()
 
     return {"ok": True, "account_name": account_name, "ig_user_id": resolved_id}

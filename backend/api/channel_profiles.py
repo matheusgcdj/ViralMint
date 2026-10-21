@@ -74,6 +74,8 @@ async def _auto_sync_social_accounts_from_settings(db, user_id: str = "local"):
     # 1. YouTube
     if settings.youtube_credentials_json_encrypted or settings.youtube_channel_title:
         q = select(SocialAccount).where(SocialAccount.user_id == user_id, SocialAccount.platform == "youtube")
+        if settings.my_youtube_channel_id:
+            q = q.where(SocialAccount.account_id == settings.my_youtube_channel_id)
         existing = (await db.execute(q)).scalar_one_or_none()
         if not existing:
             account = SocialAccount(

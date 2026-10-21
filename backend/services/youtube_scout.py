@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2025-2026 ViralMint Contributors
 """YouTube Data API v3 search for trending videos."""
+import json
 import logging
 from datetime import datetime
 from typing import Optional
@@ -10,18 +11,40 @@ logger = logging.getLogger(__name__)
 
 async def search_youtube(
     niche: str,
-    api_key: str,
+    api_key: str = "",
+    credentials_json: str = "",
     max_results: int = 50,
 ) -> list[dict]:
     """
-    Search YouTube for trending videos in a niche.
+    Search YouTube for trending videos in a niche using API Key or OAuth credentials.
     Returns list of raw video dicts with metadata.
     """
     import asyncio
     from googleapiclient.discovery import build
 
     def _search():
-        youtube = build("youtube", "v3", developerKey=api_key)
+        if credentials_json:
+            try:
+                from google.oauth2.credentials import Credentials
+                creds_data = json.loads(credentials_json) if isinstance(credentials_json, str) else credentials_json
+                creds = Credentials(
+                    token=creds_data.get("token"),
+                    refresh_token=creds_data.get("refresh_token"),
+                    token_uri=creds_data.get("token_uri", "https://oauth2.googleapis.com/token"),
+                    client_id=creds_data.get("client_id"),
+                    client_secret=creds_data.get("client_secret"),
+                )
+                youtube = build("youtube", "v3", credentials=creds)
+            except Exception as oauth_err:
+                logger.warning(f"Failed to initialize YouTube service from OAuth credentials: {oauth_err}")
+                if api_key:
+                    youtube = build("youtube", "v3", developerKey=api_key)
+                else:
+                    raise
+        elif api_key:
+            youtube = build("youtube", "v3", developerKey=api_key)
+        else:
+            raise ValueError("Neither YouTube API key nor OAuth credentials provided.")
 
         # Detect language from the query to set relevanceLanguage
         lang = _detect_language(niche)
@@ -67,7 +90,9 @@ async def search_youtube(
                 "description": snippet.get("description", "")[:500],
                 "author": snippet.get("channelTitle", ""),
                 "author_url": f"https://youtube.com/channel/{snippet.get('channelId', '')}",
-                "thumbnail_url": snippet.get("thumbnails", {}).get("high", {}).get("url", ""),
+                "thumbnail_url": snippet.get("thumbnails", {}).get("high", {}).get("url", "")
+                or snippet.get("thumbnails", {}).get("default", {}).get("url", "")
+                or f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
                 "views": int(stats.get("viewCount", 0)),
                 "likes": int(stats.get("likeCount", 0)),
                 "comments": int(stats.get("commentCount", 0)),

@@ -248,7 +248,7 @@ async def batch_get_channel_baselines(
     Deduplicates channel_ids and caches results.
     """
     unique_ids = list(set(channel_ids))
-    if not unique_ids:
+    if not unique_ids or not api_key:
         return {}
 
     # Limit concurrency to avoid API rate limits

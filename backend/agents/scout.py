@@ -329,11 +329,28 @@ class ScoutAgent:
         logger.info("SCOUT platform=%s | niche=%r", platform, niche)
         if platform == "youtube":
             youtube_key = get_youtube_api_key(user_settings)
+            yt_creds = None
             if not youtube_key:
-                logger.info("YouTube API key not configured — falling back to ytsearch/ytdlp")
-                return await self._scout_via_ytdlp_search("youtube", niche, user_id=user_id)
-            from backend.services.youtube_scout import search_youtube
-            return await search_youtube(niche, youtube_key, PLATFORM_LIMITS["youtube"])
+                from backend.core.crypto import decrypt_safe
+                if user_settings and getattr(user_settings, "youtube_credentials_json_encrypted", None):
+                    yt_creds = decrypt_safe(user_settings.youtube_credentials_json_encrypted)
+
+            if youtube_key or yt_creds:
+                from backend.services.youtube_scout import search_youtube
+                try:
+                    res = await search_youtube(
+                        niche=niche,
+                        api_key=youtube_key or "",
+                        credentials_json=yt_creds or "",
+                        max_results=PLATFORM_LIMITS["youtube"],
+                    )
+                    if res:
+                        return res
+                except Exception as yt_err:
+                    logger.warning(f"YouTube official API search failed: {yt_err} — falling back to ytsearch")
+
+            logger.info("YouTube API key/credentials not configured or failed — falling back to ytsearch/ytdlp")
+            return await self._scout_via_ytdlp_search("youtube", niche, user_id=user_id)
 
         elif platform == "tiktok":
             # Try TikHub API first (env key)
@@ -561,12 +578,10 @@ class ScoutAgent:
                 base_opts["cookiefile"] = str(cookie_file)
 
             # YouTube search (ytsearch) returns rich entries — title, views,
-            # thumbnail, uploader — even in flat mode, because YouTube exposes
-            # them on the search results page. Other search backends
-            # (bilisearch, scsearch, nicosearch) return *only* URL+id in flat
-            # mode → empty cards. So: flat for ytsearch fallback (fast, rich
-            # data); full extract for native non-YouTube searches.
-            if is_fallback:
+            # thumbnail, uploader — in flat mode because YouTube exposes
+            # them on the search results page. MUST use extract_flat for YouTube
+            # to avoid bot checks ('The page needs to be reloaded') and 60s hangs.
+            if is_fallback or platform == "youtube" or (search_prefix and "ytsearch" in search_prefix):
                 with yt_dlp.YoutubeDL({**base_opts, "extract_flat": True}) as ydl:
                     return ydl.extract_info(search_query, download=False)
 
@@ -616,7 +631,7 @@ class ScoutAgent:
         # cards from the refined retry, both at once. If everything
         # truly fails (refined retry also empty), the existing
         # "0 results" UI is sufficient feedback.
-        SEARCH_HARD_TIMEOUT_S = 60
+        SEARCH_HARD_TIMEOUT_S = 25
         try:
             # On the download pool, not asyncio.to_thread: `wait_for` cannot
             # cancel a thread, so a search that hits the timeout keeps its
@@ -649,8 +664,11 @@ class ScoutAgent:
             video_id = entry.get("id", "")
 
             # Build full URL if needed
-            if video_url and not video_url.startswith("http"):
-                video_url = entry.get("webpage_url", video_url)
+            if (not video_url or not str(video_url).startswith("http")) and video_id:
+                if actual_platform == "youtube":
+                    video_url = f"https://youtube.com/watch?v={video_id}"
+                else:
+                    video_url = entry.get("webpage_url", video_url)
 
             # Parse upload_date
             upload_date = None
@@ -676,7 +694,7 @@ class ScoutAgent:
                 "description": (entry.get("description") or "")[:500],
                 "author": entry.get("uploader") or entry.get("channel", ""),
                 "author_url": entry.get("uploader_url") or entry.get("channel_url", ""),
-                "thumbnail_url": entry.get("thumbnail") or (entry.get("thumbnails", [{}])[0].get("url") if entry.get("thumbnails") else None),
+                "thumbnail_url": entry.get("thumbnail") or (entry.get("thumbnails", [{}])[0].get("url") if entry.get("thumbnails") else None) or (f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg" if actual_platform == "youtube" and video_id else None),
                 "views": entry.get("view_count", 0) or 0,
                 "likes": entry.get("like_count", 0) or 0,
                 "comments": entry.get("comment_count", 0) or 0,

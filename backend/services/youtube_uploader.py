@@ -187,9 +187,20 @@ async def exchange_youtube_code(code: str, client_id: str = None, client_secret:
         youtube = build("youtube", "v3", credentials=creds)
         channels = youtube.channels().list(part="snippet", mine=True).execute()
         channel_title = ""
+        channel_id = ""
+        avatar_url = ""
         if channels.get("items"):
-            channel_title = channels["items"][0]["snippet"]["title"]
+            item = channels["items"][0]
+            channel_id = item.get("id", "")
+            snippet = item.get("snippet", {})
+            channel_title = snippet.get("title", "")
+            avatar_url = (snippet.get("thumbnails", {}).get("default", {}) or {}).get("url", "")
 
-        return {"credentials": creds_dict, "channel_title": channel_title}
+        return {
+            "credentials": creds_dict,
+            "channel_title": channel_title,
+            "channel_id": channel_id,
+            "avatar_url": avatar_url,
+        }
 
     return await asyncio.to_thread(_exchange)

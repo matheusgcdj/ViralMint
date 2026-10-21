@@ -3,7 +3,7 @@ import {
   Box, Stack, Typography, Card, CardContent, Button, IconButton,
   TextField, Switch, FormControlLabel, Chip, Alert, Tooltip,
   Collapse, MenuItem, Select, FormControl, InputLabel, InputAdornment,
-  alpha, useTheme, Link,
+  alpha, useTheme, Link, Avatar, Dialog, DialogTitle, DialogContent, DialogActions,
 } from "@mui/material"
 import YouTubeIcon from "@mui/icons-material/YouTube"
 import InstagramIcon from "@mui/icons-material/Instagram"
@@ -21,10 +21,25 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNewOutlined"
 import CookieIcon from "@mui/icons-material/CookieOutlined"
 import VpnKeyIcon from "@mui/icons-material/VpnKey"
 import DoneIcon from "@mui/icons-material/Done"
+import AddIcon from "@mui/icons-material/Add"
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
+import VideoLibraryIcon from "@mui/icons-material/VideoLibrary"
 import http from "../../api/http"
 import useAppStore from "../../store/appStore"
 
 // TikTok custom SVG icon
+function KwaiIcon({ sx = {} }) {
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 24 24"
+      sx={{ width: 24, height: 24, fill: "currentColor", ...sx }}
+    >
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z" />
+    </Box>
+  )
+}
+
 function TikTokIcon({ sx = {} }) {
   return (
     <Box
@@ -77,6 +92,59 @@ function CopyableUri({ uri, label }) {
 export default function SocialConnectionsSection({ settings, updateSettings, fetchSettings }) {
   const theme = useTheme()
   const showToast = useAppStore((s) => s.showToast || s.showSnackbar)
+
+  // Multi-account groupings
+  const allAccounts = settings?.connected_accounts || []
+  const ytAccounts = allAccounts.filter((a) => a.platform === "youtube")
+  const ttAccounts = allAccounts.filter((a) => a.platform === "tiktok")
+  const igAccounts = allAccounts.filter((a) => a.platform === "instagram")
+  const kwaiAccounts = allAccounts.filter((a) => a.platform === "kwai")
+
+  // Kwai Add Modal State
+  const [openKwaiModal, setOpenKwaiModal] = useState(false)
+  const [kwaiName, setKwaiName] = useState("")
+  const [kwaiId, setKwaiId] = useState("")
+  const [kwaiWebhook, setKwaiWebhook] = useState("")
+  const [savingKwai, setSavingKwai] = useState(false)
+
+  const handleSaveKwaiAccount = async () => {
+    if (!kwaiName.trim()) {
+      showToast?.("Informe o nome do canal/perfil Kwai", "warning")
+      return
+    }
+    setSavingKwai(true)
+    try {
+      await http.post("/api/settings/kwai-account", {
+        account_name: kwaiName.trim(),
+        account_id: kwaiId.trim() || kwaiName.trim(),
+        webhook_url: kwaiWebhook.trim() || undefined,
+      })
+      showToast?.(`Conta Kwai "${kwaiName}" adicionada com sucesso!`, "success")
+      setKwaiName("")
+      setKwaiId("")
+      setKwaiWebhook("")
+      setOpenKwaiModal(false)
+      if (fetchSettings) fetchSettings()
+    } catch (e) {
+      showToast?.("Erro ao adicionar conta Kwai: " + (e.response?.data?.detail || e.message), "error")
+    } finally {
+      setSavingKwai(false)
+    }
+  }
+
+  const handleDeleteAccount = async (accountId, accountName) => {
+    if (!window.confirm(`Deseja realmente desconectar a conta "${accountName}"?`)) return
+    try {
+      setLoadingAction(`del_${accountId}`)
+      await http.delete(`/api/settings/social-account/${accountId}`)
+      showToast?.(`Conta "${accountName}" desconectada com sucesso.`, "info")
+      if (fetchSettings) fetchSettings()
+    } catch (e) {
+      showToast?.("Erro ao desconectar conta: " + (e.response?.data?.detail || e.message), "error")
+    } finally {
+      setLoadingAction(null)
+    }
+  }
 
   // Accordion expanded states
   const [expandedPlatform, setExpandedPlatform] = useState(null)
@@ -474,10 +542,10 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                     YouTube Shorts & Vídeos
                   </Typography>
-                  {settings?.youtube_connected ? (
+                  {ytAccounts.length > 0 || settings?.youtube_connected ? (
                     <Chip
                       icon={<CheckCircleIcon sx={{ fontSize: "16px !important" }} />}
-                      label="Conectado"
+                      label={`Conectado (${ytAccounts.length > 0 ? `${ytAccounts.length} canal/canais` : "1 canal"})`}
                       color="success"
                       size="small"
                       sx={{ fontWeight: 600, height: 24 }}
@@ -487,7 +555,9 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                   )}
                 </Stack>
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  {settings?.youtube_connected
+                  {ytAccounts.length > 0
+                    ? `${ytAccounts.length} canal(is) pronto(s) para postagens e scouting multi-nicho`
+                    : settings?.youtube_connected
                     ? `Canal: ${settings?.youtube_channel_title || "Canal Autorizado"}`
                     : "Upload via YouTube Data API v3 oficial (OAuth 2.0)"}
                 </Typography>
@@ -495,17 +565,33 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
-              {settings?.youtube_connected ? (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  startIcon={<LinkOffIcon />}
-                  onClick={handleDisconnectYoutube}
-                  disabled={loadingAction === "youtube_dc"}
-                >
-                  Desconectar
-                </Button>
+              {ytAccounts.length > 0 || settings?.youtube_connected ? (
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={handleConnectYoutube}
+                    disabled={loadingAction === "youtube"}
+                    sx={{
+                      bgcolor: "#FF0000",
+                      "&:hover": { bgcolor: "#CC0000" },
+                      fontWeight: 600,
+                    }}
+                  >
+                    + Conectar Outro Canal
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    startIcon={<LinkOffIcon />}
+                    onClick={handleDisconnectYoutube}
+                    disabled={loadingAction === "youtube_dc"}
+                  >
+                    Desconectar
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   variant="contained"
@@ -544,6 +630,53 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
               </Typography>
             }
           />
+
+          {/* Lista de Canais Conectados do YouTube */}
+          {ytAccounts.length > 0 && (
+            <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: (t) => alpha(t.palette.background.default, 0.6), border: 1, borderColor: "divider" }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, display: "block", mb: 1 }}>
+                Canais do YouTube Vinculados ({ytAccounts.length})
+              </Typography>
+              <Stack spacing={1}>
+                {ytAccounts.map((acc) => (
+                  <Stack
+                    key={acc.id}
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    sx={{ p: 1.25, borderRadius: 1, bgcolor: "background.paper", border: 1, borderColor: "divider" }}
+                  >
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Avatar src={acc.avatar_url} sx={{ width: 32, height: 32, bgcolor: alpha("#FF0000", 0.1), color: "#FF0000", fontSize: "0.85rem", fontWeight: 700 }}>
+                        {acc.account_name?.charAt(0) || "Y"}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {acc.account_name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "text.secondary", fontFamily: "monospace" }}>
+                          {acc.account_id || "ID do Canal"}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip label="Ativo" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: "0.75rem" }} />
+                      <Tooltip title="Desconectar este canal">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteAccount(acc.id, acc.account_name)}
+                          disabled={loadingAction === `del_${acc.id}`}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
 
           {/* Accordion: OAuth Client ID & Secret configuration */}
           <Collapse in={expandedPlatform === "youtube"}>
@@ -676,10 +809,10 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                     TikTok (Content Posting API & Cookie)
                   </Typography>
-                  {settings?.tiktok_upload_connected ? (
+                  {ttAccounts.length > 0 || settings?.tiktok_upload_connected ? (
                     <Chip
                       icon={<CheckCircleIcon sx={{ fontSize: "16px !important" }} />}
-                      label="OAuth Oficial Conectado"
+                      label={`Conectado (${ttAccounts.length > 0 ? `${ttAccounts.length} conta(s)` : "1 conta"})`}
                       color="success"
                       size="small"
                       sx={{ fontWeight: 600, height: 24 }}
@@ -697,7 +830,9 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                   )}
                 </Stack>
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  {settings?.tiktok_upload_connected
+                  {ttAccounts.length > 0
+                    ? `${ttAccounts.length} conta(s) do TikTok conectada(s) para publicação`
+                    : settings?.tiktok_upload_connected
                     ? "Conectado via TikTok Content Posting API oficial"
                     : settings?.tiktok_cookie_set
                     ? "Upload automatizado via sessão Web do TikTok"
@@ -707,17 +842,34 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
-              {settings?.tiktok_upload_connected || settings?.tiktok_cookie_set ? (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  startIcon={<LinkOffIcon />}
-                  onClick={handleDisconnectTiktok}
-                  disabled={loadingAction === "tiktok_dc"}
-                >
-                  Desconectar
-                </Button>
+              {ttAccounts.length > 0 || settings?.tiktok_upload_connected || settings?.tiktok_cookie_set ? (
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={handleConnectTiktok}
+                    disabled={loadingAction === "tiktok"}
+                    sx={{
+                      bgcolor: (t) => (t.palette.mode === "dark" ? "#fe2c55" : "#000000"),
+                      color: "#ffffff",
+                      "&:hover": { bgcolor: (t) => (t.palette.mode === "dark" ? "#e0264a" : "#222222") },
+                      fontWeight: 600,
+                    }}
+                  >
+                    + Conectar Outra Conta
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    startIcon={<LinkOffIcon />}
+                    onClick={handleDisconnectTiktok}
+                    disabled={loadingAction === "tiktok_dc"}
+                  >
+                    Desconectar
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   variant="contained"
@@ -740,6 +892,53 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
               </IconButton>
             </Stack>
           </Stack>
+
+          {/* Lista de Contas Conectadas do TikTok */}
+          {ttAccounts.length > 0 && (
+            <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: (t) => alpha(t.palette.background.default, 0.6), border: 1, borderColor: "divider" }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, display: "block", mb: 1 }}>
+                Contas do TikTok Vinculadas ({ttAccounts.length})
+              </Typography>
+              <Stack spacing={1}>
+                {ttAccounts.map((acc) => (
+                  <Stack
+                    key={acc.id}
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    sx={{ p: 1.25, borderRadius: 1, bgcolor: "background.paper", border: 1, borderColor: "divider" }}
+                  >
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Avatar src={acc.avatar_url} sx={{ width: 32, height: 32, bgcolor: (t) => alpha(t.palette.text.primary, 0.1), color: "text.primary", fontSize: "0.85rem", fontWeight: 700 }}>
+                        {acc.account_name?.charAt(0) || "T"}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {acc.account_name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "text.secondary", fontFamily: "monospace" }}>
+                          {acc.account_id || "ID TikTok"}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip label="Ativo" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: "0.75rem" }} />
+                      <Tooltip title="Desconectar esta conta">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteAccount(acc.id, acc.account_name)}
+                          disabled={loadingAction === `del_${acc.id}`}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
             <FormControlLabel
@@ -930,10 +1129,10 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                     Instagram Reels (Meta Graph API)
                   </Typography>
-                  {settings?.instagram_connected ? (
+                  {igAccounts.length > 0 || settings?.instagram_connected ? (
                     <Chip
                       icon={<CheckCircleIcon sx={{ fontSize: "16px !important" }} />}
-                      label="Conectado"
+                      label={`Conectado (${igAccounts.length > 0 ? `${igAccounts.length} perfil/perfis` : "1 perfil"})`}
                       color="success"
                       size="small"
                       sx={{ fontWeight: 600, height: 24 }}
@@ -943,7 +1142,9 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
                   )}
                 </Stack>
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  {settings?.instagram_connected
+                  {igAccounts.length > 0
+                    ? `${igAccounts.length} perfil(is) do Instagram conectado(s) para Reels`
+                    : settings?.instagram_connected
                     ? `Conta: @${settings?.instagram_account_name || "Instagram Business"} ${
                         settings?.instagram_user_id ? `(ID: ${settings?.instagram_user_id})` : ""
                       }`
@@ -953,17 +1154,33 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
-              {settings?.instagram_connected ? (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  startIcon={<LinkOffIcon />}
-                  onClick={handleDisconnectInstagram}
-                  disabled={loadingAction === "instagram_dc"}
-                >
-                  Desconectar
-                </Button>
+              {igAccounts.length > 0 || settings?.instagram_connected ? (
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={handleConnectInstagram}
+                    disabled={loadingAction === "instagram"}
+                    sx={{
+                      background: "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)",
+                      color: "#ffffff",
+                      fontWeight: 600,
+                    }}
+                  >
+                    + Conectar Outro Perfil
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    startIcon={<LinkOffIcon />}
+                    onClick={handleDisconnectInstagram}
+                    disabled={loadingAction === "instagram_dc"}
+                  >
+                    Desconectar
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   variant="contained"
@@ -985,6 +1202,53 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
               </IconButton>
             </Stack>
           </Stack>
+
+          {/* Lista de Perfis Conectados do Instagram */}
+          {igAccounts.length > 0 && (
+            <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: (t) => alpha(t.palette.background.default, 0.6), border: 1, borderColor: "divider" }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, display: "block", mb: 1 }}>
+                Perfis do Instagram Vinculados ({igAccounts.length})
+              </Typography>
+              <Stack spacing={1}>
+                {igAccounts.map((acc) => (
+                  <Stack
+                    key={acc.id}
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    sx={{ p: 1.25, borderRadius: 1, bgcolor: "background.paper", border: 1, borderColor: "divider" }}
+                  >
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Avatar src={acc.avatar_url} sx={{ width: 32, height: 32, background: "linear-gradient(45deg, #f09433, #dc2743)", color: "#ffffff", fontSize: "0.85rem", fontWeight: 700 }}>
+                        {acc.account_name?.charAt(0) || "I"}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {acc.account_name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "text.secondary", fontFamily: "monospace" }}>
+                          {acc.account_id || "ID Instagram"}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip label="Ativo" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: "0.75rem" }} />
+                      <Tooltip title="Desconectar este perfil">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteAccount(acc.id, acc.account_name)}
+                          disabled={loadingAction === `del_${acc.id}`}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
 
           <FormControlLabel
             control={
@@ -1149,6 +1413,179 @@ export default function SocialConnectionsSection({ settings, updateSettings, fet
           </Collapse>
         </Stack>
       </Card>
+
+      {/* ── CARD 4: KWAI VÍDEOS & SHORTS ── */}
+      <Card
+        variant="outlined"
+        sx={{
+          p: 2,
+          borderRadius: 2,
+          borderColor: kwaiAccounts.length > 0 ? "success.main" : "divider",
+          bgcolor: (t) =>
+            kwaiAccounts.length > 0
+              ? alpha(t.palette.success.main, 0.03)
+              : t.palette.background.paper,
+        }}
+      >
+        <Stack spacing={2}>
+          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={1.5}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 2,
+                  bgcolor: alpha("#FF7700", 0.12),
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#FF7700",
+                }}
+              >
+                <KwaiIcon sx={{ fontSize: 26 }} />
+              </Box>
+              <Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    Kwai Shorts & Vídeos
+                  </Typography>
+                  {kwaiAccounts.length > 0 ? (
+                    <Chip
+                      icon={<CheckCircleIcon sx={{ fontSize: "16px !important" }} />}
+                      label={`Conectado (${kwaiAccounts.length} conta(s))`}
+                      color="success"
+                      size="small"
+                      sx={{ fontWeight: 600, height: 24 }}
+                    />
+                  ) : (
+                    <Chip label="Não conectado" size="small" variant="outlined" sx={{ height: 24 }} />
+                  )}
+                </Stack>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  {kwaiAccounts.length > 0
+                    ? `${kwaiAccounts.length} conta(s) do Kwai cadastrada(s) para publicação e fila de agendamento`
+                    : "Conecte seus perfis do Kwai para agendamento automático na PublishQueue"}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={() => setOpenKwaiModal(true)}
+                sx={{
+                  bgcolor: "#FF7700",
+                  "&:hover": { bgcolor: "#E06600" },
+                  fontWeight: 600,
+                  color: "#ffffff",
+                }}
+              >
+                + Adicionar Conta Kwai
+              </Button>
+            </Stack>
+          </Stack>
+
+          {/* Lista de Contas Kwai */}
+          {kwaiAccounts.length > 0 && (
+            <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: (t) => alpha(t.palette.background.default, 0.6), border: 1, borderColor: "divider" }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, display: "block", mb: 1 }}>
+                Contas do Kwai Vinculadas ({kwaiAccounts.length})
+              </Typography>
+              <Stack spacing={1}>
+                {kwaiAccounts.map((acc) => (
+                  <Stack
+                    key={acc.id}
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    sx={{ p: 1.25, borderRadius: 1, bgcolor: "background.paper", border: 1, borderColor: "divider" }}
+                  >
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Avatar src={acc.avatar_url} sx={{ width: 32, height: 32, bgcolor: alpha("#FF7700", 0.15), color: "#FF7700", fontSize: "0.85rem", fontWeight: 700 }}>
+                        {acc.account_name?.charAt(0) || "K"}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {acc.account_name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "text.secondary", fontFamily: "monospace" }}>
+                          {acc.account_id || "@kwai_usuario"}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip label="Ativo" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: "0.75rem" }} />
+                      <Tooltip title="Desconectar esta conta">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteAccount(acc.id, acc.account_name)}
+                          disabled={loadingAction === `del_${acc.id}`}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
+        </Stack>
+      </Card>
+
+      {/* Modal / Dialog para Adicionar Conta Kwai */}
+      <Dialog open={openKwaiModal} onClose={() => setOpenKwaiModal(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Adicionar Conta Kwai</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
+            Cadastre o canal/perfil do Kwai para vinculá-lo aos Canais Temáticos e à Fila de Postagem.
+          </Typography>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Nome do Canal ou Perfil"
+              placeholder="Ex: Cortes Rápidos Kwai"
+              size="small"
+              fullWidth
+              value={kwaiName}
+              onChange={(e) => setKwaiName(e.target.value)}
+              required
+            />
+            <TextField
+              label="ID de Usuário ou @Handle"
+              placeholder="Ex: @cortes_rapidos ou ID numérico"
+              size="small"
+              fullWidth
+              value={kwaiId}
+              onChange={(e) => setKwaiId(e.target.value)}
+            />
+            <TextField
+              label="Webhook URL / Token de Envio (Opcional)"
+              placeholder="Ex: https://webhook.kwai... ou token"
+              size="small"
+              fullWidth
+              value={kwaiWebhook}
+              onChange={(e) => setKwaiWebhook(e.target.value)}
+              helperText="Utilizado para disparo automático ou notificações de postagem"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setOpenKwaiModal(false)} color="inherit">
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSaveKwaiAccount}
+            variant="contained"
+            disabled={!kwaiName.trim() || savingKwai}
+            sx={{ bgcolor: "#FF7700", "&:hover": { bgcolor: "#E06600" }, fontWeight: 600 }}
+          >
+            {savingKwai ? "Salvando..." : "Vincular Conta"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   )
 }
