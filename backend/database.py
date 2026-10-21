@@ -103,6 +103,14 @@ async def init_db():
         await _add_column_if_missing(conn, "user_settings", "elevenlabs_api_keys_encrypted", "TEXT", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "youtube_cookies_encrypted", "TEXT", existing=_cols)
         await _add_column_if_missing(conn, "user_settings", "youtube_cookies_set_at", "DATETIME", existing=_cols)
+        await _add_column_if_missing(conn, "user_settings", "youtube_client_id_encrypted", "TEXT", existing=_cols)
+        await _add_column_if_missing(conn, "user_settings", "youtube_client_secret_encrypted", "TEXT", existing=_cols)
+        await _add_column_if_missing(conn, "user_settings", "tiktok_client_key_encrypted", "TEXT", existing=_cols)
+        await _add_column_if_missing(conn, "user_settings", "tiktok_client_secret_encrypted", "TEXT", existing=_cols)
+        await _add_column_if_missing(conn, "user_settings", "instagram_client_id_encrypted", "TEXT", existing=_cols)
+        await _add_column_if_missing(conn, "user_settings", "instagram_client_secret_encrypted", "TEXT", existing=_cols)
+        await _add_column_if_missing(conn, "user_settings", "instagram_account_name", "VARCHAR(200)", existing=_cols)
+        await _add_column_if_missing(conn, "user_settings", "upload_to_instagram", "BOOLEAN", existing=_cols)
 
     # Drift sentinel — compare every model's columns against the live DB
     # schema and log a loud warning for any column the model declares but

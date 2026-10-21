@@ -21,13 +21,20 @@ logger = logging.getLogger(__name__)
 
 # Maps a logical service name → (DB column, .env fallback attribute(s))
 _SERVICE_MAP = {
-    "youtube":    ("youtube_api_key_encrypted",      ["YOUTUBE_API_KEY"]),
-    "pexels":     ("pexels_api_key_encrypted",       ["PEXELS_API_KEY"]),
-    "pixabay":    ("pixabay_api_key_encrypted",      ["PIXABAY_API_KEY"]),
-    "groq":       ("groq_api_key_encrypted",         ["GROQ_API_KEY"]),
-    "google_tts": ("google_tts_api_keys_encrypted",  ["GOOGLE_TTS_API_KEYS", "GOOGLE_TTS_API_KEY"]),
-    "elevenlabs": ("elevenlabs_api_keys_encrypted",  ["ELEVENLABS_API_KEYS", "ELEVENLABS_API_KEY"]),
-    "youtube_cookies": ("youtube_cookies_encrypted", ["YOUTUBE_COOKIES", "YOUTUBE_COOKIE_PATH", "YOUTUBE_COOKIES_FILE"]),
+    "youtube":                ("youtube_api_key_encrypted",          ["YOUTUBE_API_KEY"]),
+    "youtube_client_id":      ("youtube_client_id_encrypted",          ["YOUTUBE_CLIENT_ID"]),
+    "youtube_client_secret":  ("youtube_client_secret_encrypted",      ["YOUTUBE_CLIENT_SECRET"]),
+    "tiktok_client_key":      ("tiktok_client_key_encrypted",          ["TIKTOK_CLIENT_KEY"]),
+    "tiktok_client_secret":   ("tiktok_client_secret_encrypted",       ["TIKTOK_CLIENT_SECRET"]),
+    "instagram_client_id":    ("instagram_client_id_encrypted",        ["INSTAGRAM_CLIENT_ID", "FACEBOOK_APP_ID"]),
+    "instagram_client_secret":("instagram_client_secret_encrypted",    ["INSTAGRAM_CLIENT_SECRET", "FACEBOOK_APP_SECRET"]),
+    "instagram_access_token": ("instagram_access_token_encrypted",     ["INSTAGRAM_ACCESS_TOKEN"]),
+    "pexels":                 ("pexels_api_key_encrypted",           ["PEXELS_API_KEY"]),
+    "pixabay":                ("pixabay_api_key_encrypted",          ["PIXABAY_API_KEY"]),
+    "groq":                   ("groq_api_key_encrypted",             ["GROQ_API_KEY"]),
+    "google_tts":             ("google_tts_api_keys_encrypted",      ["GOOGLE_TTS_API_KEYS", "GOOGLE_TTS_API_KEY"]),
+    "elevenlabs":             ("elevenlabs_api_keys_encrypted",      ["ELEVENLABS_API_KEYS", "ELEVENLABS_API_KEY"]),
+    "youtube_cookies":        ("youtube_cookies_encrypted",         ["YOUTUBE_COOKIES", "YOUTUBE_COOKIE_PATH", "YOUTUBE_COOKIES_FILE"]),
 }
 
 

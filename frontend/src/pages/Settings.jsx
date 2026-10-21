@@ -1,7 +1,9 @@
+import { useState, useEffect } from "react"
 import {
   Box, Typography, Stack, Card, CardContent,
   Button, alpha, useTheme,
 } from "@mui/material"
+import ShareIcon from "@mui/icons-material/ShareOutlined"
 import MonitorHeartIcon from "@mui/icons-material/MonitorHeartOutlined"
 import KeyIcon from "@mui/icons-material/VpnKeyOutlined"
 import SmartToyIcon from "@mui/icons-material/SmartToyOutlined"
@@ -16,7 +18,9 @@ import ServiceKeysSection from "../components/settings/ServiceKeysSection"
 import STTSection from "../components/settings/STTSection"
 import TTSSection from "../components/settings/TTSSection"
 import MessagingSection from "../components/settings/MessagingSection"
+import SocialConnectionsSection from "../components/settings/SocialConnectionsSection"
 import useSettings from "../hooks/useSettings"
+import useAppStore from "../store/appStore"
 
 function Section({ icon, title, description, children, accentColor }) {
   const theme = useTheme()
@@ -66,6 +70,44 @@ function Section({ icon, title, description, children, accentColor }) {
 
 export default function Settings() {
   const { settings, loading, error, fetchSettings, updateSettings } = useSettings()
+  const showToast = useAppStore((s) => s.showToast)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    let handled = false
+
+    if (params.get("youtube_connected") === "true") {
+      const channel = params.get("channel")
+      showToast(`YouTube conectado com sucesso!${channel ? ` Canal: ${channel}` : ""}`, "success")
+      handled = true
+    } else if (params.get("youtube_error")) {
+      showToast(`Erro ao conectar YouTube: ${params.get("youtube_error")}`, "error")
+      handled = true
+    }
+
+    if (params.get("tiktok_connected") === "true") {
+      showToast("TikTok conectado com sucesso!", "success")
+      handled = true
+    } else if (params.get("tiktok_error")) {
+      showToast(`Erro ao conectar TikTok: ${params.get("tiktok_error")}`, "error")
+      handled = true
+    }
+
+    if (params.get("instagram_connected") === "true") {
+      const account = params.get("account")
+      showToast(`Instagram Reels conectado com sucesso!${account ? ` Conta: @${account}` : ""}`, "success")
+      handled = true
+    } else if (params.get("instagram_error")) {
+      showToast(`Erro ao conectar Instagram: ${params.get("instagram_error")}`, "error")
+      handled = true
+    }
+
+    if (handled) {
+      if (fetchSettings) fetchSettings()
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [fetchSettings, showToast])
 
   if (loading) return (
     <Box sx={{ p: 4, display: "flex", justifyContent: "center" }}>
@@ -125,7 +167,17 @@ export default function Settings() {
           <ServiceKeysSection settings={settings} updateSettings={updateSettings} />
         </Section>
 
-        {/* 3. Transcrição e Legendas (STT) */}
+        {/* 3. Redes Sociais & Publicação (OAuth) */}
+        <Section
+          icon={<ShareIcon sx={{ fontSize: 20 }} />}
+          title="Redes Sociais & Publicação (OAuth)"
+          description="Conecte seus canais e perfis (YouTube Shorts, TikTok, Instagram Reels) para agendamento de posts e publicação direta com 1 clique"
+          accentColor="#fe2c55"
+        >
+          <SocialConnectionsSection settings={settings} updateSettings={updateSettings} fetchSettings={fetchSettings} />
+        </Section>
+
+        {/* 4. Transcrição e Legendas (STT) */}
         <Section
           icon={<GraphicEqIcon sx={{ fontSize: 20 }} />}
           title="Transcrição e Legendas (STT)"
@@ -135,7 +187,7 @@ export default function Settings() {
           <STTSection settings={settings} updateSettings={updateSettings} />
         </Section>
 
-        {/* 4. Voz e Narração (TTS) */}
+        {/* 5. Voz e Narração (TTS) */}
         <Section
           icon={<RecordVoiceOverIcon sx={{ fontSize: 20 }} />}
           title="Voz e Narração (TTS)"
@@ -145,7 +197,7 @@ export default function Settings() {
           <TTSSection settings={settings} updateSettings={updateSettings} />
         </Section>
 
-        {/* 5. Messaging — Telegram / WhatsApp / Discord / Slack. Was the /messaging
+        {/* 6. Messaging — Telegram / WhatsApp / Discord / Slack. Was the /messaging
             page; /messaging now redirects to /settings#messaging, and
             ?messaging=<app> opens the setup dialog on that app's tab. */}
         <Section

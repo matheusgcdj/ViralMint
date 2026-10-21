@@ -177,31 +177,47 @@ async def _upload_via_cookies(
         raise UploadError(f"TikTok cookie upload failed: {e}")
 
 
-def build_tiktok_auth_url() -> str:
-    """Build TikTok OAuth authorization URL."""
+async def build_tiktok_auth_url(client_key: str = None, redirect_uri: str = None) -> str:
+    """Build TikTok OAuth authorization URL using effective BYOK or env credentials."""
     import urllib.parse
+    from backend.core.service_keys import resolve_key
+
+    ckey = client_key or await resolve_key("tiktok_client_key")
+    red_uri = redirect_uri or settings.TIKTOK_REDIRECT_URI
+
+    if not ckey:
+        raise UploadAuthError("TikTok Client Key não configurado. Configure na seção Redes Sociais.")
 
     params = {
-        "client_key": settings.TIKTOK_CLIENT_KEY,
+        "client_key": ckey,
         "scope": "video.upload,video.publish,video.list",
         "response_type": "code",
-        "redirect_uri": settings.TIKTOK_REDIRECT_URI,
+        "redirect_uri": red_uri,
         "state": "viralmint_tiktok_auth",
     }
     return f"https://www.tiktok.com/v2/auth/authorize/?{urllib.parse.urlencode(params)}"
 
 
-async def exchange_tiktok_code(code: str) -> dict:
-    """Exchange authorization code for access + refresh tokens."""
+async def exchange_tiktok_code(code: str, client_key: str = None, client_secret: str = None, redirect_uri: str = None) -> dict:
+    """Exchange authorization code for access + refresh tokens using effective BYOK or env credentials."""
+    from backend.core.service_keys import resolve_key
+
+    ckey = client_key or await resolve_key("tiktok_client_key")
+    csecret = client_secret or await resolve_key("tiktok_client_secret")
+    red_uri = redirect_uri or settings.TIKTOK_REDIRECT_URI
+
+    if not ckey or not csecret:
+        raise UploadAuthError("TikTok Client Key ou Client Secret não configurados.")
+
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
             f"{TIKTOK_API}/oauth/token/",
             data={
-                "client_key": settings.TIKTOK_CLIENT_KEY,
-                "client_secret": settings.TIKTOK_CLIENT_SECRET,
+                "client_key": ckey,
+                "client_secret": csecret,
                 "code": code,
                 "grant_type": "authorization_code",
-                "redirect_uri": settings.TIKTOK_REDIRECT_URI,
+                "redirect_uri": red_uri,
             },
         )
 

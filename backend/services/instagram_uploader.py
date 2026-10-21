@@ -272,3 +272,189 @@ async def _get_permalink(media_id: str, access_token: str) -> str:
         return ""
 
     return await asyncio.to_thread(_fetch)
+
+
+# ── Instagram OAuth & Token Management ───────────────────────────────────────
+
+async def build_instagram_auth_url(client_id: str = None, redirect_uri: str = None) -> str:
+    """Build Meta / Instagram Graph API OAuth authorization URL."""
+    import urllib.parse
+    from backend.config import settings
+    from backend.core.service_keys import resolve_key
+    from backend.core.exceptions import UploadAuthError
+
+    cid = client_id or await resolve_key("instagram_client_id")
+    red_uri = redirect_uri or settings.INSTAGRAM_REDIRECT_URI
+
+    if not cid:
+        raise UploadAuthError("Meta / Instagram App ID não configurado. Configure na seção Redes Sociais.")
+
+    scopes = [
+        "instagram_basic",
+        "instagram_content_publish",
+        "pages_show_list",
+        "pages_read_engagement",
+        "business_management",
+    ]
+    params = {
+        "client_id": cid,
+        "redirect_uri": red_uri,
+        "scope": ",".join(scopes),
+        "response_type": "code",
+        "state": "viralmint_instagram_auth",
+    }
+    return f"https://www.facebook.com/v19.0/dialog/oauth?{urllib.parse.urlencode(params)}"
+
+
+async def get_instagram_account_details(access_token: str) -> dict:
+    """Fetch Instagram Business/Creator Account linked to user's Facebook pages."""
+    import httpx
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        try:
+            resp = await client.get(
+                f"{GRAPH_API_BASE}/me/accounts",
+                params={
+                    "fields": "id,name,instagram_business_account{id,username,name}",
+                    "access_token": access_token,
+                },
+            )
+            if resp.status_code == 200:
+                data = resp.json().get("data", [])
+                for page in data:
+                    ig_acc = page.get("instagram_business_account")
+                    if ig_acc and ig_acc.get("id"):
+                        return {
+                            "id": ig_acc["id"],
+                            "username": ig_acc.get("username", ""),
+                            "name": ig_acc.get("name", "") or page.get("name", ""),
+                            "page_id": page.get("id"),
+                        }
+        except Exception as e:
+            logger.warning(f"Error querying me/accounts for Instagram: {e}")
+
+        try:
+            resp = await client.get(
+                f"{GRAPH_API_BASE}/me",
+                params={"fields": "id,name,username", "access_token": access_token},
+            )
+            if resp.status_code == 200:
+                user_data = resp.json()
+                if user_data.get("id"):
+                    return {
+                        "id": user_data["id"],
+                        "username": user_data.get("username", ""),
+                        "name": user_data.get("name", ""),
+                    }
+        except Exception as e:
+            logger.warning(f"Error querying me for Instagram: {e}")
+
+    return {"id": "", "username": "", "name": ""}
+
+
+async def exchange_instagram_code(code: str, client_id: str = None, client_secret: str = None, redirect_uri: str = None) -> dict:
+    """Exchange authorization code for long-lived access token + IG account details."""
+    import httpx
+    from backend.config import settings
+    from backend.core.service_keys import resolve_key
+    from backend.core.exceptions import UploadAuthError
+
+    cid = client_id or await resolve_key("instagram_client_id")
+    csecret = client_secret or await resolve_key("instagram_client_secret")
+    red_uri = redirect_uri or settings.INSTAGRAM_REDIRECT_URI
+
+    if not cid or not csecret:
+        raise UploadAuthError("Meta / Instagram App ID ou App Secret não configurados.")
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(
+            f"{GRAPH_API_BASE}/oauth/access_token",
+            params={
+                "client_id": cid,
+                "client_secret": csecret,
+                "redirect_uri": red_uri,
+                "code": code,
+            },
+        )
+        if resp.status_code != 200:
+            raise UploadAuthError(f"Falha ao trocar código de autorização Meta: {resp.text[:300]}")
+
+        token_data = resp.json()
+        short_token = token_data.get("access_token")
+        if not short_token:
+            raise UploadAuthError("Meta não retornou access_token no callback de autorização.")
+
+        long_lived_token = short_token
+        try:
+            ll_resp = await client.get(
+                f"{GRAPH_API_BASE}/oauth/access_token",
+                params={
+                    "grant_type": "fb_exchange_token",
+                    "client_id": cid,
+                    "client_secret": csecret,
+                    "fb_exchange_token": short_token,
+                },
+            )
+            if ll_resp.status_code == 200:
+                long_lived_token = ll_resp.json().get("access_token", short_token)
+        except Exception as e:
+            logger.warning(f"Failed to exchange for long-lived Instagram token: {e}")
+
+        acc_details = await get_instagram_account_details(long_lived_token)
+
+        return {
+            "access_token": long_lived_token,
+            "ig_user_id": acc_details.get("id", ""),
+            "account_name": acc_details.get("username") or acc_details.get("name") or "Instagram Business",
+        }
+
+
+async def verify_instagram_token(access_token: str, ig_user_id: str = None) -> dict:
+    """Verify an Instagram Access Token and return account info."""
+    import httpx
+
+    if not access_token:
+        return {"ok": False, "error": "Nenhum token fornecido"}
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        if ig_user_id:
+            try:
+                resp = await client.get(
+                    f"{GRAPH_API_BASE}/{ig_user_id}",
+                    params={"fields": "id,username,name", "access_token": access_token},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return {
+                        "ok": True,
+                        "ig_user_id": data.get("id"),
+                        "account_name": data.get("username") or data.get("name") or ig_user_id,
+                    }
+            except Exception as e:
+                logger.warning(f"Error checking ig_user_id {ig_user_id}: {e}")
+
+        acc_details = await get_instagram_account_details(access_token)
+        if acc_details.get("id"):
+            return {
+                "ok": True,
+                "ig_user_id": acc_details["id"],
+                "account_name": acc_details.get("username") or acc_details.get("name") or "Instagram Business",
+            }
+
+        try:
+            resp = await client.get(
+                f"{GRAPH_API_BASE}/me",
+                params={"fields": "id,name", "access_token": access_token},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "ok": True,
+                    "ig_user_id": data.get("id"),
+                    "account_name": data.get("name") or "Meta Account",
+                }
+            else:
+                err = resp.json().get("error", {}).get("message", resp.text[:200])
+                return {"ok": False, "error": f"Token inválido: {err}"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}

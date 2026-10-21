@@ -36,10 +36,14 @@ class UserSettings(Base, TimestampMixin):
     tiktok_cookie_set_at = Column(DateTime, nullable=True)
 
     # ── YouTube upload OAuth ───────────────────────────
+    youtube_client_id_encrypted = Column(Text, nullable=True)
+    youtube_client_secret_encrypted = Column(Text, nullable=True)
     youtube_credentials_json_encrypted = Column(Text, nullable=True)
     youtube_channel_title = Column(String(200), nullable=True)
 
     # ── TikTok upload (dual method) ────────────────────
+    tiktok_client_key_encrypted = Column(Text, nullable=True)
+    tiktok_client_secret_encrypted = Column(Text, nullable=True)
     tiktok_upload_token_encrypted = Column(Text, nullable=True)   # OAuth access token
     tiktok_upload_token_expiry = Column(DateTime, nullable=True)
     tiktok_upload_refresh_token_encrypted = Column(Text, nullable=True)
@@ -74,10 +78,14 @@ class UserSettings(Base, TimestampMixin):
     music_volume_db = Column(Float, default=-14.0)
 
     # ── Instagram Upload ───────────────────────────────
+    instagram_client_id_encrypted = Column(Text, nullable=True)
+    instagram_client_secret_encrypted = Column(Text, nullable=True)
     instagram_access_token_encrypted = Column(Text, nullable=True)
     instagram_user_id = Column(String(100), nullable=True)
+    instagram_account_name = Column(String(200), nullable=True)
 
     # ── Upload preferences ─────────────────────────────
     upload_to_youtube = Column(Boolean, default=True)
     upload_to_tiktok = Column(Boolean, default=False)
+    upload_to_instagram = Column(Boolean, default=False)
     tiktok_default_privacy = Column(String(30), default="PUBLIC_TO_EVERYONE")

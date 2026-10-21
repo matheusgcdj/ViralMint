@@ -171,6 +171,13 @@ class Settings(BaseSettings):
     TIKTOK_CLIENT_SECRET: str = ""
     TIKTOK_REDIRECT_URI: str = "http://localhost:16888/api/settings/tiktok-upload-callback"
 
+    INSTAGRAM_CLIENT_ID: str = ""
+    INSTAGRAM_CLIENT_SECRET: str = ""
+    INSTAGRAM_REDIRECT_URI: str = "http://localhost:16888/api/settings/instagram-callback"
+    INSTAGRAM_ACCESS_TOKEN: str = ""
+    FACEBOOK_APP_ID: str = ""
+    FACEBOOK_APP_SECRET: str = ""
+
     # ── Frontend ──────────────────────────────────────
     FRONTEND_URL: str = "http://localhost:5173"
 

@@ -3,7 +3,7 @@
 """REST /api/settings — user settings CRUD + credential testing + OAuth callbacks."""
 import logging
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -38,12 +38,19 @@ class SettingsResponse(BaseModel):
     youtube_cookies_set: bool = False
     youtube_cookies_set_at: Optional[datetime] = None
 
-    # OAuth / cookie status
+    # OAuth / Social status
     douyin_cookie_set: bool = False
     tiktok_cookie_set: bool = False
     youtube_channel_title: Optional[str] = None
     youtube_connected: bool = False
+    youtube_client_id_set: bool = False
     tiktok_upload_connected: bool = False
+    tiktok_client_key_set: bool = False
+    instagram_connected: bool = False
+    instagram_user_id: Optional[str] = None
+    instagram_account_name: Optional[str] = None
+    instagram_client_id_set: bool = False
+    instagram_access_token_set: bool = False
 
     # Preferences
     preferred_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
@@ -58,6 +65,7 @@ class SettingsResponse(BaseModel):
     music_volume_db: float = -14.0
     upload_to_youtube: bool = True
     upload_to_tiktok: bool = False
+    upload_to_instagram: bool = False
     tiktok_default_privacy: str = "PUBLIC_TO_EVERYONE"
 
     class Config:
@@ -81,6 +89,17 @@ class SettingsUpdate(BaseModel):
     elevenlabs_api_keys: Optional[str] = None  # single key or comma-separated pool
     youtube_cookies: Optional[str] = None      # Netscape cookies.txt content (empty string to clear)
 
+    # Social BYOK OAuth Credentials & Tokens
+    youtube_client_id: Optional[str] = None
+    youtube_client_secret: Optional[str] = None
+    tiktok_client_key: Optional[str] = None
+    tiktok_client_secret: Optional[str] = None
+    tiktok_cookie: Optional[str] = None
+    instagram_client_id: Optional[str] = None
+    instagram_client_secret: Optional[str] = None
+    instagram_access_token: Optional[str] = None
+    instagram_user_id: Optional[str] = None
+
     # Preferences
     preferred_voice_id: Optional[str] = None
     tts_provider: Optional[str] = None
@@ -94,6 +113,7 @@ class SettingsUpdate(BaseModel):
     music_volume_db: Optional[float] = None
     upload_to_youtube: Optional[bool] = None
     upload_to_tiktok: Optional[bool] = None
+    upload_to_instagram: Optional[bool] = None
     tiktok_default_privacy: Optional[str] = None
 
 
@@ -154,6 +174,25 @@ async def get_settings():
         app_settings.YOUTUBE_COOKIES or app_settings.YOUTUBE_COOKIE_PATH
     ) or (app_settings.STORAGE_ROOT / "yt_cookies.txt").exists()
 
+    # YouTube OAuth status
+    youtube_client_id_set = bool(s and s.youtube_client_id_encrypted) or bool(app_settings.YOUTUBE_CLIENT_ID)
+    youtube_connected = bool(s and s.youtube_credentials_json_encrypted)
+
+    # TikTok OAuth & Cookies
+    tiktok_client_key_set = bool(s and s.tiktok_client_key_encrypted) or bool(app_settings.TIKTOK_CLIENT_KEY)
+    tiktok_upload_connected = bool(s and s.tiktok_upload_token_encrypted)
+    tiktok_cookie_set = bool(s and s.tiktok_cookie_encrypted)
+
+    # Instagram Reels
+    instagram_client_id_set = bool(s and s.instagram_client_id_encrypted) or bool(
+        app_settings.INSTAGRAM_CLIENT_ID or app_settings.FACEBOOK_APP_ID
+    )
+    instagram_access_token_set = bool(s and s.instagram_access_token_encrypted) or bool(app_settings.INSTAGRAM_ACCESS_TOKEN)
+    instagram_connected = bool(s and (s.instagram_access_token_encrypted or s.instagram_user_id))
+    instagram_user_id = s.instagram_user_id if s else None
+    instagram_account_name = s.instagram_account_name if s else None
+    upload_to_instagram = bool(s.upload_to_instagram) if (s and s.upload_to_instagram is not None) else False
+
     if not s:
         return SettingsResponse(
             ai_provider=effective_provider,
@@ -167,6 +206,15 @@ async def get_settings():
             google_tts_api_key_set=google_tts_set,
             elevenlabs_api_key_set=elevenlabs_set,
             youtube_cookies_set=youtube_cookies_set,
+            youtube_client_id_set=youtube_client_id_set,
+            youtube_connected=youtube_connected,
+            tiktok_client_key_set=tiktok_client_key_set,
+            tiktok_upload_connected=tiktok_upload_connected,
+            tiktok_cookie_set=tiktok_cookie_set,
+            instagram_client_id_set=instagram_client_id_set,
+            instagram_access_token_set=instagram_access_token_set,
+            instagram_connected=instagram_connected,
+            upload_to_instagram=upload_to_instagram,
             stt_provider="groq" if groq_set else "local",
             whisper_quality="balanced",
         )
@@ -185,10 +233,17 @@ async def get_settings():
         youtube_cookies_set=youtube_cookies_set,
         youtube_cookies_set_at=s.youtube_cookies_set_at if s else None,
         douyin_cookie_set=bool(s.douyin_cookie_encrypted),
-        tiktok_cookie_set=bool(s.tiktok_cookie_encrypted),
+        tiktok_cookie_set=tiktok_cookie_set,
         youtube_channel_title=s.youtube_channel_title,
-        youtube_connected=bool(s.youtube_credentials_json_encrypted),
-        tiktok_upload_connected=bool(s.tiktok_upload_token_encrypted),
+        youtube_connected=youtube_connected,
+        youtube_client_id_set=youtube_client_id_set,
+        tiktok_upload_connected=tiktok_upload_connected,
+        tiktok_client_key_set=tiktok_client_key_set,
+        instagram_connected=instagram_connected,
+        instagram_user_id=instagram_user_id,
+        instagram_account_name=instagram_account_name,
+        instagram_client_id_set=instagram_client_id_set,
+        instagram_access_token_set=instagram_access_token_set,
         preferred_voice_id=s.preferred_voice_id or "21m00Tcm4TlvDq8ikWAM",
         tts_provider=s.tts_provider or "edge_tts",
         preferred_tts_voice=s.preferred_tts_voice,
@@ -201,6 +256,7 @@ async def get_settings():
         music_volume_db=s.music_volume_db if s.music_volume_db is not None else -14.0,
         upload_to_youtube=s.upload_to_youtube if s.upload_to_youtube is not None else True,
         upload_to_tiktok=s.upload_to_tiktok or False,
+        upload_to_instagram=upload_to_instagram,
         tiktok_default_privacy=s.tiktok_default_privacy or "PUBLIC_TO_EVERYONE",
     )
 
@@ -316,10 +372,36 @@ async def update_settings(update: SettingsUpdate):
             s.music_genre = update.music_genre
         if update.music_volume_db is not None:
             s.music_volume_db = update.music_volume_db
+        # Social BYOK Keys & Tokens
+        if update.youtube_client_id is not None:
+            s.youtube_client_id_encrypted = encrypt(update.youtube_client_id.strip()) if update.youtube_client_id.strip() else None
+        if update.youtube_client_secret is not None:
+            s.youtube_client_secret_encrypted = encrypt(update.youtube_client_secret.strip()) if update.youtube_client_secret.strip() else None
+
+        if update.tiktok_client_key is not None:
+            s.tiktok_client_key_encrypted = encrypt(update.tiktok_client_key.strip()) if update.tiktok_client_key.strip() else None
+        if update.tiktok_client_secret is not None:
+            s.tiktok_client_secret_encrypted = encrypt(update.tiktok_client_secret.strip()) if update.tiktok_client_secret.strip() else None
+        if update.tiktok_cookie is not None:
+            clean_tc = update.tiktok_cookie.strip()
+            s.tiktok_cookie_encrypted = encrypt(clean_tc) if clean_tc else None
+            s.tiktok_cookie_set_at = datetime.utcnow() if clean_tc else None
+
+        if update.instagram_client_id is not None:
+            s.instagram_client_id_encrypted = encrypt(update.instagram_client_id.strip()) if update.instagram_client_id.strip() else None
+        if update.instagram_client_secret is not None:
+            s.instagram_client_secret_encrypted = encrypt(update.instagram_client_secret.strip()) if update.instagram_client_secret.strip() else None
+        if update.instagram_access_token is not None:
+            s.instagram_access_token_encrypted = encrypt(update.instagram_access_token.strip()) if update.instagram_access_token.strip() else None
+        if update.instagram_user_id is not None:
+            s.instagram_user_id = update.instagram_user_id.strip() if update.instagram_user_id.strip() else None
+
         if update.upload_to_youtube is not None:
             s.upload_to_youtube = update.upload_to_youtube
         if update.upload_to_tiktok is not None:
             s.upload_to_tiktok = update.upload_to_tiktok
+        if update.upload_to_instagram is not None:
+            s.upload_to_instagram = update.upload_to_instagram
         if update.tiktok_default_privacy is not None:
             s.tiktok_default_privacy = update.tiktok_default_privacy
 
@@ -328,25 +410,43 @@ async def update_settings(update: SettingsUpdate):
     return await get_settings()
 
 
-# ── OAuth endpoints ──────────────────────────────────────────────────────────
+def _resolve_redirect_uri(request: Request, endpoint_path: str, fallback_config_uri: str = "") -> str:
+    """Compute effective public redirect URI respecting reverse-proxy headers and origins."""
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if host:
+        return f"{proto}://{host}{endpoint_path}"
+    if fallback_config_uri:
+        return fallback_config_uri
+    return str(request.url_for(endpoint_path.lstrip("/")))
 
+
+# ── YouTube OAuth & Disconnect ────────────────────────────────────────────────
 
 @router.get("/settings/youtube-auth")
-async def youtube_auth():
-    """Redirect user to Google OAuth for YouTube upload."""
-    if not app_settings.YOUTUBE_CLIENT_ID or not app_settings.YOUTUBE_CLIENT_SECRET:
-        return {"error": "YouTube OAuth client ID/secret not configured in .env"}
+async def youtube_auth(request: Request, redirect_uri: Optional[str] = Query(None), json_mode: bool = Query(False, alias="json")):
+    """Initiate Google OAuth flow for YouTube."""
     from backend.services.youtube_uploader import build_youtube_auth_url
-    url = build_youtube_auth_url()
-    return RedirectResponse(url)
+    effective_redirect = redirect_uri or _resolve_redirect_uri(request, "/api/settings/youtube-callback", app_settings.YOUTUBE_REDIRECT_URI)
+    try:
+        url = await build_youtube_auth_url(redirect_uri=effective_redirect)
+        if json_mode or request.headers.get("accept", "").startswith("application/json"):
+            return {"ok": True, "auth_url": url}
+        return RedirectResponse(url)
+    except Exception as e:
+        logger.warning(f"Failed to generate YouTube auth URL: {e}")
+        if json_mode or request.headers.get("accept", "").startswith("application/json"):
+            return {"ok": False, "error": str(e)}
+        return RedirectResponse(f"/settings?youtube_error={str(e)[:200]}")
 
 
 @router.get("/settings/youtube-callback")
-async def youtube_callback(code: str = Query(...), state: str = Query(None)):
+async def youtube_callback(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
     """Handle YouTube OAuth callback — exchange code for credentials."""
     from backend.services.youtube_uploader import exchange_youtube_code
+    effective_redirect = _resolve_redirect_uri(request, "/api/settings/youtube-callback", app_settings.YOUTUBE_REDIRECT_URI)
     try:
-        result = await exchange_youtube_code(code)
+        result = await exchange_youtube_code(code, redirect_uri=effective_redirect)
         creds_json = result["credentials"]
         channel_title = result.get("channel_title", "")
 
@@ -363,28 +463,55 @@ async def youtube_callback(code: str = Query(...), state: str = Query(None)):
             s.youtube_channel_title = channel_title
             await db.commit()
 
-        return RedirectResponse(f"/?youtube_connected=true&channel={channel_title}")
+        import urllib.parse
+        return RedirectResponse(f"/settings?youtube_connected=true&channel={urllib.parse.quote(channel_title)}")
     except Exception as e:
         logger.error(f"YouTube OAuth callback failed: {e}")
-        return RedirectResponse(f"/?youtube_error={str(e)[:200]}")
+        import urllib.parse
+        return RedirectResponse(f"/settings?youtube_error={urllib.parse.quote(str(e)[:200])}")
 
+
+@router.post("/settings/youtube-disconnect")
+async def youtube_disconnect():
+    """Disconnect YouTube account."""
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(
+            select(UserSettings).where(UserSettings.user_id == "local")
+        )
+        s = res.scalar_one_or_none()
+        if s:
+            s.youtube_credentials_json_encrypted = None
+            s.youtube_channel_title = None
+            await db.commit()
+    return {"ok": True, "message": "Conta do YouTube desconectada com sucesso"}
+
+
+# ── TikTok OAuth, Cookie & Disconnect ─────────────────────────────────────────
 
 @router.get("/settings/tiktok-upload-auth")
-async def tiktok_upload_auth():
-    """Redirect user to TikTok OAuth for upload."""
-    if not app_settings.TIKTOK_CLIENT_KEY or not app_settings.TIKTOK_CLIENT_SECRET:
-        return {"error": "TikTok client key/secret not configured in .env"}
+async def tiktok_upload_auth(request: Request, redirect_uri: Optional[str] = Query(None), json_mode: bool = Query(False, alias="json")):
+    """Initiate TikTok OAuth flow for video upload."""
     from backend.services.tiktok_uploader import build_tiktok_auth_url
-    url = build_tiktok_auth_url()
-    return RedirectResponse(url)
+    effective_redirect = redirect_uri or _resolve_redirect_uri(request, "/api/settings/tiktok-upload-callback", app_settings.TIKTOK_REDIRECT_URI)
+    try:
+        url = await build_tiktok_auth_url(redirect_uri=effective_redirect)
+        if json_mode or request.headers.get("accept", "").startswith("application/json"):
+            return {"ok": True, "auth_url": url}
+        return RedirectResponse(url)
+    except Exception as e:
+        logger.warning(f"Failed to generate TikTok auth URL: {e}")
+        if json_mode or request.headers.get("accept", "").startswith("application/json"):
+            return {"ok": False, "error": str(e)}
+        return RedirectResponse(f"/settings?tiktok_error={str(e)[:200]}")
 
 
 @router.get("/settings/tiktok-upload-callback")
-async def tiktok_upload_callback(code: str = Query(...), state: str = Query(None)):
+async def tiktok_upload_callback(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
     """Handle TikTok OAuth callback — exchange code for tokens."""
     from backend.services.tiktok_uploader import exchange_tiktok_code
+    effective_redirect = _resolve_redirect_uri(request, "/api/settings/tiktok-upload-callback", app_settings.TIKTOK_REDIRECT_URI)
     try:
-        result = await exchange_tiktok_code(code)
+        result = await exchange_tiktok_code(code, redirect_uri=effective_redirect)
 
         async with AsyncSessionLocal() as db:
             res = await db.execute(
@@ -402,10 +529,128 @@ async def tiktok_upload_callback(code: str = Query(...), state: str = Query(None
                 s.tiktok_upload_token_expiry = datetime.utcnow() + timedelta(seconds=result["expires_in"])
             await db.commit()
 
-        return RedirectResponse("/?tiktok_connected=true")
+        return RedirectResponse("/settings?tiktok_connected=true")
     except Exception as e:
         logger.error(f"TikTok OAuth callback failed: {e}")
-        return RedirectResponse(f"/?tiktok_error={str(e)[:200]}")
+        import urllib.parse
+        return RedirectResponse(f"/settings?tiktok_error={urllib.parse.quote(str(e)[:200])}")
+
+
+@router.post("/settings/tiktok-disconnect")
+async def tiktok_disconnect():
+    """Disconnect TikTok OAuth account and clear cookie."""
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(
+            select(UserSettings).where(UserSettings.user_id == "local")
+        )
+        s = res.scalar_one_or_none()
+        if s:
+            s.tiktok_upload_token_encrypted = None
+            s.tiktok_upload_refresh_token_encrypted = None
+            s.tiktok_upload_token_expiry = None
+            s.tiktok_cookie_encrypted = None
+            s.tiktok_cookie_set_at = None
+            await db.commit()
+    return {"ok": True, "message": "Conta do TikTok desconectada com sucesso"}
+
+
+# ── Instagram Reels OAuth, Direct Token & Disconnect ─────────────────────────
+
+@router.get("/settings/instagram-auth")
+async def instagram_auth(request: Request, redirect_uri: Optional[str] = Query(None), json_mode: bool = Query(False, alias="json")):
+    """Initiate Meta / Instagram Graph API OAuth flow."""
+    from backend.services.instagram_uploader import build_instagram_auth_url
+    effective_redirect = redirect_uri or _resolve_redirect_uri(request, "/api/settings/instagram-callback", app_settings.INSTAGRAM_REDIRECT_URI)
+    try:
+        url = await build_instagram_auth_url(redirect_uri=effective_redirect)
+        if json_mode or request.headers.get("accept", "").startswith("application/json"):
+            return {"ok": True, "auth_url": url}
+        return RedirectResponse(url)
+    except Exception as e:
+        logger.warning(f"Failed to generate Instagram auth URL: {e}")
+        if json_mode or request.headers.get("accept", "").startswith("application/json"):
+            return {"ok": False, "error": str(e)}
+        return RedirectResponse(f"/settings?instagram_error={str(e)[:200]}")
+
+
+@router.get("/settings/instagram-callback")
+async def instagram_callback(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
+    """Handle Meta / Instagram OAuth callback — exchange code for long-lived token."""
+    from backend.services.instagram_uploader import exchange_instagram_code
+    effective_redirect = _resolve_redirect_uri(request, "/api/settings/instagram-callback", app_settings.INSTAGRAM_REDIRECT_URI)
+    try:
+        result = await exchange_instagram_code(code, redirect_uri=effective_redirect)
+        access_token = result["access_token"]
+        ig_user_id = result.get("ig_user_id", "")
+        account_name = result.get("account_name", "")
+
+        async with AsyncSessionLocal() as db:
+            res = await db.execute(
+                select(UserSettings).where(UserSettings.user_id == "local")
+            )
+            s = res.scalar_one_or_none()
+            if not s:
+                s = UserSettings(user_id="local")
+                db.add(s)
+            s.instagram_access_token_encrypted = encrypt(access_token)
+            s.instagram_user_id = ig_user_id or None
+            s.instagram_account_name = account_name or None
+            await db.commit()
+
+        import urllib.parse
+        return RedirectResponse(f"/settings?instagram_connected=true&account={urllib.parse.quote(account_name)}")
+    except Exception as e:
+        logger.error(f"Instagram OAuth callback failed: {e}")
+        import urllib.parse
+        return RedirectResponse(f"/settings?instagram_error={urllib.parse.quote(str(e)[:200])}")
+
+
+@router.post("/settings/instagram-direct-connect")
+async def instagram_direct_connect(body: dict):
+    """Directly connect Instagram using a long-lived Access Token (BYOK Express)."""
+    access_token = (body.get("access_token") or "").strip()
+    ig_user_id = (body.get("ig_user_id") or "").strip()
+    if not access_token:
+        return {"ok": False, "error": "Token de acesso não fornecido"}
+
+    from backend.services.instagram_uploader import verify_instagram_token
+    verify = await verify_instagram_token(access_token, ig_user_id=ig_user_id or None)
+    if not verify.get("ok"):
+        return {"ok": False, "error": verify.get("error", "Token do Instagram inválido ou sem permissão de publicação")}
+
+    account_name = verify.get("account_name", "")
+    resolved_id = verify.get("ig_user_id") or ig_user_id
+
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(
+            select(UserSettings).where(UserSettings.user_id == "local")
+        )
+        s = res.scalar_one_or_none()
+        if not s:
+            s = UserSettings(user_id="local")
+            db.add(s)
+        s.instagram_access_token_encrypted = encrypt(access_token)
+        s.instagram_user_id = resolved_id or None
+        s.instagram_account_name = account_name or None
+        await db.commit()
+
+    return {"ok": True, "account_name": account_name, "ig_user_id": resolved_id}
+
+
+@router.post("/settings/instagram-disconnect")
+async def instagram_disconnect():
+    """Disconnect Instagram account."""
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(
+            select(UserSettings).where(UserSettings.user_id == "local")
+        )
+        s = res.scalar_one_or_none()
+        if s:
+            s.instagram_access_token_encrypted = None
+            s.instagram_user_id = None
+            s.instagram_account_name = None
+            await db.commit()
+    return {"ok": True, "message": "Conta do Instagram desconectada com sucesso"}
 
 
 @router.post("/settings/test-cookie")

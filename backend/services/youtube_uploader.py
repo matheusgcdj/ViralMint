@@ -101,23 +101,31 @@ async def upload_to_youtube(
         raise UploadError(f"YouTube upload failed: {e}")
 
 
-def build_youtube_auth_url() -> str:
-    """Build the YouTube OAuth authorization URL."""
+async def build_youtube_auth_url(client_id: str = None, client_secret: str = None, redirect_uri: str = None) -> str:
+    """Build the YouTube OAuth authorization URL using effective BYOK or env credentials."""
     from google_auth_oauthlib.flow import Flow
+    from backend.core.service_keys import resolve_key
+
+    cid = client_id or await resolve_key("youtube_client_id")
+    csecret = client_secret or await resolve_key("youtube_client_secret")
+    red_uri = redirect_uri or settings.YOUTUBE_REDIRECT_URI
+
+    if not cid or not csecret:
+        raise UploadAuthError("Google OAuth Client ID ou Client Secret não configurados. Configure na seção Redes Sociais.")
 
     flow = Flow.from_client_config(
         {
             "web": {
-                "client_id": settings.YOUTUBE_CLIENT_ID,
-                "client_secret": settings.YOUTUBE_CLIENT_SECRET,
+                "client_id": cid,
+                "client_secret": csecret,
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
-                "redirect_uris": [settings.YOUTUBE_REDIRECT_URI],
+                "redirect_uris": [red_uri],
             }
         },
         scopes=["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"],
     )
-    flow.redirect_uri = settings.YOUTUBE_REDIRECT_URI
+    flow.redirect_uri = red_uri
 
     auth_url, _ = flow.authorization_url(
         access_type="offline",
@@ -127,24 +135,32 @@ def build_youtube_auth_url() -> str:
     return auth_url
 
 
-async def exchange_youtube_code(code: str) -> dict:
-    """Exchange an OAuth authorization code for credentials."""
+async def exchange_youtube_code(code: str, client_id: str = None, client_secret: str = None, redirect_uri: str = None) -> dict:
+    """Exchange an OAuth authorization code for credentials using effective BYOK or env credentials."""
     from google_auth_oauthlib.flow import Flow
+    from backend.core.service_keys import resolve_key
+
+    cid = client_id or await resolve_key("youtube_client_id")
+    csecret = client_secret or await resolve_key("youtube_client_secret")
+    red_uri = redirect_uri or settings.YOUTUBE_REDIRECT_URI
+
+    if not cid or not csecret:
+        raise UploadAuthError("Google OAuth Client ID ou Client Secret não configurados.")
 
     def _exchange():
         flow = Flow.from_client_config(
             {
                 "web": {
-                    "client_id": settings.YOUTUBE_CLIENT_ID,
-                    "client_secret": settings.YOUTUBE_CLIENT_SECRET,
+                    "client_id": cid,
+                    "client_secret": csecret,
                     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                     "token_uri": "https://oauth2.googleapis.com/token",
-                    "redirect_uris": [settings.YOUTUBE_REDIRECT_URI],
+                    "redirect_uris": [red_uri],
                 }
             },
             scopes=["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"],
         )
-        flow.redirect_uri = settings.YOUTUBE_REDIRECT_URI
+        flow.redirect_uri = red_uri
         flow.fetch_token(code=code)
 
         creds = flow.credentials
