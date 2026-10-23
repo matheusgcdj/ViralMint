@@ -3,8 +3,8 @@
 """REST /api/settings — user settings CRUD + credential testing + OAuth callbacks."""
 import logging
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, File, Form
+from fastapi.responses import RedirectResponse, FileResponse
 from pydantic import BaseModel, Field
 from typing import Optional
 from sqlalchemy import select
@@ -1257,3 +1257,63 @@ async def voice_studio_voices():
     from backend.services.voicestudio_service import VoiceStudioService
     voices = await VoiceStudioService.get_voice_list()
     return {"ok": True, "voices": voices}
+
+
+@router.post("/settings/voice-studio/clone")
+async def voice_studio_clone(
+    file: UploadFile = File(...),
+    voice_name: str = Form(...),
+    description: Optional[str] = Form(""),
+    category: Optional[str] = Form("cloned"),
+    gender: Optional[str] = Form("neutral"),
+):
+    """Clone a voice using an uploaded or microphone-recorded reference sample (Few-Shot 3s)."""
+    clean_name = (voice_name or "").strip()
+    if not clean_name:
+        raise HTTPException(400, "Nome da voz é obrigatório")
+
+    content = await file.read()
+    if len(content) == 0:
+        raise HTTPException(400, "Arquivo de áudio vazio")
+    if len(content) > 35 * 1024 * 1024:
+        raise HTTPException(413, "Áudio excede o limite de 35MB")
+
+    from backend.services.voicestudio_service import VoiceStudioService
+    voice = await VoiceStudioService.clone_voice(
+        name=clean_name,
+        audio_bytes=content,
+        filename=file.filename or "sample.wav",
+        category=(category or "cloned").strip(),
+        gender=(gender or "neutral").strip(),
+        description=(description or "").strip(),
+    )
+    return {"ok": True, "voice": voice, "message": f"Voz '{voice['name']}' clonada com sucesso!"}
+
+
+@router.delete("/settings/voice-studio/voices/{voice_id}")
+async def voice_studio_delete_voice(voice_id: str):
+    """Delete a custom cloned voice."""
+    from backend.services.voicestudio_service import VoiceStudioService
+    success = await VoiceStudioService.delete_cloned_voice(voice_id)
+    return {"ok": success, "message": "Voz removida com sucesso"}
+
+
+@router.get("/settings/voice-studio/audio/{filename}")
+async def voice_studio_serve_audio(filename: str):
+    """Serve a reference sample or synthesized audio for Voice Studio."""
+    import re
+    from pathlib import Path
+    if not re.match(r"^[A-Za-z0-9_.-]+$", filename):
+        raise HTTPException(400, "Nome de arquivo inválido")
+
+    from backend.services.voicestudio_service import VoiceStudioService
+    install_dir = VoiceStudioService.get_install_dir()
+    sample_file = install_dir / "voices" / filename
+    if not sample_file.exists():
+        audio_dir = getattr(app_settings, "AUDIO_DIR", None) or Path("/app/storage/audio")
+        sample_file = audio_dir / filename
+    if not sample_file.exists():
+        raise HTTPException(404, "Áudio não encontrado")
+
+    media_type = "audio/wav" if filename.endswith(".wav") else "audio/mpeg"
+    return FileResponse(str(sample_file), media_type=media_type)

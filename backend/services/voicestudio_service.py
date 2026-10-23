@@ -7,6 +7,9 @@ for neural speech synthesis, voice cloning, and audio post-processing.
 Provides lifecycle management (install/status/test), voice catalog, and resilient fallback.
 """
 import os
+import json
+import uuid
+import subprocess
 import shutil
 import time
 import asyncio
@@ -229,7 +232,8 @@ class VoiceStudioService:
 
     @classmethod
     async def get_voice_list(cls) -> List[Dict[str, Any]]:
-        """Return available voices from Voice Studio or fallback catalog."""
+        """Return available voices from Voice Studio (built-in + custom cloned)."""
+        builtin = list(BUILTIN_VOICESTUDIO_VOICES)
         url = cls.get_service_url()
         try:
             async with httpx.AsyncClient(timeout=2.0) as client:
@@ -238,10 +242,156 @@ class VoiceStudioService:
                     data = res.json()
                     voices = data.get("voices", [])
                     if voices:
-                        return voices
+                        builtin = voices
         except Exception:
             pass
-        return list(BUILTIN_VOICESTUDIO_VOICES)
+
+        # Load custom cloned voices and ensure fallbacks are registered
+        cloned = cls._load_cloned_voices()
+        for cv in cloned:
+            vid = cv.get("voice_id")
+            if vid and vid not in VOICESTUDIO_FALLBACK_MAP:
+                fb = cv.get("fallback_voice") or ("pt-BR-FranciscaNeural" if cv.get("gender") == "female" else "pt-BR-AntonioNeural")
+                VOICESTUDIO_FALLBACK_MAP[vid] = fb
+
+        return cloned + builtin
+
+    @classmethod
+    def _get_cloned_voices_file(cls) -> Path:
+        """Path to persistent cloned voices catalog JSON."""
+        return cls.get_install_dir() / "cloned_voices.json"
+
+    @classmethod
+    def _load_cloned_voices(cls) -> List[Dict[str, Any]]:
+        """Read saved cloned voices from disk."""
+        f = cls._get_cloned_voices_file()
+        if not f.exists():
+            return []
+        try:
+            return json.loads(f.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning(f"Failed to read cloned_voices.json: {e}")
+            return []
+
+    @classmethod
+    def _save_cloned_voices(cls, voices: List[Dict[str, Any]]) -> None:
+        """Write cloned voices list to disk."""
+        f = cls._get_cloned_voices_file()
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(voices, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    @classmethod
+    async def clone_voice(
+        cls,
+        name: str,
+        audio_bytes: bytes,
+        filename: str = "sample.wav",
+        category: str = "cloned",
+        gender: str = "neutral",
+        description: str = "",
+    ) -> Dict[str, Any]:
+        """Process few-shot reference audio (3s-10s) and register a new cloned voice."""
+        install_dir = cls.get_install_dir()
+        voices_dir = install_dir / "voices"
+        voices_dir.mkdir(parents=True, exist_ok=True)
+
+        voice_uuid = str(uuid.uuid4())[:8]
+        voice_id = f"vs-cloned-{voice_uuid}"
+        clean_name = name.strip() or f"Voz Clonada {voice_uuid}"
+
+        # 1. Save raw audio to temporary file
+        temp_input = voices_dir / f"temp_{voice_uuid}_{filename}"
+        target_wav = voices_dir / f"{voice_id}.wav"
+        temp_input.write_bytes(audio_bytes)
+
+        # 2. Convert and normalize audio with FFmpeg to 24kHz mono PCM WAV
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg", "-y", "-i", str(temp_input),
+                    "-vn", "-acodec", "pcm_s16le", "-ar", "24000", "-ac", "1",
+                    str(target_wav)
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=15,
+            )
+            temp_input.unlink(missing_ok=True)
+        except Exception as e:
+            logger.warning(f"FFmpeg audio normalization failed, using raw audio: {e}")
+            if temp_input.exists():
+                shutil.move(temp_input, target_wav)
+
+        # 3. If daemon is running on port 3900, attempt to sync clone profile
+        daemon_synced = False
+        if await cls.ping_service():
+            try:
+                url = cls.get_service_url()
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    with open(target_wav, "rb") as af:
+                        files = {"audio": (f"{voice_id}.wav", af, "audio/wav")}
+                        data = {
+                            "voice_id": voice_id,
+                            "name": clean_name,
+                            "category": category,
+                            "gender": gender,
+                        }
+                        res = await client.post(f"{url}/api/v1/voices/clone", files=files, data=data)
+                        if res.status_code in (200, 201):
+                            daemon_synced = True
+            except Exception as e:
+                logger.warning(f"Voice Studio daemon cloning sync skipped: {e}")
+
+        # 4. Map fallback voice
+        fallback_voice = "pt-BR-FranciscaNeural" if gender == "female" else "pt-BR-AntonioNeural"
+        VOICESTUDIO_FALLBACK_MAP[voice_id] = fallback_voice
+
+        # 5. Persist cloned voice entry
+        voice_entry = {
+            "voice_id": voice_id,
+            "name": clean_name,
+            "language": "pt-BR",
+            "gender": gender,
+            "category": category or "cloned",
+            "description": description.strip() or "Voz clonada via Voice Studio Few-Shot (3s)",
+            "sample_url": f"/api/settings/voice-studio/audio/{voice_id}.wav",
+            "is_cloned": True,
+            "created_at": int(time.time()),
+            "daemon_synced": daemon_synced,
+            "fallback_voice": fallback_voice,
+        }
+
+        existing = cls._load_cloned_voices()
+        existing = [v for v in existing if v.get("voice_id") != voice_id]
+        existing.insert(0, voice_entry)
+        cls._save_cloned_voices(existing)
+
+        return voice_entry
+
+    @classmethod
+    async def delete_cloned_voice(cls, voice_id: str) -> bool:
+        """Remove a custom cloned voice and its reference sample."""
+        existing = cls._load_cloned_voices()
+        new_list = [v for v in existing if v.get("voice_id") != voice_id]
+        cls._save_cloned_voices(new_list)
+
+        voices_dir = cls.get_install_dir() / "voices"
+        target_wav = voices_dir / f"{voice_id}.wav"
+        target_wav.unlink(missing_ok=True)
+
+        if voice_id in VOICESTUDIO_FALLBACK_MAP:
+            del VOICESTUDIO_FALLBACK_MAP[voice_id]
+
+        if await cls.ping_service():
+            try:
+                url = cls.get_service_url()
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    await client.delete(f"{url}/api/v1/voices/{voice_id}")
+            except Exception:
+                pass
+        return True
+
 
     @classmethod
     async def generate_voice(

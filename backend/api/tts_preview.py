@@ -1,3 +1,4 @@
+from typing import Optional
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2025-2026 ViralMint Contributors
 """TTS voice preview endpoint.
@@ -63,8 +64,11 @@ def _prune_previews(preview_dir: Path) -> None:
 
 
 class _PreviewBody(BaseModel):
-    provider: str          # "edge_tts" | "openai_tts"
+    provider: str          # "edge_tts" | "openai_tts" | "voicestudio"
     voice_id: str
+    text: Optional[str] = None
+    speed: Optional[float] = 1.0
+    pitch: Optional[float] = 0.0
 
 
 @router.post("/tts/preview")
@@ -76,7 +80,7 @@ async def tts_preview(body: _PreviewBody):
     voice_id = re.sub(r"[^A-Za-z0-9_-]", "", (body.voice_id or "").strip())
     if not voice_id:
         raise HTTPException(400, "voice_id is required")
-    if provider not in ("edge_tts", "openai_tts", "google_tts", "elevenlabs"):
+    if provider not in ("edge_tts", "openai_tts", "google_tts", "elevenlabs", "voicestudio"):
         raise HTTPException(400, f"Unknown provider: {provider}")
 
     sample_text = random.choice(_SAMPLES)
@@ -85,11 +89,22 @@ async def tts_preview(body: _PreviewBody):
     output_path: Path = preview_dir / f"{provider}_{voice_id}_{uuid4().hex[:8]}.mp3"
     _prune_previews(preview_dir)
 
+    text_to_speak = body.text.strip() if body.text and body.text.strip() else sample_text
+
     try:
-        if provider == "edge_tts":
+        if provider == "voicestudio":
+            from backend.services.voicestudio_service import VoiceStudioService
+            await VoiceStudioService.generate_voice(
+                text_to_speak,
+                voice_id=voice_id,
+                output_path=output_path,
+                speed=float(body.speed or 1.0),
+                pitch=float(body.pitch or 0.0),
+            )
+        elif provider == "edge_tts":
             from backend.services import edge_tts_service
             await edge_tts_service.generate_voice(
-                sample_text, voice_id=voice_id, output_path=output_path,
+                text_to_speak, voice_id=voice_id, output_path=output_path,
             )
         elif provider == "google_tts":
             from backend.services import google_tts_service
