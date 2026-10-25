@@ -30,6 +30,9 @@ services:
       - GOOGLE_TTS_API_KEYS=${GOOGLE_TTS_API_KEYS:-}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
       - ELEVENLABS_API_KEYS=${ELEVENLABS_API_KEYS:-}
+      # Voice Studio Integration (debpalash/voicestudio)
+      - VOICE_STUDIO_URL=${VOICE_STUDIO_URL:-http://voicestudio:3900}
+      - VOICE_STUDIO_API_KEY=${VOICE_STUDIO_API_KEY:-viralmint_voicestudio_secret}
       # OAuth & Redes Sociais (PublishQueue)
       - YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID:-}
       - YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET:-}
@@ -57,8 +60,33 @@ services:
       retries: 3
       start_period: 40s
 
+  voicestudio:
+    image: ghcr.io/debpalash/voicestudio:stable
+    container_name: voicestudio
+    restart: unless-stopped
+    ports:
+      - "${VOICESTUDIO_PORT:-3900}:3900"
+    volumes:
+      - voicestudio_data:/app/omnivoice_data
+    environment:
+      - HF_HOME=/app/omnivoice_data/huggingface
+      - HF_TOKEN=${HF_TOKEN:-}
+      - OMNIVOICE_DATA_DIR=/app/omnivoice_data
+      - PYTHONPATH=/app/backend
+      - PYTHONUNBUFFERED=1
+      - OMNIVOICE_SERVER_MODE=1
+      - OMNIVOICE_API_KEY=${VOICE_STUDIO_API_KEY:-viralmint_voicestudio_secret}
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
 volumes:
   viralmint_storage:
     name: viralmint_storage
   viralmint_cache:
     name: viralmint_cache
+  voicestudio_data:
+    name: voicestudio_data

@@ -6,6 +6,8 @@ from typing import Dict, Any, List
 
 NICHE_PRESETS: Dict[str, Dict[str, Any]] = {
     "podcast_cuts": {
+        "time_window_days": 4,
+        "video_duration": "long",
         "label": "Cortes de Podcast",
         "description": "Cortes rápidos de alto impacto, opiniões fortes, revelações e polêmicas.",
         "voice_provider": "voicestudio",
@@ -42,6 +44,8 @@ NICHE_PRESETS: Dict[str, Dict[str, Any]] = {
         },
     },
     "curiosities": {
+        "time_window_days": 5,
+        "video_duration": "short",
         "label": "Curiosidades & Fatos Fascinantes",
         "description": "Fatos surpreendentes, mistérios da ciência, história oculta e 'você sabia'.",
         "voice_provider": "voicestudio",
@@ -79,6 +83,8 @@ NICHE_PRESETS: Dict[str, Dict[str, Any]] = {
         },
     },
     "finance_crypto": {
+        "time_window_days": 2,
+        "video_duration": "any",
         "label": "Finanças, Negócios & Cripto",
         "description": "Análises diretas, inteligência financeira, alertas de mercado e estratégias de riqueza.",
         "voice_provider": "elevenlabs",
@@ -115,6 +121,8 @@ NICHE_PRESETS: Dict[str, Dict[str, Any]] = {
         },
     },
     "horror_mystery": {
+        "time_window_days": 5,
+        "video_duration": "any",
         "label": "Terror, Mistério & Sobrenatural",
         "description": "Casos reais sem solução, relatos macabros, found footage e lendas urbanas sombrias.",
         "voice_provider": "voicestudio",
@@ -151,6 +159,8 @@ NICHE_PRESETS: Dict[str, Dict[str, Any]] = {
         },
     },
     "productivity": {
+        "time_window_days": 7,
+        "video_duration": "any",
         "label": "Produtividade, Foco & Hábitos",
         "description": "Otimização de rotina, hacks mentais, disciplina estoica e métodos ágeis.",
         "voice_provider": "google",
@@ -187,6 +197,8 @@ NICHE_PRESETS: Dict[str, Dict[str, Any]] = {
         },
     },
     "humor_memes": {
+        "time_window_days": 1,
+        "video_duration": "short",
         "label": "Humor, Memes & Situações Cotidianas",
         "description": "Comédia rápida, reações exageradas, situações cômicas e identificação imediata.",
         "voice_provider": "voicestudio",

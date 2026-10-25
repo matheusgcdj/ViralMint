@@ -8,6 +8,7 @@ If one platform fails, logs warning + continues with others.
 import asyncio
 import json
 import logging
+import math
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -51,18 +52,14 @@ MAX_PLATFORMS_PER_SCOUT = 6
 
 def compute_virality_score(video: dict) -> float:
     """
-    Virality score 0-100.
-    Weights: engagement rate 30%, view velocity (VPH) 25%, recency 20%,
-             raw views 15%, raw likes 10%.
+    Virality score 0-100 calibrated for real-world viral momentum.
+    Weights:
+      - 35% View velocity (VPH) normalized log-scale (ceiling 2,000 VPH)
+      - 25% Bounded engagement rate (capped at 20% to prevent low-sample artifacts)
+      - 30% Outlier score (how many times above channel baseline / median)
+      - 10% Freshness / Recency decay (14-day half-life)
     Also computes views_per_hour and outlier_score as side data on the dict.
     """
-    # Coerce before comparing. Platform payloads are not consistently typed —
-    # the AI raw-search fallbacks (`_ai_raw_search_fallback` here,
-    # `_ai_parse_fallback` in tikhub_client) pass model-produced values
-    # straight into these fields, and a model emitting "1000" instead of 1000
-    # is entirely ordinary. `max(str, int)` raises TypeError, which used to
-    # escape the scoring loop below and kill the whole scout — the one thing
-    # this agent is supposed to never do.
     def _num(key: str, default: float) -> float:
         try:
             v = float(video.get(key, default))
@@ -74,49 +71,56 @@ def compute_virality_score(video: dict) -> float:
     views = max(_num("views", 1), 1)
     comments = max(_num("comments", 0), 0)
 
+    # 1. Bounded Engagement Rate
+    # Cap raw engagement rate at 20% (0.20) before normalizing to eliminate 1 view / 1 like distortion
+    raw_engagement = (likes + comments * 2) / views
+    bounded_engagement = min(raw_engagement, 0.20)
+    engagement_norm = bounded_engagement / 0.20
+
+    # 2. View Velocity (VPH) with logarithmic smoothing
     upload_date = video.get("upload_date")
     if upload_date and isinstance(upload_date, datetime):
-        # Normalise: many feeds pass naïve datetimes (assumed UTC).
-        # Using datetime.now(timezone.utc) on a naïve upload_date would
-        # raise TypeError — convert here so virality scoring tolerates
-        # either tz-aware or tz-naïve inputs.
         if upload_date.tzinfo is None:
             upload_date = upload_date.replace(tzinfo=timezone.utc)
         now_utc = datetime.now(timezone.utc)
         hours_old = max((now_utc - upload_date).total_seconds() / 3600, 1)
         days_old = max(hours_old / 24, 1)
     else:
-        hours_old = 720  # assume 30 days
+        hours_old = 720  # default 30 days
         days_old = 30
 
-    engagement_rate = (likes + comments * 2) / views
-    recency_bonus = 1.0 / (1 + days_old / 30)
-    views_score = min(views / 1_000_000, 1.0)
-    likes_score = min(likes / 100_000, 1.0)
-
-    # View velocity — views per hour, normalized (10K VPH = max score)
     vph = views / hours_old
-    vph_score = min(vph / 10_000, 1.0)
-
-    # Store VPH on the dict for DB storage
     video["views_per_hour"] = round(vph, 1)
 
-    # Outlier score — how many x above channel average. Coerced for the same
-    # reason as the metrics above: these two come from the same untrusted
-    # payloads, and `"1000" < 1` raises exactly the same TypeError.
-    channel_avg = _num("channel_avg_views", 0) or None
-    if not channel_avg or channel_avg < 1:
-        subs = _num("subscriber_count", 0)
-        channel_avg = max(subs * 0.03, 100) if subs > 0 else None
-    if channel_avg and channel_avg > 0:
-        video["outlier_score"] = round(views / channel_avg, 1)
+    # Log10 normalization up to 2000 VPH
+    vph_ceiling = 2000.0
+    vph_norm = min(math.log10(vph + 1) / math.log10(vph_ceiling + 1), 1.0)
+
+    # 3. Recency bonus (14-day reference decay)
+    recency_bonus = 1.0 / (1.0 + days_old / 14.0)
+
+    # 4. Outlier score (how many x above channel baseline)
+    outlier_val = _num("outlier_score", 0)
+    if outlier_val <= 0:
+        channel_avg = _num("channel_avg_views", 0) or None
+        if not channel_avg or channel_avg < 1:
+            subs = _num("subscriber_count", 0)
+            channel_avg = max(subs * 0.03, 100) if subs > 0 else None
+        if channel_avg and channel_avg > 0:
+            outlier_val = round(views / channel_avg, 1)
+            video["outlier_score"] = outlier_val
+
+    # Normalize outlier (0 at <=1x, 1.0 at >=10x breakout)
+    if outlier_val > 1.0:
+        outlier_norm = min((outlier_val - 1.0) / 9.0, 1.0)
+    else:
+        outlier_norm = 0.0
 
     raw = (
-        engagement_rate * 0.30
-        + vph_score * 0.25
-        + recency_bonus * 0.20
-        + views_score * 0.15
-        + likes_score * 0.10
+        0.35 * vph_norm
+        + 0.25 * engagement_norm
+        + 0.30 * outlier_norm
+        + 0.10 * recency_bonus
     )
     return round(min(raw * 100, 100.0), 2)
 
@@ -337,12 +341,21 @@ class ScoutAgent:
 
             if youtube_key or yt_creds:
                 from backend.services.youtube_scout import search_youtube
+                from backend.core.niche_presets import NICHE_PRESETS
+                # Look up niche-specific window and duration preferences
+                preset = NICHE_PRESETS.get(niche.lower().strip(), {})
+                time_window_days = preset.get("time_window_days", 5)
+                video_duration = preset.get("video_duration", "any")
+
                 try:
                     res = await search_youtube(
                         niche=niche,
                         api_key=youtube_key or "",
                         credentials_json=yt_creds or "",
                         max_results=PLATFORM_LIMITS["youtube"],
+                        order="relevance",
+                        time_window_days=time_window_days,
+                        video_duration=video_duration,
                     )
                     if res:
                         return res
@@ -656,6 +669,13 @@ class ScoutAgent:
 
         entries = info.get("entries") or []
         results = []
+        # In fallback mode the URL is actually YouTube (we used ytsearch:),
+        # so persist `platform="youtube"` — this drives the DB row, dedup
+        # key, outlier enrichment, and the downloader's extractor selection.
+        # `requested_platform` carries the user's original ask so the WS
+        # dispatch can still group these results under the requested tab.
+        actual_platform = "youtube" if is_fallback else platform
+
         for entry in entries:
             if not entry:
                 continue
@@ -678,13 +698,6 @@ class ScoutAgent:
                     upload_date = datetime.strptime(str(raw_date), "%Y%m%d")
                 except ValueError:
                     pass
-
-            # In fallback mode the URL is actually YouTube (we used ytsearch:),
-            # so persist `platform="youtube"` — this drives the DB row, dedup
-            # key, outlier enrichment, and the downloader's extractor selection.
-            # `requested_platform` carries the user's original ask so the WS
-            # dispatch can still group these results under the requested tab.
-            actual_platform = "youtube" if is_fallback else platform
             results.append({
                 "platform": actual_platform,
                 "requested_platform": platform,

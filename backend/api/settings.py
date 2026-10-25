@@ -1227,6 +1227,8 @@ async def voice_studio_status():
     from backend.services.voicestudio_service import VoiceStudioService
     state = VoiceStudioService.get_install_state()
     state["running"] = await VoiceStudioService.ping_service()
+    if state["running"]:
+        state["installed"] = True
     return state
 
 

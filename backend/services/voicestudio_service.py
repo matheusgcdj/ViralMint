@@ -2,9 +2,9 @@
 # Copyright (c) 2025-2026 ViralMint Contributors
 """
 Voice Studio Integration Service.
-Connects ViralMint to the high-performance local Voice Studio engine (running on port 3900)
-for neural speech synthesis, voice cloning, and audio post-processing.
-Provides lifecycle management (install/status/test), voice catalog, and resilient fallback.
+Connects ViralMint to the high-performance local Voice Studio engine (debpalash/voicestudio, port 3900)
+for neural speech synthesis, few-shot voice cloning, and audio post-processing.
+Provides lifecycle management, voice catalog synchronization, and transparent fallback behavior.
 """
 import os
 import json
@@ -84,7 +84,7 @@ BUILTIN_VOICESTUDIO_VOICES = [
     },
 ]
 
-# Map VoiceStudio voice IDs to Edge TTS fallback voices for guaranteed reliability
+# Map VoiceStudio built-in preset voice IDs to Edge TTS fallback voices
 VOICESTUDIO_FALLBACK_MAP = {
     "vs-pt-br-marcos": "pt-BR-AntonioNeural",
     "vs-pt-br-camila": "pt-BR-FranciscaNeural",
@@ -100,39 +100,70 @@ class VoiceStudioService:
     _install_step: str = ""
     _install_pct: int = 0
     _install_error: Optional[str] = None
+    _resolved_url: Optional[str] = None
 
     @classmethod
     def get_service_url(cls) -> str:
-        """Resolve Voice Studio endpoint URL."""
-        return getattr(settings, "VOICE_STUDIO_URL", None) or os.getenv("VOICE_STUDIO_URL") or DEFAULT_URL
+        """Resolve Voice Studio endpoint URL, supporting Docker container and localhost routing."""
+        if cls._resolved_url:
+            return cls._resolved_url
+        configured = getattr(settings, "VOICE_STUDIO_URL", None) or os.getenv("VOICE_STUDIO_URL")
+        if configured:
+            return configured.rstrip("/")
+        return DEFAULT_URL
+
+    @classmethod
+    def _get_headers(cls) -> Dict[str, str]:
+        """Prepare authentication headers for Voice Studio (debpalash/voicestudio)."""
+        headers = {}
+        api_key = (
+            getattr(settings, "VOICE_STUDIO_API_KEY", "")
+            or os.getenv("VOICE_STUDIO_API_KEY")
+            or os.getenv("OMNIVOICE_API_KEY")
+            or ""
+        ).strip()
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+            headers["X-API-Key"] = api_key
+        return headers
 
     @classmethod
     def get_install_dir(cls) -> Path:
-        """Local persistent directory for Voice Studio models and caches."""
+        """Local persistent directory for Voice Studio models, references, and caches."""
         data_dir = getattr(settings, "DATA_DIR", None) or Path("/app/storage")
         path = Path(data_dir) / "voicestudio"
         path.mkdir(parents=True, exist_ok=True)
         return path
 
     @classmethod
-    async def ping_service(cls, timeout_sec: float = 1.5) -> bool:
-        """Check if Voice Studio daemon is actively listening on port 3900."""
-        url = cls.get_service_url()
-        try:
-            async with httpx.AsyncClient(timeout=timeout_sec) as client:
-                res = await client.get(f"{url}/health")
-                return res.status_code == 200
-        except Exception:
+    async def ping_service(cls, timeout_sec: float = 2.0) -> bool:
+        """Check if Voice Studio daemon is actively listening and responsive."""
+        primary_url = cls.get_service_url()
+        candidates = [primary_url]
+
+        # In Docker Compose, container name 'voicestudio' resolves via DNS.
+        # When running outside Docker, 'localhost:3900' is typical.
+        if "localhost" in primary_url or "127.0.0.1" in primary_url:
+            candidates.append("http://voicestudio:3900")
+        elif "voicestudio" in primary_url:
+            candidates.append(f"http://localhost:{DEFAULT_PORT}")
+
+        headers = cls._get_headers()
+        for candidate_url in candidates:
             try:
                 async with httpx.AsyncClient(timeout=timeout_sec) as client:
-                    res = await client.get(f"{url}/api/v1/health")
-                    return res.status_code == 200
+                    res = await client.get(f"{candidate_url}/health", headers=headers)
+                    if res.status_code == 200:
+                        cls._resolved_url = candidate_url
+                        return True
             except Exception:
-                return False
+                continue
+
+        return False
 
     @classmethod
     def is_installed(cls) -> bool:
-        """Check if Voice Studio local workspace and marker exist."""
+        """Check if Voice Studio local workspace or marker exists."""
         install_dir = cls.get_install_dir()
         marker = install_dir / ".installed"
         return marker.exists()
@@ -142,8 +173,8 @@ class VoiceStudioService:
         """Current state for the Settings UI card and health checks."""
         install_dir = cls.get_install_dir()
         installed = cls.is_installed()
-        
-        # Calculate local model disk size
+
+        # Calculate local model & voice sample disk size
         disk_size_mb = 0
         try:
             for p in install_dir.rglob("*"):
@@ -157,7 +188,7 @@ class VoiceStudioService:
 
         return {
             "installed": installed,
-            "running": False, # Updated dynamically in async endpoint
+            "running": False,  # Updated dynamically in async endpoint
             "installing": cls._installing,
             "current_step": cls._install_step,
             "progress_pct": cls._install_pct,
@@ -172,47 +203,47 @@ class VoiceStudioService:
 
     @classmethod
     async def install_plugin(cls) -> Dict[str, Any]:
-        """Trigger background installation of Voice Studio models."""
+        """Initialize Voice Studio directories and check container readiness."""
         if cls._installing:
             return {"ok": True, "already_installing": True}
 
         cls._installing = True
         cls._install_error = None
-        cls._install_step = "Iniciando download dos modelos neurais pt-BR..."
-        cls._install_pct = 10
+        cls._install_step = "Inicializando diretórios do Voice Studio..."
+        cls._install_pct = 20
 
-        async def _run_install():
-            try:
-                install_dir = cls.get_install_dir()
-                models_dir = install_dir / "models"
-                voices_dir = install_dir / "voices"
-                models_dir.mkdir(parents=True, exist_ok=True)
-                voices_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            install_dir = cls.get_install_dir()
+            models_dir = install_dir / "models"
+            voices_dir = install_dir / "voices"
+            models_dir.mkdir(parents=True, exist_ok=True)
+            voices_dir.mkdir(parents=True, exist_ok=True)
 
-                await asyncio.sleep(1.0)
-                cls._install_step = "Baixando checkpoints fonéticos e vocoder..."
-                cls._install_pct = 40
-                await asyncio.sleep(1.2)
+            cls._install_step = "Verificando conexão com o container Voice Studio (porta 3900)..."
+            cls._install_pct = 60
 
-                cls._install_step = "Indexando vozes neurais e pipeline de áudio (porta 3900)..."
-                cls._install_pct = 75
-                await asyncio.sleep(1.0)
+            is_running = await cls.ping_service(timeout_sec=3.0)
 
-                # Write install marker
-                marker = install_dir / ".installed"
-                marker.write_text(f"installed_at={int(time.time())}\nversion=1.2.0\n", encoding="utf-8")
+            # Write install marker
+            marker = install_dir / ".installed"
+            marker.write_text(f"installed_at={int(time.time())}\nversion=2.0.0\n", encoding="utf-8")
 
-                cls._install_step = "Voice Studio instalado com sucesso."
-                cls._install_pct = 100
-                logger.info("Voice Studio plugin installed successfully.")
-            except Exception as e:
-                cls._install_error = str(e)
-                logger.error(f"Voice Studio installation failed: {e}")
-            finally:
-                cls._installing = False
-
-        asyncio.create_task(_run_install())
-        return {"ok": True, "started": True}
+            cls._install_pct = 100
+            if is_running:
+                cls._install_step = "Voice Studio conectado e operacional na porta 3900."
+            else:
+                cls._install_step = (
+                    "Diretórios prontos. Certifique-se de que o container 'voicestudio' "
+                    "(ghcr.io/debpalash/voicestudio:stable) está em execução."
+                )
+            logger.info("Voice Studio initialized successfully.")
+            return {"ok": True, "running": is_running, "message": cls._install_step}
+        except Exception as e:
+            cls._install_error = str(e)
+            logger.error(f"Voice Studio initialization failed: {e}")
+            return {"ok": False, "error": str(e)}
+        finally:
+            cls._installing = False
 
     @classmethod
     async def uninstall_plugin(cls) -> Dict[str, Any]:
@@ -223,38 +254,12 @@ class VoiceStudioService:
         cls._install_pct = 0
         try:
             install_dir = cls.get_install_dir()
-            if install_dir.exists():
-                shutil.rmtree(install_dir, ignore_errors=True)
-            return {"ok": True, "message": "Voice Studio removido com sucesso"}
+            marker = install_dir / ".installed"
+            marker.unlink(missing_ok=True)
+            return {"ok": True, "message": "Voice Studio desvinculado com sucesso"}
         except Exception as e:
-            logger.error(f"Failed to uninstall Voice Studio: {e}")
+            logger.error(f"Failed to reset Voice Studio: {e}")
             return {"ok": False, "error": str(e)}
-
-    @classmethod
-    async def get_voice_list(cls) -> List[Dict[str, Any]]:
-        """Return available voices from Voice Studio (built-in + custom cloned)."""
-        builtin = list(BUILTIN_VOICESTUDIO_VOICES)
-        url = cls.get_service_url()
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                res = await client.get(f"{url}/api/v1/voices")
-                if res.status_code == 200:
-                    data = res.json()
-                    voices = data.get("voices", [])
-                    if voices:
-                        builtin = voices
-        except Exception:
-            pass
-
-        # Load custom cloned voices and ensure fallbacks are registered
-        cloned = cls._load_cloned_voices()
-        for cv in cloned:
-            vid = cv.get("voice_id")
-            if vid and vid not in VOICESTUDIO_FALLBACK_MAP:
-                fb = cv.get("fallback_voice") or ("pt-BR-FranciscaNeural" if cv.get("gender") == "female" else "pt-BR-AntonioNeural")
-                VOICESTUDIO_FALLBACK_MAP[vid] = fb
-
-        return cloned + builtin
 
     @classmethod
     def _get_cloned_voices_file(cls) -> Path:
@@ -281,6 +286,71 @@ class VoiceStudioService:
         f.write_text(json.dumps(voices, indent=2, ensure_ascii=False), encoding="utf-8")
 
     @classmethod
+    async def get_voice_list(cls) -> List[Dict[str, Any]]:
+        """Return available voices (custom cloned + remote VoiceStudio profiles + builtin presets)."""
+        url = cls.get_service_url()
+        headers = cls._get_headers()
+
+        # 1. Fetch remote profiles registered directly in Voice Studio
+        remote_profiles: List[Dict[str, Any]] = []
+        if await cls.ping_service():
+            try:
+                async with httpx.AsyncClient(timeout=4.0) as client:
+                    res = await client.get(f"{url}/profiles", headers=headers)
+                    if res.status_code == 200:
+                        profiles = res.json()
+                        if isinstance(profiles, list):
+                            for p in profiles:
+                                p_id = p.get("id")
+                                p_name = p.get("name") or f"Perfil {p_id}"
+                                remote_profiles.append({
+                                    "voice_id": f"vs-remote-{p_id}",
+                                    "vs_profile_id": p_id,
+                                    "name": f"✨ {p_name}",
+                                    "language": p.get("language") or "pt-BR",
+                                    "gender": p.get("personality") or "neutral",
+                                    "category": p.get("kind") or "cloned",
+                                    "description": f"Perfil Voice Studio ({p.get('kind', 'neural')})",
+                                    "sample_url": f"{url}/profiles/{p_id}/audio" if p.get("audio_url") else "",
+                                    "is_cloned": True,
+                                })
+            except Exception as e:
+                logger.debug(f"Could not fetch remote profiles from Voice Studio: {e}")
+
+        # 2. Load locally registered cloned voices
+        cloned = cls._load_cloned_voices()
+
+        # 3. Merge voices, prioritizing locally cloned voices, then remote profiles, then built-in presets
+        seen_keys = set()
+        result: List[Dict[str, Any]] = []
+
+        for cv in cloned:
+            vid = cv.get("voice_id")
+            vs_pid = cv.get("vs_profile_id")
+            if vid and vid not in seen_keys:
+                seen_keys.add(vid)
+                if vs_pid:
+                    seen_keys.add(vs_pid)
+                    seen_keys.add(f"vs-remote-{vs_pid}")
+                result.append(cv)
+
+        for rp in remote_profiles:
+            vs_pid = rp.get("vs_profile_id")
+            vid = rp.get("voice_id")
+            if vs_pid not in seen_keys and vid not in seen_keys:
+                seen_keys.add(vs_pid)
+                seen_keys.add(vid)
+                result.append(rp)
+
+        for bv in BUILTIN_VOICESTUDIO_VOICES:
+            vid = bv.get("voice_id")
+            if vid not in seen_keys:
+                seen_keys.add(vid)
+                result.append(bv)
+
+        return result
+
+    @classmethod
     async def clone_voice(
         cls,
         name: str,
@@ -290,7 +360,7 @@ class VoiceStudioService:
         gender: str = "neutral",
         description: str = "",
     ) -> Dict[str, Any]:
-        """Process few-shot reference audio (3s-10s) and register a new cloned voice."""
+        """Process few-shot reference audio (3s-10s) and register voice in Voice Studio (debpalash/voicestudio)."""
         install_dir = cls.get_install_dir()
         voices_dir = install_dir / "voices"
         voices_dir.mkdir(parents=True, exist_ok=True)
@@ -315,7 +385,7 @@ class VoiceStudioService:
                 check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                timeout=15,
+                timeout=20,
             )
             temp_input.unlink(missing_ok=True)
         except Exception as e:
@@ -323,38 +393,47 @@ class VoiceStudioService:
             if temp_input.exists():
                 shutil.move(temp_input, target_wav)
 
-        # 3. If daemon is running on port 3900, attempt to sync clone profile
+        # 3. If VoiceStudio daemon is running, sync clone profile via POST /profiles
         daemon_synced = False
+        vs_profile_id = None
         if await cls.ping_service():
             try:
                 url = cls.get_service_url()
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                headers = cls._get_headers()
+                async with httpx.AsyncClient(timeout=30.0) as client:
                     with open(target_wav, "rb") as af:
-                        files = {"audio": (f"{voice_id}.wav", af, "audio/wav")}
+                        files = {"ref_audio": (f"{voice_id}.wav", af, "audio/wav")}
                         data = {
-                            "voice_id": voice_id,
                             "name": clean_name,
-                            "category": category,
-                            "gender": gender,
+                            "kind": "clone",
+                            "language": "pt",
+                            "ref_text": "",
+                            "instruct": "",
                         }
-                        res = await client.post(f"{url}/api/v1/voices/clone", files=files, data=data)
+                        res = await client.post(f"{url}/profiles", data=data, files=files, headers=headers)
                         if res.status_code in (200, 201):
+                            profile_json = res.json()
+                            vs_profile_id = profile_json.get("id")
                             daemon_synced = True
+                            logger.info(f"Synchronized cloned voice with VoiceStudio profile: id={vs_profile_id}")
+                        else:
+                            logger.warning(f"VoiceStudio POST /profiles returned {res.status_code}: {res.text[:200]}")
             except Exception as e:
-                logger.warning(f"Voice Studio daemon cloning sync skipped: {e}")
+                logger.warning(f"Voice Studio daemon profile registration deferred: {e}")
 
-        # 4. Map fallback voice
+        # 4. Map fallback voice identifier (used only if explicitly permitted)
         fallback_voice = "pt-BR-FranciscaNeural" if gender == "female" else "pt-BR-AntonioNeural"
         VOICESTUDIO_FALLBACK_MAP[voice_id] = fallback_voice
 
         # 5. Persist cloned voice entry
         voice_entry = {
             "voice_id": voice_id,
+            "vs_profile_id": vs_profile_id,
             "name": clean_name,
             "language": "pt-BR",
             "gender": gender,
             "category": category or "cloned",
-            "description": description.strip() or "Voz clonada via Voice Studio Few-Shot (3s)",
+            "description": description.strip() or "Voz clonada via Voice Studio Few-Shot",
             "sample_url": f"/api/settings/voice-studio/audio/{voice_id}.wav",
             "is_cloned": True,
             "created_at": int(time.time()),
@@ -371,8 +450,9 @@ class VoiceStudioService:
 
     @classmethod
     async def delete_cloned_voice(cls, voice_id: str) -> bool:
-        """Remove a custom cloned voice and its reference sample."""
+        """Remove a custom cloned voice, local reference audio, and remote profile."""
         existing = cls._load_cloned_voices()
+        target_entry = next((v for v in existing if v.get("voice_id") == voice_id), None)
         new_list = [v for v in existing if v.get("voice_id") != voice_id]
         cls._save_cloned_voices(new_list)
 
@@ -383,15 +463,49 @@ class VoiceStudioService:
         if voice_id in VOICESTUDIO_FALLBACK_MAP:
             del VOICESTUDIO_FALLBACK_MAP[voice_id]
 
+        # Delete profile in VoiceStudio daemon if running
         if await cls.ping_service():
-            try:
-                url = cls.get_service_url()
-                async with httpx.AsyncClient(timeout=3.0) as client:
-                    await client.delete(f"{url}/api/v1/voices/{voice_id}")
-            except Exception:
-                pass
+            vs_profile_id = target_entry.get("vs_profile_id") if target_entry else None
+            # Also handle if voice_id itself was the remote profile id
+            remote_id = vs_profile_id or (voice_id[len("vs-remote-"):] if voice_id.startswith("vs-remote-") else None)
+            if remote_id:
+                try:
+                    url = cls.get_service_url()
+                    headers = cls._get_headers()
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        await client.delete(f"{url}/profiles/{remote_id}", headers=headers)
+                except Exception as e:
+                    logger.debug(f"Voice Studio remote profile delete ignored: {e}")
         return True
 
+    @classmethod
+    def _save_and_convert_audio(cls, raw_bytes: bytes, target_path: Path) -> None:
+        """Save received WAV audio bytes and convert to target format (e.g. MP3) with FFmpeg."""
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        if target_path.suffix.lower() == ".wav":
+            target_path.write_bytes(raw_bytes)
+            return
+
+        # Target is MP3 or another container format
+        temp_wav = target_path.with_suffix(f".tmp_{uuid.uuid4().hex[:6]}.wav")
+        try:
+            temp_wav.write_bytes(raw_bytes)
+            subprocess.run(
+                [
+                    "ffmpeg", "-y", "-i", str(temp_wav),
+                    "-vn", "-ar", "44100", "-ac", "2", "-b:a", "192k",
+                    str(target_path)
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=30,
+            )
+        except Exception as e:
+            logger.warning(f"FFmpeg conversion to {target_path.suffix} failed ({e}), saving raw bytes directly")
+            target_path.write_bytes(raw_bytes)
+        finally:
+            temp_wav.unlink(missing_ok=True)
 
     @classmethod
     async def generate_voice(
@@ -403,51 +517,154 @@ class VoiceStudioService:
         pitch: float = 0.0,
         api_key: str = "",
     ) -> Path:
-        """Synthesize speech using Voice Studio daemon, with high-fidelity fallback."""
+        """
+        Synthesize speech using Voice Studio neural engine (debpalash/voicestudio).
+        For cloned voices, ensures true neural synthesis or raises clear operational errors.
+        For built-in presets, uses Edge TTS fallback when daemon is offline.
+        """
         if output_path is None:
             output_dir = getattr(settings, "AUDIO_DIR", None) or Path("/app/storage/audio")
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = output_dir / f"vs_{hash(text) & 0xFFFFFFFF:08x}.mp3"
 
+        # Check if the requested voice is a cloned voice
+        cloned_list = cls._load_cloned_voices()
+        cloned_entry = next(
+            (
+                v for v in cloned_list
+                if v.get("voice_id") == voice_id
+                or v.get("vs_profile_id") == voice_id
+                or (voice_id.startswith("vs-remote-") and v.get("vs_profile_id") == voice_id[len("vs-remote-"):])
+            ),
+            None
+        )
+        is_cloned = (cloned_entry is not None) or voice_id.startswith("vs-cloned-") or voice_id.startswith("vs-remote-")
+
         url = cls.get_service_url()
+        headers = cls._get_headers()
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
         is_alive = await cls.ping_service()
 
         if is_alive:
             try:
-                headers = {"Content-Type": "application/json"}
-                if api_key:
-                    headers["Authorization"] = f"Bearer {api_key}"
+                # ── Route Cloned Voice Synthesis ──
+                if is_cloned:
+                    vs_profile_id = cloned_entry.get("vs_profile_id") if cloned_entry else None
+                    if not vs_profile_id and voice_id.startswith("vs-remote-"):
+                        vs_profile_id = voice_id[len("vs-remote-"):]
 
-                payload = {
-                    "text": text,
-                    "voice_id": voice_id,
-                    "speed": speed,
-                    "pitch": pitch,
-                }
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    res = await client.post(f"{url}/api/v1/tts", json=payload, headers=headers)
-                    if res.status_code == 200 and res.content:
-                        output_path.write_bytes(res.content)
-                        logger.info(f"Generated TTS via Voice Studio daemon: {output_path} ({len(res.content)} bytes)")
-                        return output_path
+                    voices_dir = cls.get_install_dir() / "voices"
+                    ref_wav = voices_dir / f"{cloned_entry.get('voice_id', voice_id)}.wav" if cloned_entry else None
+
+                    # If profile was not registered in Voice Studio daemon yet, attempt just-in-time sync
+                    if not vs_profile_id and ref_wav and ref_wav.exists():
+                        try:
+                            async with httpx.AsyncClient(timeout=25.0) as sync_client:
+                                with open(ref_wav, "rb") as af:
+                                    files = {"ref_audio": (ref_wav.name, af, "audio/wav")}
+                                    data = {
+                                        "name": cloned_entry.get("name", voice_id) if cloned_entry else voice_id,
+                                        "kind": "clone",
+                                        "language": "pt",
+                                    }
+                                    res_sync = await sync_client.post(
+                                        f"{url}/profiles", data=data, files=files, headers=headers
+                                    )
+                                    if res_sync.status_code in (200, 201):
+                                        vs_profile_id = res_sync.json().get("id")
+                                        if cloned_entry:
+                                            cloned_entry["vs_profile_id"] = vs_profile_id
+                                            cloned_entry["daemon_synced"] = True
+                                            cls._save_cloned_voices(cloned_list)
+                        except Exception as e:
+                            logger.warning(f"Just-in-time VoiceStudio profile sync error: {e}")
+
+                    # Dispatch generation: prefer profile_id, fallback to direct ref_audio upload
+                    async with httpx.AsyncClient(timeout=120.0) as client:
+                        if vs_profile_id:
+                            form_data = {
+                                "text": text,
+                                "profile_id": vs_profile_id,
+                                "speed": str(speed),
+                                "language": "pt",
+                            }
+                            res = await client.post(f"{url}/generate", data=form_data, headers=headers)
+                        elif ref_wav and ref_wav.exists():
+                            with open(ref_wav, "rb") as af:
+                                files = {"ref_audio": (ref_wav.name, af, "audio/wav")}
+                                form_data = {
+                                    "text": text,
+                                    "speed": str(speed),
+                                    "language": "pt",
+                                }
+                                res = await client.post(f"{url}/generate", data=form_data, files=files, headers=headers)
+                        else:
+                            raise VoiceGenerationError(
+                                f"Amostra de áudio de referência da voz clonada '{voice_id}' não foi encontrada."
+                            )
+
+                        if res.status_code == 200 and res.content:
+                            cls._save_and_convert_audio(res.content, output_path)
+                            logger.info(f"Synthesized cloned voice via Voice Studio: {output_path} ({len(res.content)} bytes)")
+                            return output_path
+                        else:
+                            error_detail = res.text[:300] if res.text else f"status {res.status_code}"
+                            raise VoiceGenerationError(
+                                f"Voice Studio /generate recusou a síntese: {error_detail}"
+                            )
+
+                # ── Route Preset Voice Synthesis ──
+                else:
+                    form_data = {
+                        "text": text,
+                        "speed": str(speed),
+                        "language": "pt",
+                    }
+                    async with httpx.AsyncClient(timeout=90.0) as client:
+                        res = await client.post(f"{url}/generate", data=form_data, headers=headers)
+                        if res.status_code == 200 and res.content:
+                            cls._save_and_convert_audio(res.content, output_path)
+                            logger.info(f"Synthesized preset voice via Voice Studio: {output_path}")
+                            return output_path
+
             except Exception as e:
-                logger.warning(f"Voice Studio daemon call failed, falling back: {e}")
+                logger.error(f"Voice Studio daemon execution failed: {e}")
+                if is_cloned:
+                    # Never mask cloned voices with Antonio/Francisca
+                    raise VoiceGenerationError(
+                        f"Falha na síntese neural da voz clonada: {e}. "
+                        "Verifique os logs do container 'voicestudio'."
+                    )
 
-        # High-Fidelity Edge TTS Fallback
+        # ── Handle Offline Daemon or Built-in Preset Fallback ──
+        if is_cloned:
+            voice_label = cloned_entry.get("name") if cloned_entry else voice_id
+            raise VoiceGenerationError(
+                f"O container Voice Studio (porta 3900) não está respondendo. "
+                f"Para sintetizar a voz clonada '{voice_label}', certifique-se de que o serviço "
+                "'voicestudio' (ghcr.io/debpalash/voicestudio:stable) está ativo no Docker."
+            )
+
+        # High-Fidelity Edge TTS Fallback for built-in generic presets
         fallback_voice = VOICESTUDIO_FALLBACK_MAP.get(voice_id, "pt-BR-AntonioNeural")
-        logger.info(f"Voice Studio using high-fidelity fallback: {fallback_voice} for voice_id {voice_id}")
+        logger.info(f"Voice Studio using Edge TTS fallback: {fallback_voice} for voice_id {voice_id}")
         from backend.services.edge_tts_service import generate_voice as edge_generate
         return await edge_generate(text, voice_id=fallback_voice, output_path=output_path)
 
     @classmethod
     async def test_voice(cls, voice_id: str = "vs-pt-br-camila") -> Dict[str, Any]:
         """Generate a test speech take and return latency and file path."""
-        sample_text = "Olá! O Voice Studio do ViralMint está funcionando perfeitamente e pronto para narrar seus vídeos."
+        sample_text = (
+            "Olá! O Voice Studio do ViralMint está funcionando perfeitamente "
+            "e pronto para narrar seus vídeos com alta retenção."
+        )
         start_t = time.time()
         try:
             output_dir = getattr(settings, "AUDIO_DIR", None) or Path("/app/storage/audio")
             output_dir.mkdir(parents=True, exist_ok=True)
-            test_file = output_dir / "voicestudio_test_sample.mp3"
+            test_file = output_dir / f"voicestudio_test_{uuid.uuid4().hex[:6]}.mp3"
 
             await cls.generate_voice(sample_text, voice_id=voice_id, output_path=test_file)
             latency_ms = int((time.time() - start_t) * 1000)
@@ -457,7 +674,7 @@ class VoiceStudioService:
                 "latency_ms": latency_ms,
                 "output_size_kb": round(test_file.stat().st_size / 1024, 1),
                 "voice_id": voice_id,
-                "audio_url": "/api/media/audio/voicestudio_test_sample.mp3",
+                "audio_url": f"/api/settings/voice-studio/audio/{test_file.name}",
                 "message": f"Áudio gerado em {latency_ms}ms com sucesso!",
             }
         except Exception as e:

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2025-2026 ViralMint Contributors
-"""YouTube Data API v3 search for trending videos."""
+"""YouTube Data API v3 search for trending videos with dynamic ordering and multi-lingual detection."""
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -14,9 +14,14 @@ async def search_youtube(
     api_key: str = "",
     credentials_json: str = "",
     max_results: int = 50,
+    order: str = "relevance",
+    time_window_days: int = 5,
+    video_duration: str = "any",
 ) -> list[dict]:
     """
     Search YouTube for trending videos in a niche using API Key or OAuth credentials.
+    Supports dynamic ordering (relevance, date, viewCount), configurable time windows,
+    and video duration filters ('short' <4m, 'medium' 4-20m, 'long' >20m, or 'any').
     Returns list of raw video dicts with metadata.
     """
     import asyncio
@@ -49,16 +54,23 @@ async def search_youtube(
         # Detect language from the query to set relevanceLanguage
         lang = _detect_language(niche)
 
+        # Prepare search params
+        search_kwargs = {
+            "q": niche,
+            "part": "id,snippet",
+            "type": "video",
+            "order": order if order in ("relevance", "date", "viewCount", "rating") else "relevance",
+            "maxResults": min(max_results, 50),
+            "publishedAfter": _get_recent_date(days=time_window_days),
+        }
+        if lang:
+            search_kwargs["relevanceLanguage"] = lang
+
+        if video_duration in ("short", "medium", "long"):
+            search_kwargs["videoDuration"] = video_duration
+
         # Search for relevant videos
-        search_response = youtube.search().list(
-            q=niche,
-            part="id,snippet",
-            type="video",
-            order="viewCount",
-            maxResults=min(max_results, 50),
-            publishedAfter=_get_recent_date(),
-            relevanceLanguage=lang,
-        ).execute()
+        search_response = youtube.search().list(**search_kwargs).execute()
 
         video_ids = [
             item["id"]["videoId"]
@@ -106,32 +118,55 @@ async def search_youtube(
     return await asyncio.to_thread(_search)
 
 
-def _detect_language(text: str) -> str:
-    """Detect the primary language of the query text. Returns ISO 639-1 code."""
+def _detect_language(text: str) -> Optional[str]:
+    """
+    Detect the primary language of the query text.
+    Returns ISO 639-1 code ('pt', 'es', 'ja', 'zh', 'ko', 'en') or None.
+    """
     import unicodedata
-    # Count characters by script
+    if not text:
+        return None
+
+    # Check for East Asian scripts
     cjk = 0
-    latin = 0
     for ch in text:
         name = unicodedata.name(ch, "")
         if "CJK" in name or "HIRAGANA" in name or "KATAKANA" in name:
             cjk += 1
-        elif "LATIN" in name:
-            latin += 1
     if cjk > 0:
-        # Distinguish Chinese vs Japanese (rough heuristic)
         has_hiragana = any("HIRAGANA" in unicodedata.name(c, "") or "KATAKANA" in unicodedata.name(c, "") for c in text)
         return "ja" if has_hiragana else "zh"
-    # Check for Korean (Hangul)
     if any("\uAC00" <= ch <= "\uD7A3" or "\u1100" <= ch <= "\u11FF" for ch in text):
         return "ko"
-    return "en"
+
+    # Portuguese and Spanish stop words / indicators
+    lower = text.lower()
+    pt_indicators = [
+        " de ", " da ", " do ", " para ", " como ", " em ", " que ", " os ", " as ",
+        " um ", " uma ", " não ", " com ", " cortes", " podcast", " curiosidades",
+        " finanças", " mistério", " terror", " memes"
+    ]
+    es_indicators = [" de ", " la ", " el ", " en ", " y ", " que ", " los ", " las ", " un ", " una ", " por ", " para "]
+
+    pt_matches = sum(1 for ind in pt_indicators if ind in f" {lower} ")
+    es_matches = sum(1 for ind in es_indicators if ind in f" {lower} ")
+
+    # Accented characters common in Portuguese / Spanish
+    pt_chars = sum(1 for ch in lower if ch in "ãõçáéíóúâêô")
+    es_chars = sum(1 for ch in lower if ch in "ñ¿¡áéíóú")
+
+    if pt_matches > 0 or pt_chars > 0:
+        return "pt"
+    if es_matches > 0 or es_chars > 0:
+        return "es"
+
+    # Default to None so YouTube API does not artificially restrict Latin/global searches
+    return None
 
 
-def _get_recent_date() -> str:
-    """Return ISO date string for 30 days ago."""
-    from datetime import timedelta
-    dt = datetime.utcnow() - timedelta(days=30)
+def _get_recent_date(days: int = 5) -> str:
+    """Return ISO date string for N days ago."""
+    dt = datetime.utcnow() - timedelta(days=max(days, 1))
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
