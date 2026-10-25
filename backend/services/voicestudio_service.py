@@ -351,11 +351,26 @@ class VoiceStudioService:
         return result
 
     @classmethod
+    async def _transcribe_reference_audio(cls, wav_path: Path) -> str:
+        """Transcribe reference audio clip using ViralMint's Whisper/Groq service."""
+        try:
+            from backend.services.whisper_service import whisper_service
+            tx = await whisper_service.transcribe(str(wav_path), backend="auto")
+            res_text = (tx.get("text") or "").strip()
+            if res_text:
+                logger.info(f"Auto-transcribed reference audio ({wav_path.name}): {res_text[:60]}")
+                return res_text
+        except Exception as e:
+            logger.warning(f"Auto-transcribe of reference audio {wav_path.name} failed: {e}")
+        return "Olá, esta é a gravação de referência da minha voz para calibração neural em língua portuguesa."
+
+    @classmethod
     async def clone_voice(
         cls,
         name: str,
         audio_bytes: bytes,
         filename: str = "sample.wav",
+        ref_text: str = "",
         category: str = "cloned",
         gender: str = "neutral",
         description: str = "",
@@ -393,6 +408,11 @@ class VoiceStudioService:
             if temp_input.exists():
                 shutil.move(temp_input, target_wav)
 
+        # 2.5 Resolve reference text for zero-shot conditioning (auto-transcribing if empty)
+        clean_ref_text = (ref_text or "").strip()
+        if not clean_ref_text:
+            clean_ref_text = await cls._transcribe_reference_audio(target_wav)
+
         # 3. If VoiceStudio daemon is running, sync clone profile via POST /profiles
         daemon_synced = False
         vs_profile_id = None
@@ -400,14 +420,14 @@ class VoiceStudioService:
             try:
                 url = cls.get_service_url()
                 headers = cls._get_headers()
-                async with httpx.AsyncClient(timeout=30.0) as client:
+                async with httpx.AsyncClient(timeout=35.0) as client:
                     with open(target_wav, "rb") as af:
                         files = {"ref_audio": (f"{voice_id}.wav", af, "audio/wav")}
                         data = {
                             "name": clean_name,
                             "kind": "clone",
                             "language": "pt",
-                            "ref_text": "",
+                            "ref_text": clean_ref_text,
                             "instruct": "",
                         }
                         res = await client.post(f"{url}/profiles", data=data, files=files, headers=headers)
@@ -430,6 +450,7 @@ class VoiceStudioService:
             "voice_id": voice_id,
             "vs_profile_id": vs_profile_id,
             "name": clean_name,
+            "ref_text": clean_ref_text,
             "language": "pt-BR",
             "gender": gender,
             "category": category or "cloned",
@@ -558,16 +579,27 @@ class VoiceStudioService:
                     voices_dir = cls.get_install_dir() / "voices"
                     ref_wav = voices_dir / f"{cloned_entry.get('voice_id', voice_id)}.wav" if cloned_entry else None
 
+                    # Resolve reference transcript
+                    ref_text = (cloned_entry.get("ref_text") if cloned_entry else "") or ""
+                    if not ref_text and ref_wav and ref_wav.exists():
+                        ref_text = await cls._transcribe_reference_audio(ref_wav)
+                        if cloned_entry:
+                            cloned_entry["ref_text"] = ref_text
+                            cls._save_cloned_voices(cloned_list)
+                    if not ref_text:
+                        ref_text = "Olá, esta é a gravação de referência da minha voz para calibração neural em língua portuguesa."
+
                     # If profile was not registered in Voice Studio daemon yet, attempt just-in-time sync
                     if not vs_profile_id and ref_wav and ref_wav.exists():
                         try:
-                            async with httpx.AsyncClient(timeout=25.0) as sync_client:
+                            async with httpx.AsyncClient(timeout=30.0) as sync_client:
                                 with open(ref_wav, "rb") as af:
                                     files = {"ref_audio": (ref_wav.name, af, "audio/wav")}
                                     data = {
                                         "name": cloned_entry.get("name", voice_id) if cloned_entry else voice_id,
                                         "kind": "clone",
                                         "language": "pt",
+                                        "ref_text": ref_text,
                                     }
                                     res_sync = await sync_client.post(
                                         f"{url}/profiles", data=data, files=files, headers=headers
@@ -581,12 +613,26 @@ class VoiceStudioService:
                         except Exception as e:
                             logger.warning(f"Just-in-time VoiceStudio profile sync error: {e}")
 
+                    # If profile is registered, update ref_text on remote profile if missing
+                    if vs_profile_id and ref_text:
+                        try:
+                            async with httpx.AsyncClient(timeout=10.0) as update_client:
+                                await update_client.put(
+                                    f"{url}/profiles/{vs_profile_id}",
+                                    json={"ref_text": ref_text, "language": "pt"},
+                                    headers=headers,
+                                )
+                        except Exception:
+                            pass
+
                     # Dispatch generation: prefer profile_id, fallback to direct ref_audio upload
+                    res = None
                     async with httpx.AsyncClient(timeout=120.0) as client:
                         if vs_profile_id:
                             form_data = {
                                 "text": text,
                                 "profile_id": vs_profile_id,
+                                "ref_text": ref_text,
                                 "speed": str(speed),
                                 "language": "pt",
                             }
@@ -596,6 +642,7 @@ class VoiceStudioService:
                                 files = {"ref_audio": (ref_wav.name, af, "audio/wav")}
                                 form_data = {
                                     "text": text,
+                                    "ref_text": ref_text,
                                     "speed": str(speed),
                                     "language": "pt",
                                 }
@@ -605,15 +652,33 @@ class VoiceStudioService:
                                 f"Amostra de áudio de referência da voz clonada '{voice_id}' não foi encontrada."
                             )
 
-                        if res.status_code == 200 and res.content:
+                        if res and res.status_code == 200 and res.content:
                             cls._save_and_convert_audio(res.content, output_path)
                             logger.info(f"Synthesized cloned voice via Voice Studio: {output_path} ({len(res.content)} bytes)")
                             return output_path
-                        else:
-                            error_detail = res.text[:300] if res.text else f"status {res.status_code}"
-                            raise VoiceGenerationError(
-                                f"Voice Studio /generate recusou a síntese: {error_detail}"
-                            )
+
+                        # OpenAI-compatible fallback (/v1/audio/speech)
+                        if vs_profile_id:
+                            try:
+                                openai_payload = {
+                                    "model": "omnivoice",
+                                    "input": text,
+                                    "voice": vs_profile_id,
+                                    "response_format": "mp3",
+                                    "speed": speed,
+                                }
+                                res_oa = await client.post(f"{url}/v1/audio/speech", json=openai_payload, headers=headers)
+                                if res_oa.status_code == 200 and res_oa.content:
+                                    output_path.write_bytes(res_oa.content)
+                                    logger.info(f"Synthesized cloned voice via Voice Studio /v1/audio/speech: {output_path}")
+                                    return output_path
+                            except Exception as e_oa:
+                                logger.debug(f"OpenAI-compat fallback error: {e_oa}")
+
+                        error_detail = res.text[:300] if (res and res.text) else f"status {res.status_code if res else 'unknown'}"
+                        raise VoiceGenerationError(
+                            f"Voice Studio recusou a síntese: {error_detail}"
+                        )
 
                 # ── Route Preset Voice Synthesis ──
                 else:

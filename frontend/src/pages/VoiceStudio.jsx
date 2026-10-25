@@ -68,6 +68,7 @@ export default function VoiceStudio() {
 
   // Voice Metadata for Cloning
   const [voiceName, setVoiceName] = useState("")
+  const [refText, setRefText] = useState("")
   const [voiceCategory, setVoiceCategory] = useState("podcast")
   const [voiceGender, setVoiceGender] = useState("male")
   const [cloning, setCloning] = useState(false)
@@ -280,6 +281,9 @@ export default function VoiceStudio() {
 
       formData.append("file", audioData, safeFilename)
       formData.append("voice_name", voiceName.trim())
+      if (refText.trim()) {
+        formData.append("ref_text", refText.trim())
+      }
       formData.append("category", voiceCategory)
       formData.append("gender", voiceGender)
       formData.append(
@@ -300,6 +304,7 @@ export default function VoiceStudio() {
         resetRecording()
         resetUploaded()
         setVoiceName("")
+        setRefText("")
       } else {
         showToast("Voz clonada com sucesso!", "success")
         await fetchVoices()
@@ -858,6 +863,17 @@ export default function VoiceStudio() {
                         placeholder="Ex: Minha Voz Principal"
                         value={voiceName}
                         onChange={(e) => setVoiceName(e.target.value)}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12 }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Texto falado na amostra (opcional)"
+                        placeholder="Deixe em branco para transcrever automaticamente com IA, ou digite o que foi falado"
+                        value={refText}
+                        onChange={(e) => setRefText(e.target.value)}
+                        helperText="A transcrição do áudio de referência calibra a fonética da clonagem zero-shot."
                       />
                     </Grid>
                     <Grid size={{ xs: 12, sm: 3 }}>

@@ -1265,6 +1265,7 @@ async def voice_studio_voices():
 async def voice_studio_clone(
     file: UploadFile = File(...),
     voice_name: str = Form(...),
+    ref_text: Optional[str] = Form(""),
     description: Optional[str] = Form(""),
     category: Optional[str] = Form("cloned"),
     gender: Optional[str] = Form("neutral"),
@@ -1285,6 +1286,7 @@ async def voice_studio_clone(
         name=clean_name,
         audio_bytes=content,
         filename=file.filename or "sample.wav",
+        ref_text=(ref_text or "").strip(),
         category=(category or "cloned").strip(),
         gender=(gender or "neutral").strip(),
         description=(description or "").strip(),

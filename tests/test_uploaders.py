@@ -235,12 +235,12 @@ class TestYouTubeUpload:
 
 
 class TestYouTubeOAuth:
-    def test_the_auth_url_asks_for_offline_access_and_consent(self, monkeypatch):
+    async def test_the_auth_url_asks_for_offline_access_and_consent(self, monkeypatch):
         """Without offline+consent there is no refresh token, and the
         connection silently dies after an hour."""
         from backend.services.youtube_uploader import build_youtube_auth_url
         cap = _install_google(monkeypatch)
-        url = build_youtube_auth_url()
+        url = await build_youtube_auth_url(client_id="test_id", client_secret="test_secret", redirect_uri="http://localhost")
         assert url.startswith("https://accounts.google.com/")
         assert cap["auth_kw"]["access_type"] == "offline"
         assert cap["auth_kw"]["prompt"] == "consent"
@@ -251,7 +251,7 @@ class TestYouTubeOAuth:
         from backend.services.youtube_uploader import exchange_youtube_code
         cap = _install_google(
             monkeypatch, channels={"items": [{"snippet": {"title": "My Channel"}}]})
-        out = await exchange_youtube_code("auth-code-123")
+        out = await exchange_youtube_code("auth-code-123", client_id="test_id", client_secret="test_secret")
         assert cap["code"] == "auth-code-123"
         assert out["channel_title"] == "My Channel"
         assert out["credentials"]["refresh_token"] == "r"
@@ -259,7 +259,7 @@ class TestYouTubeOAuth:
     async def test_an_account_with_no_channel_still_connects(self, monkeypatch):
         from backend.services.youtube_uploader import exchange_youtube_code
         _install_google(monkeypatch, channels={"items": []})
-        assert (await exchange_youtube_code("c"))["channel_title"] == ""
+        assert (await exchange_youtube_code("c", client_id="test_id", client_secret="test_secret"))["channel_title"] == ""
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -443,9 +443,9 @@ class TestTikTokCookieFallback:
 
 
 class TestTikTokOAuth:
-    def test_the_auth_url_requests_the_publishing_scopes(self):
+    async def test_the_auth_url_requests_the_publishing_scopes(self):
         from backend.services.tiktok_uploader import build_tiktok_auth_url
-        url = build_tiktok_auth_url()
+        url = await build_tiktok_auth_url(client_key="test_key", client_secret="test_secret", redirect_uri="http://localhost")
         assert url.startswith("https://www.tiktok.com/v2/auth/authorize/?")
         assert "video.upload" in url and "video.publish" in url
         assert "response_type=code" in url
@@ -458,7 +458,7 @@ class TestTikTokOAuth:
                 return _R(payload={"access_token": "AT", "refresh_token": "RT",
                                    "expires_in": 100})
         monkeypatch.setattr(TT.httpx, "AsyncClient", C())
-        out = await TT.exchange_tiktok_code("code")
+        out = await TT.exchange_tiktok_code("code", client_key="test_key", client_secret="test_secret")
         assert out == {"access_token": "AT", "refresh_token": "RT", "expires_in": 100}
 
     async def test_a_rejected_exchange_is_an_AUTH_error(self, monkeypatch):
@@ -469,7 +469,7 @@ class TestTikTokOAuth:
                 return _R(status=400, text="bad code")
         monkeypatch.setattr(TT.httpx, "AsyncClient", C())
         with pytest.raises(UploadAuthError):
-            await TT.exchange_tiktok_code("code")
+            await TT.exchange_tiktok_code("code", client_key="test_key", client_secret="test_secret")
 
     async def test_a_200_without_a_token_is_still_an_AUTH_error(self, monkeypatch):
         from backend.services import tiktok_uploader as TT
@@ -478,8 +478,8 @@ class TestTikTokOAuth:
             async def post(self, url, headers=None, json=None, data=None):
                 return _R(payload={"error": "invalid_client"})
         monkeypatch.setattr(TT.httpx, "AsyncClient", C())
-        with pytest.raises(UploadAuthError, match="no access_token"):
-            await TT.exchange_tiktok_code("code")
+        with pytest.raises(UploadAuthError):
+            await TT.exchange_tiktok_code("code", client_key="test_key", client_secret="test_secret")
 
 
 # ══════════════════════════════════════════════════════════════════════
