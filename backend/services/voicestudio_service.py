@@ -627,7 +627,7 @@ class VoiceStudioService:
 
                     # Dispatch generation: prefer profile_id, fallback to direct ref_audio upload
                     res = None
-                    async with httpx.AsyncClient(timeout=120.0) as client:
+                    async with httpx.AsyncClient(timeout=300.0) as client:
                         if vs_profile_id:
                             form_data = {
                                 "text": text,
@@ -635,6 +635,8 @@ class VoiceStudioService:
                                 "ref_text": ref_text,
                                 "speed": str(speed),
                                 "language": "pt",
+                                "num_step": "8",
+                                "postprocess_output": "false",
                             }
                             res = await client.post(f"{url}/generate", data=form_data, headers=headers)
                         elif ref_wav and ref_wav.exists():
@@ -645,6 +647,8 @@ class VoiceStudioService:
                                     "ref_text": ref_text,
                                     "speed": str(speed),
                                     "language": "pt",
+                                    "num_step": "8",
+                                    "postprocess_output": "false",
                                 }
                                 res = await client.post(f"{url}/generate", data=form_data, files=files, headers=headers)
                         else:
