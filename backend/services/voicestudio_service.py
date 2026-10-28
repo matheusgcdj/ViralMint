@@ -155,10 +155,45 @@ class VoiceStudioService:
                     res = await client.get(f"{candidate_url}/health", headers=headers)
                     if res.status_code == 200:
                         cls._resolved_url = candidate_url
+                        asyncio.create_task(cls.ensure_license_accepted())
                         return True
             except Exception:
                 continue
 
+        return False
+
+
+    _license_ensured: bool = False
+
+    @classmethod
+    async def ensure_license_accepted(cls) -> bool:
+        """Auto-accept OmniVoice model license in Voice Studio daemon if needed."""
+        if cls._license_ensured:
+            return True
+        url = cls.get_service_url()
+        headers = cls._get_headers()
+        try:
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                repo_id = "k2-fsa/OmniVoice"
+                res = await client.get(f"{url}/models/licenses/details/{repo_id}", headers=headers)
+                if res.status_code == 200:
+                    data = res.json()
+                    if data.get("accepted"):
+                        cls._license_ensured = True
+                        return True
+                    fp = data.get("fingerprint") or ""
+                    if fp:
+                        accept_res = await client.post(
+                            f"{url}/models/licenses/accept",
+                            json={"repo_id": repo_id, "fingerprint": fp, "accepted": True},
+                            headers=headers,
+                        )
+                        if accept_res.status_code in (200, 201):
+                            logger.info("Auto-accepted OmniVoice model license in VoiceStudio")
+                            cls._license_ensured = True
+                            return True
+        except Exception as e:
+            logger.debug(f"OmniVoice license acceptance check: {e}")
         return False
 
     @classmethod
