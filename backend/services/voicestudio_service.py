@@ -690,8 +690,10 @@ class VoiceStudioService:
                         "text": text,
                         "speed": str(speed),
                         "language": "pt",
+                        "num_step": "8",
+                        "postprocess_output": "false",
                     }
-                    async with httpx.AsyncClient(timeout=90.0) as client:
+                    async with httpx.AsyncClient(timeout=120.0) as client:
                         res = await client.post(f"{url}/generate", data=form_data, headers=headers)
                         if res.status_code == 200 and res.content:
                             cls._save_and_convert_audio(res.content, output_path)
@@ -699,11 +701,14 @@ class VoiceStudioService:
                             return output_path
 
             except Exception as e:
-                logger.error(f"Voice Studio daemon execution failed: {e}")
+                err_msg = str(e).strip() or type(e).__name__
+                if isinstance(e, (httpx.TimeoutException, asyncio.TimeoutError)):
+                    err_msg = "Tempo limite esgotado (timeout) durante o processamento de áudio"
+                logger.error(f"Voice Studio daemon execution failed: {err_msg}")
                 if is_cloned:
                     # Never mask cloned voices with Antonio/Francisca
                     raise VoiceGenerationError(
-                        f"Falha na síntese neural da voz clonada: {e}. "
+                        f"Falha na síntese neural da voz clonada: {err_msg}. "
                         "Verifique os logs do container 'voicestudio'."
                     )
 

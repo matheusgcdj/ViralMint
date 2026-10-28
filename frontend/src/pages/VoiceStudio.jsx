@@ -352,7 +352,7 @@ export default function VoiceStudio() {
           speed,
           pitch,
         },
-        { responseType: "blob" }
+        { responseType: "blob", timeout: 300000 }
       )
 
       if (audioUrl) {
@@ -371,7 +371,23 @@ export default function VoiceStudio() {
       showToast("Narração sintetizada com sucesso!", "success")
     } catch (e) {
       console.error("Erro ao sintetizar voz:", e)
-      showToast(e.response?.data?.detail || "Erro ao sintetizar voz no Voice Studio", "error")
+      let msg = "Erro ao sintetizar voz no Voice Studio"
+      try {
+        const data = e.response?.data
+        if (data && typeof data.text === "function") {
+          const parsed = JSON.parse(await data.text())
+          if (parsed?.detail) msg = parsed.detail
+        } else if (data?.detail) {
+          msg = data.detail
+        } else if (e.code === "ECONNABORTED" || e.message?.includes("timeout")) {
+          msg = "A síntese neural excedeu o tempo limite do navegador. Aguarde o processamento ou tente uma frase mais curta."
+        } else if (e.message) {
+          msg = e.message
+        }
+      } catch {
+        if (e.message) msg = e.message
+      }
+      showToast(msg, "error")
     } finally {
       setSynthesizing(false)
     }

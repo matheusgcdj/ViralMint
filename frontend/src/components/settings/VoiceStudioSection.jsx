@@ -121,7 +121,7 @@ export default function VoiceStudioSection() {
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await http.post("/api/settings/voice-studio/test")
+      const res = await http.post("/api/settings/voice-studio/test", {}, { timeout: 300000 })
       setTestResult(res.data)
     } catch (e) {
       setTestResult({ ok: false, detail: e.message })

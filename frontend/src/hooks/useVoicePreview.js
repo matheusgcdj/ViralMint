@@ -48,7 +48,7 @@ export default function useVoicePreview({ onError } = {}) {
     const token = tokenRef.current
     setLoading(voiceId)
     try {
-      const res = await http.post("/api/tts/preview", { provider, voice_id: voiceId }, { responseType: "blob" })
+      const res = await http.post("/api/tts/preview", { provider, voice_id: voiceId }, { responseType: "blob", timeout: 300000 })
       if (token !== tokenRef.current) return            // superseded or stopped meanwhile
       const url = URL.createObjectURL(res.data)
       urlRef.current = url
